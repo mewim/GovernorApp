@@ -5,6 +5,7 @@ const Mkdirp = require("mkdirp");
 const Path = require("path");
 const Axios = require("axios");
 const Underscore = require("underscore");
+const PromisePool = require("es6-promise-pool");
 
 const CSV_PATH = "../data/metadata.csv";
 const JSON_DIR = "../data/json/";
@@ -114,21 +115,22 @@ const downloadFile = async (metadata) => {
   const filtered = await filterFilesList(fileList);
   const shuffled = Underscore.shuffle(filtered);
   console.log(shuffled.length, "files not downloaded");
-  while (shuffled.length > 0) {
-    const promises = [];
-    for (let i = 0; i < NUMBER_OF_THREADS; ++i) {
-      const curr = shuffled.pop();
-      if (curr) {
-        promises.push(downloadFile(curr));
-      }
-    }
-    await Promise.all(promises);
+
+  const promiseProducer = () => {
     console.log(
       filtered.length - shuffled.length,
       "/",
       filtered.length,
       "files downloaded"
     );
-  }
+    if (shuffled.length === 0) {
+      return null;
+    }
+    const curr = shuffled.pop();
+    return downloadFile(curr);
+  };
+  const pool = new PromisePool(promiseProducer, NUMBER_OF_THREADS);
+  await pool.start();
+  console.log("All done");
   process.exit(0);
 })();

@@ -19,6 +19,7 @@
   "dependencies": {
     "axios": "^0.23.0",
     "csv-parser": "^3.0.0",
+    "es6-promise-pool": "^2.5.0",
     "mkdirp": "^1.0.4",
     "underscore": "^1.13.1"
   }
