@@ -1,0 +1,25 @@
+{
+  "name": "opencanadadatacrawler",
+  "version": "0.0.1",
+  "description": "Data crawler for Open Canada dataset.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mewim/OpenCanadaDataCrawler.git"
+  },
+  "author": "Chang Liu",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mewim/OpenCanadaDataCrawler/issues"
+  },
+  "homepage": "https://github.com/mewim/OpenCanadaDataCrawler#readme",
+  "dependencies": {
+    "axios": "^0.23.0",
+    "csv-parser": "^3.0.0",
+    "mkdirp": "^1.0.4",
+    "underscore": "^1.13.1"
+  }
+}
