@@ -130,7 +130,16 @@ const downloadFile = async (metadata) => {
     return downloadFile(curr);
   };
   const pool = new PromisePool(promiseProducer, NUMBER_OF_THREADS);
-  await pool.start();
+  await new Promise((resolve, reject) => {
+    pool.start().then(
+      () => {
+        return resolve();
+      },
+      (err) => {
+        return reject(err);
+      }
+    );
+  });
   console.log("All done");
   process.exit(0);
 })();
