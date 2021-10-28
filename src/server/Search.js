@@ -20,6 +20,8 @@ router.get("/", async (req, res) => {
   const found = await client.search({
     index: "tuples",
     body: {
+      from: 0,
+      size: 2000,
       query: {
         match: {
           tuple: keyword,
