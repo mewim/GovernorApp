@@ -26,7 +26,7 @@ const extractUUIDs = async () => {
 
 const filterUUIDs = async (uuids) => {
   const filtered = [];
-  for (uuid of uuids) {
+  for (let uuid of uuids) {
     const fileName = uuid + JSON_SUFFIX;
     const filePath = Path.join(JSON_DIR, fileName);
     const fileExists = await FsPromises.access(filePath, Fs.constants.F_OK)
@@ -49,7 +49,9 @@ const downloadJSON = async (uuid) => {
     if (data.success) {
       await FsPromises.writeFile(filePath, JSON.stringify(data.result));
     }
-  } catch (_) {}
+  } catch (_) {
+    // continue regardless of error
+  }
 };
 
 (async () => {

@@ -7,7 +7,7 @@ const NUMBER_OF_THREADS = 16;
 
 const getFileInfo = (path) => {
   return new Promise((resolve, reject) => {
-    ChildProcess.execFile("file", [path], (err, stdout, stderr) => {
+    ChildProcess.execFile("file", [path], (err, stdout) => {
       const output = stdout.toLowerCase().split(":")[1];
       if (err) {
         return reject(err);
