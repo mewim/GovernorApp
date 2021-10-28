@@ -1,6 +1,5 @@
 const mongodb = require("mongodb");
-const MONGO_URI =
-  "mongodb://localhost";
+const MONGO_URI = "mongodb://127.0.0.1:27017/";
 
 let db;
 let mongoClient;
@@ -22,7 +21,7 @@ const connectMongo = async () => {
 const getDb = async () => {
   if (!db) {
     mongoClient = await connectMongo();
-    db = mongoClient.db("spotify");
+    db = mongoClient.db("opencanada");
     process.on("SIGTERM", () => {
       disconnect();
     });
