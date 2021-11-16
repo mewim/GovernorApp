@@ -5,7 +5,8 @@ const CsvParser = require("csv-parser");
 const Path = require("path");
 const ChildProcess = require("child_process");
 const MongoUtil = require("../src/server/MongoUtil");
-const Iconv = require("iconv-lite");
+const IconvLite = require("iconv-lite");
+const Iconv = require("iconv").Iconv;
 
 const FILE_SIZE_THRESHOLD = 1e9;
 const ELASTIC_CHUNK_SIZE = 1000;
@@ -19,6 +20,7 @@ const MISSING_VALUES = new Set([
   "...",
   "(n/a)",
 ]);
+
 const TRUE_VALUE = new Set(["1", "true"]);
 const FALSE_VALUE = new Set(["0", "false"]);
 
@@ -30,13 +32,49 @@ const ERROR_TYPES = {
 };
 
 const PYTHON_SCRIPT_PATH = Path.join(__dirname, "CSVInferer.py");
+const PYTHON_ENCODING_CONVERTER_PATH = Path.join(
+  __dirname,
+  "EncodingConverter.py"
+);
 
 const parseCSV = (path, encoding) => {
   return new Promise((resolve) => {
+    let iconvLite;
+    let iconv;
+    let pythonEncodingConverter;
+
+    try {
+      iconvLite = {
+        decoder: IconvLite.decodeStream(encoding),
+        encoder: IconvLite.encodeStream("utf8"),
+      };
+    } catch (err) {
+      // continue regardless of error
+    }
+    if (!iconvLite) {
+      try {
+        iconv = new Iconv(encoding, "utf-8");
+      } catch (err) {
+        // continue regardless of error
+      }
+    }
+    if (!iconv) {
+      pythonEncodingConverter = ChildProcess.spawn("python3", [
+        PYTHON_ENCODING_CONVERTER_PATH,
+        encoding,
+      ]);
+    }
     const results = [];
-    Fs.createReadStream(path)
-      .pipe(Iconv.decodeStream(encoding))
-      .pipe(Iconv.encodeStream("utf8"))
+    let stream = Fs.createReadStream(path);
+    if (iconvLite) {
+      stream.pipe(iconvLite.decoder).pipe(iconvLite.encoder);
+    } else if (iconv) {
+      stream.pipe(iconv);
+    } else {
+      stream.pipe(pythonEncodingConverter.stdin);
+      stream = pythonEncodingConverter.stdout;
+    }
+    stream
       .pipe(CsvParser({ headers: false }))
       .on("data", (data) => results.push(Object.values(data)))
       .on("end", () => {
