@@ -1,0 +1,1 @@
+find . -name "*.csv" -print0 | xargs -r -0 -n 1 -P 8 -- sh -c 'node ../../utils/ElasticSearchCSVIndexer.js "$@"; true' --

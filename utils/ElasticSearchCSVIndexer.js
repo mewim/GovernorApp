@@ -149,7 +149,7 @@ const closeDbAndExit = () => {
           rowDict[fieldName] = rawValue;
         }
       }
-      dataset.push({ file_id: uuid, row_number: i, rowDict });
+      dataset.push({ file_id: uuid, row_number: i, tuple: rowDict });
     }
     parsedDataset = dataset;
   } catch (err) {
@@ -169,10 +169,6 @@ const closeDbAndExit = () => {
         doc,
       ]);
       await client.bulk({ refresh: true, body });
-      await client.index({
-        index: "processed",
-        body: { id: uuid },
-      });
     }
   } catch (err) {
     await updateJobStats(db, uuid, ERROR_TYPES.ELASTIC_FAILED);
