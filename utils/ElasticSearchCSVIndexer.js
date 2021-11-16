@@ -22,7 +22,7 @@ const MISSING_VALUES = new Set([
 
 const TRUE_VALUE = new Set(["1", "true"]);
 const FALSE_VALUE = new Set(["0", "false"]);
-const VERBOSE = true;
+const VERBOSE = false;
 
 const ERROR_TYPES = {
   FILE_TOO_LARGE: 0,
