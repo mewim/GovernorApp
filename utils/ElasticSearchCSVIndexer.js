@@ -5,7 +5,6 @@ const CsvParser = require("csv-parser");
 const Path = require("path");
 const ChildProcess = require("child_process");
 const MongoUtil = require("../src/server/MongoUtil");
-const IconvLite = require("iconv-lite");
 const Iconv = require("iconv").Iconv;
 
 const FILE_SIZE_THRESHOLD = 1e9;
@@ -23,6 +22,7 @@ const MISSING_VALUES = new Set([
 
 const TRUE_VALUE = new Set(["1", "true"]);
 const FALSE_VALUE = new Set(["0", "false"]);
+const VERBOSE = true;
 
 const ERROR_TYPES = {
   FILE_TOO_LARGE: 0,
@@ -39,24 +39,14 @@ const PYTHON_ENCODING_CONVERTER_PATH = Path.join(
 
 const parseCSV = (path, encoding) => {
   return new Promise((resolve) => {
-    let iconvLite;
     let iconv;
     let pythonEncodingConverter;
+    let count = 0;
 
     try {
-      iconvLite = {
-        decoder: IconvLite.decodeStream(encoding),
-        encoder: IconvLite.encodeStream("utf8"),
-      };
+      iconv = new Iconv(encoding, "utf-8");
     } catch (err) {
       // continue regardless of error
-    }
-    if (!iconvLite) {
-      try {
-        iconv = new Iconv(encoding, "utf-8");
-      } catch (err) {
-        // continue regardless of error
-      }
     }
     if (!iconv) {
       pythonEncodingConverter = ChildProcess.spawn("python3", [
@@ -64,20 +54,40 @@ const parseCSV = (path, encoding) => {
         encoding,
       ]);
     }
+    if (VERBOSE) {
+      console.log("Start parsing CSV...");
+    }
     const results = [];
     let stream = Fs.createReadStream(path);
-    if (iconvLite) {
-      stream.pipe(iconvLite.decoder).pipe(iconvLite.encoder);
-    } else if (iconv) {
+    if (iconv) {
+      if (VERBOSE) {
+        console.log("Using iconv");
+      }
       stream.pipe(iconv);
     } else {
+      if (VERBOSE) {
+        console.log("Using Python");
+      }
       stream.pipe(pythonEncodingConverter.stdin);
       stream = pythonEncodingConverter.stdout;
     }
     stream
       .pipe(CsvParser({ headers: false }))
-      .on("data", (data) => results.push(Object.values(data)))
+      .on("data", (data) => {
+        results.push(Object.values(data));
+        count += 1;
+        if (VERBOSE) {
+          if (count % 10000 === 0) {
+            console.log(count, "rows parsed");
+          }
+        }
+      })
       .on("end", () => {
+        if (VERBOSE) {
+          if (count % 1000 === 0) {
+            console.log(count, "rows parsed");
+          }
+        }
         return resolve(results);
       });
   });
@@ -125,6 +135,15 @@ const closeDbAndExit = () => {
   process.exit(0);
 };
 
+const parseNumericalValue = (string) => {
+  const allowedValues = new Set(
+    Array.from(Array(10).keys()).map((a) => String(a))
+  );
+  allowedValues.add(".");
+  const digits = Array.from(string).filter((e) => allowedValues.has(e));
+  return Number.parseFloat(digits.join(""));
+};
+
 (async () => {
   const db = await MongoUtil.getDb();
 
@@ -159,6 +178,11 @@ const closeDbAndExit = () => {
     const table = await parseCSV(path, inferredStats.encoding);
     const dataset = [];
     for (let i = 0; i < table.length; ++i) {
+      if (VERBOSE) {
+        if (i % 1000 === 0 || i === table.length - 1) {
+          console.log(i + 1, "/", table.length, "rows processed");
+        }
+      }
       if (i === inferredStats.header) {
         continue;
       }
@@ -174,7 +198,7 @@ const closeDbAndExit = () => {
           continue;
         }
         if (fieldType === "number" || fieldType === "integer") {
-          rowDict[fieldName] = Number.parseFloat(rawValue);
+          rowDict[fieldName] = parseNumericalValue(rawValue);
         } else if (fieldType === "boolean") {
           if (TRUE_VALUE.has(rawValue.toLowerCase())) {
             rowDict[fieldName] = true;
