@@ -9,5 +9,4 @@ const client = new ElasticClient({
 
 (async () => {
   await client.indices.create({ index: "tuples" });
-  await client.indices.create({ index: "processed" });
 })();
