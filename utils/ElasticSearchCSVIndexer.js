@@ -172,7 +172,7 @@ const parseNumericalValue = (string) => {
     console.log("File inference failed, quitting");
     closeDbAndExit();
   }
-
+  const elasticUUID = uuid.split("-").join("");
   let parsedDataset;
   try {
     const table = await parseCSV(path, inferredStats.encoding);
@@ -199,24 +199,16 @@ const parseNumericalValue = (string) => {
           continue;
         }
         if (MISSING_VALUES.has(rawValue.toLowerCase())) {
-          rowDict[fieldName] = null;
+          rowDict[fieldName] = "";
           continue;
         }
-        if (fieldType === "number" || fieldType === "integer") {
-          rowDict[fieldName] = parseNumericalValue(rawValue);
-        } else if (fieldType === "boolean") {
-          if (TRUE_VALUE.has(rawValue.toLowerCase())) {
-            rowDict[fieldName] = true;
-          } else if (FALSE_VALUE.has(rawValue.toLowerCase())) {
-            rowDict[fieldName] = false;
-          } else {
-            rowDict[fieldName] = null;
-          }
-        } else {
-          rowDict[fieldName] = rawValue;
+        //
+        if (fieldType in ["number", "integer", "boolean", "geopoint"]) {
+          continue;
         }
+        rowDict[fieldName] = rawValue;
       }
-      dataset.push({ file_id: uuid, row_number: i, tuple: rowDict });
+      dataset.push({ file_id: elasticUUID, row_number: i, tuple: rowDict });
     }
     parsedDataset = dataset;
   } catch (err) {
@@ -235,13 +227,26 @@ const parseNumericalValue = (string) => {
         { index: { _index: "tuples" } },
         doc,
       ]);
-      await client.bulk({ refresh: true, body });
+      const { body: bulkResponse } = await client.bulk({ refresh: true, body });
+      if (bulkResponse.errors) {
+        // console.log(JSON.stringify(bulkResponse, null, '\t'));
+        throw new Error(bulkResponse.errors);
+      }
     }
   } catch (err) {
     await updateJobStats(db, uuid, ERROR_TYPES.ELASTIC_FAILED);
     console.log("Elasticsearch indexing failed, quitting");
     closeDbAndExit();
   }
+
+  await db.collection("inferredstats").findOneAndUpdate(
+    { uuid },
+    {
+      $set: {
+        tuples_count: parsedDataset.length,
+      },
+    }
+  );
 
   await updateJobStats(db, uuid);
   MongoUtil.disconnect();
