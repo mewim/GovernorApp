@@ -99,12 +99,15 @@
       </div>
     </div>
 
-    <div class="table-preview-container" v-if="previewingTable"></div>
+    <div class="table-preview-container" v-if="previewingTable">
+      <data-table />
+    </div>
   </div>
 </template>
 
 <script>
 import axios from "axios";
+
 export default {
   name: "Search",
   data() {
@@ -212,7 +215,7 @@ a {
   float: right;
 }
 .dataset-description-buttons-container > button:first-child {
-  margin-right: 5px;
+  margin-right: 4px;
 }
 .search-result-container > .b-table-sticky-header {
   flex-basis: 66.66%;
@@ -220,6 +223,7 @@ a {
   flex-grow: 1;
 }
 .table-preview-container {
+  padding-top: 4px;
   min-height: 40%;
   max-height: 40%;
 }
