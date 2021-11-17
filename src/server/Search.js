@@ -21,24 +21,31 @@ router.get("/", async (req, res) => {
     index: "tuples",
     body: {
       from: 0,
-      size: 2000,
+      size: 4000,
       query: {
-        multi_match: {
-          query: keyword,
-          fields: [],
-        },
-      },
-      highlight: {
-        fields: {
-          "*": {},
+        match: {
+          tuple: { query: keyword },
         },
       },
     },
   });
-  // const fileIdsMap = {};
   const documentsMatchedDict = {};
+  const splittedKeywords = keyword.toLowerCase().split(" ");
   found.body.hits.hits.forEach((b) => {
     const uuid = adddashestouuid(b._source.file_id.split("-").join(""));
+    const matchedFields = [];
+    for (let k in b._source.tuple) {
+      for (let kw of splittedKeywords) {
+        if (b._source.tuple[k].toLowerCase().includes(kw)) {
+          matchedFields.push(k);
+          break;
+        }
+      }
+    }
+    if (matchedFields.length === 0) {
+      return;
+    }
+
     if (!documentsMatchedDict[uuid]) {
       documentsMatchedDict[uuid] = {
         uuid,
@@ -48,15 +55,13 @@ router.get("/", async (req, res) => {
       };
     }
     documentsMatchedDict[uuid].count += 1;
-    Object.keys(b.highlight)
-      .map((f) => f.replace("tuple.", ""))
-      .forEach((f) => {
-        documentsMatchedDict[uuid].columns.add(f);
-        documentsMatchedDict[uuid].matches.push({
-          field_name: f,
-          row_number: b._source.row_number,
-        });
+    matchedFields.forEach((f) => {
+      documentsMatchedDict[uuid].columns.add(f);
+      documentsMatchedDict[uuid].matches.push({
+        field_name: f,
+        row_number: b._source.row_number,
       });
+    });
   });
   for (let k in documentsMatchedDict) {
     documentsMatchedDict[k].columns = [...documentsMatchedDict[k].columns];

@@ -1,48 +1,105 @@
 <template>
   <div class="outer-container">
-    <div class="input-group mb-3">
-      <b-form-input
-        v-model="searchBarText"
-        v-on:keyup.enter="searchButtonClicked()"
-        placeholder="Enter a keyword"
-      ></b-form-input>
-      <div class="input-group-append">
-        <b-button
-          variant="success"
-          class="search-button"
-          v-on:click="searchButtonClicked()"
-          >Search</b-button
-        >
+    <div class="searchbar-container">
+      <div class="input-group mb-3">
+        <b-form-input
+          v-model="searchBarText"
+          v-on:keyup.enter="searchButtonClicked()"
+          placeholder="Enter a keyword"
+        ></b-form-input>
+        <div class="input-group-append">
+          <b-button
+            variant="success"
+            class="search-button"
+            v-on:click="searchButtonClicked()"
+            >Search</b-button
+          >
+        </div>
       </div>
     </div>
-    <div class="serach-results-container">
-      <b-card v-for="r in results" :key="r._id">
-        <h4 class="card-title">
+    <div class="search-result-container" v-if="!!results && results.length > 0">
+      <b-table
+        hover
+        sticky-header="100%"
+        :items="searchResultTableItems"
+        :fields="searchResultFields"
+      >
+        <template #cell(languages)="data">
+          {{ data.item.languages.join(", ") }}
+        </template>
+
+        <template #cell(matched_columns)="data">
+          {{ data.item.matched_columns.join(", ") }}
+        </template>
+
+        <template #cell(file_title)="data">
           <a
             href="#"
-            @click.prevent="jumpToOpenCanada(r.id)"
-            title="Open this in open canada"
-            >{{ r.title }}</a
+            @click="fileSelected(data.item.dataset_id, data.item.id)"
+            >{{ data.item.dataset_title }}</a
           >
-        </h4>
-        <h5>{{ r.portal_release_date }}</h5>
+        </template>
+      </b-table>
+
+      <div class="dataset-description-container" v-if="!!selectedDataset">
+        <div>
+          <h4>
+            Release Date
+            <span class="dataset-description-buttons-container">
+              <b-button
+                size="sm"
+                variant="primary"
+                @click="previewFile(selectedResource.id)"
+                >Preview</b-button
+              >
+              <b-button
+                size="sm"
+                variant="danger"
+                @click="closeDatasetDescription()"
+                >Close</b-button
+              >
+            </span>
+          </h4>
+        </div>
+        <p>{{ selectedDataset.portal_release_date }}</p>
+        <p></p>
+
+        <h4>Subjects</h4>
         <div>
           <span
             class="badge rounded-pill bg-primary"
-            v-for="(s, i) in r.subject"
+            v-for="(s, i) in selectedDataset.subject"
             :key="i"
             >{{ s.replaceAll("_", " ") }}</span
           >
         </div>
-        <p>{{ r.notes }}</p>
-        <b-list-group>
-          <b-list-group-item v-for="(t, i) in r.tuples" :key="i"
-            ><b> Row {{ t.row_number }}:</b>
-            {{ t.tuple.join(", ") }}</b-list-group-item
+        <p></p>
+        <h4>Notes</h4>
+        <p>{{ selectedDataset.notes }}</p>
+
+        <p></p>
+        <h4>URL</h4>
+        <a target="_blank" :href="getUrl(selectedDataset.id)">{{
+          getUrl(selectedDataset.id)
+        }}</a>
+        <div v-if="!!selectedResourceStats">
+          <p></p>
+          <h4>Number of Rows</h4>
+          <p>{{ selectedResourceStats.tuples_count }}</p>
+
+          <p></p>
+          <h4>Inferred Schema</h4>
+          <b-table
+            striped
+            :items="selectedResourceStats.schema.fields"
+            :fields="schemaFields"
           >
-        </b-list-group>
-      </b-card>
+          </b-table>
+        </div>
+      </div>
     </div>
+
+    <div class="table-preview-container" v-if="previewingTable"></div>
   </div>
 </template>
 
@@ -54,38 +111,77 @@ export default {
     return {
       searchBarText: "",
       results: [],
+      searchResultFields: [
+        "file_title",
+        "dataset_title",
+        "languages",
+        "matched_columns",
+        "matched_count",
+      ],
+      schemaFields: ["name", "type"],
+      selectedResource: null,
+      selectedDataset: null,
+      selectedResourceStats: null,
+      previewingTable: false,
     };
+  },
+  computed: {
+    searchResultTableItems: function () {
+      const items = [];
+      this.results.forEach((r) => {
+        r.resources.forEach((rs) => {
+          items.push({
+            id: rs.id,
+            dataset_title: r.title,
+            file_title: rs.name,
+            languages: rs.language,
+            dataset_id: r.id,
+            matched_columns: rs.matches.columns,
+            matched_count: rs.matches.count,
+          });
+        });
+      });
+      items.sort((a, b) => b.matched_count - a.matched_count);
+      return items;
+    },
   },
   methods: {
     searchButtonClicked: async function () {
+      this.closeDatasetDescription();
       if (this.searchBarText.length === 0) {
         this.results = [];
         return;
       }
       this.results = await this.loadSeachResult(this.searchBarText);
-      console.log(this.results);
+    },
+    closeDatasetDescription: function () {
+      this.selectedResource = null;
+      this.selectedDataset = null;
+      this.selectedResourceStats = null;
+    },
+    previewFile: function (uuid) {
+      console.log("Preview", uuid);
+      this.previewingTable = true;
     },
     loadSeachResult: async function (keyword) {
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios
         .get(`/api/search`, { params })
         .then((res) => res.data);
-      for (let r of results) {
-        r.tuples = [];
-        for (let rs of r.resources) {
-          if (rs.tuples) {
-            for (let t in rs.tuples) {
-              r.tuples.push({ row_number: parseInt(t), tuple: rs.tuples[t] });
-            }
-          }
-        }
-      }
       return results;
     },
-    jumpToOpenCanada: function (uuid) {
-      window
-        .open("https://open.canada.ca/data/en/dataset/" + uuid, "_blank")
-        .focus();
+    getInferredStats: function (fileId) {
+      return axios.get(`/api/inferredstats/${fileId}`).then((res) => res.data);
+    },
+    fileSelected: async function (datasetId, fileId) {
+      this.selectedDataset = this.results.filter((r) => r.id === datasetId)[0];
+      this.selectedResource = this.selectedDataset.resources.filter(
+        (r) => r.id === fileId
+      )[0];
+      this.selectedResourceStats = await this.getInferredStats(fileId);
+    },
+    getUrl: function (uuid) {
+      return "https://open.canada.ca/data/en/dataset/" + uuid;
     },
   },
 };
@@ -93,8 +189,39 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+.outer-container {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.search-result-container {
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+}
 a {
   color: #42b983;
+}
+.dataset-description-container {
+  flex-basis: 33.33%;
+  padding-left: 10px;
+  overflow-y: scroll;
+}
+.dataset-description-buttons-container {
+  float: right;
+}
+.dataset-description-buttons-container > button:first-child {
+  margin-right: 5px;
+}
+.search-result-container > .b-table-sticky-header {
+  flex-basis: 66.66%;
+  overflow: scroll;
+  flex-grow: 1;
+}
+.table-preview-container {
+  min-height: 40%;
+  max-height: 40%;
 }
 span {
   margin-right: 2px;
