@@ -7,7 +7,7 @@ const ChildProcess = require("child_process");
 const MongoUtil = require("../src/server/MongoUtil");
 const Iconv = require("iconv").Iconv;
 
-const FILE_SIZE_THRESHOLD = 1e9;
+const FILE_SIZE_THRESHOLD = 2e9;
 const ELASTIC_CHUNK_SIZE = 1000;
 const MISSING_VALUES = new Set([
   "",
@@ -25,10 +25,10 @@ const FALSE_VALUE = new Set(["0", "false"]);
 const VERBOSE = false;
 
 const ERROR_TYPES = {
-  FILE_TOO_LARGE: 0,
   PYTHON_FAILED: 1,
   ELASTIC_FAILED: 2,
   PARSER_FAILED: 3,
+  FILE_TOO_LARGE: 4,
 };
 
 const PYTHON_SCRIPT_PATH = Path.join(__dirname, "CSVInferer.py");
@@ -183,16 +183,21 @@ const parseNumericalValue = (string) => {
           console.log(i + 1, "/", table.length, "rows processed");
         }
       }
-      if (i === inferredStats.header) {
+      if (i <= inferredStats.header) {
         continue;
       }
       const currentRow = table[i];
       const rowDict = {};
       for (let j = 0; j < currentRow.length; ++j) {
-        const field = inferredStats.schema.fields[j];
-        const fieldName = field.name;
-        const fieldType = field.type;
-        const rawValue = currentRow[j];
+        let fieldName, fieldType, rawValue;
+        try {
+          const field = inferredStats.schema.fields[j];
+          fieldName = field.name;
+          fieldType = field.type;
+          rawValue = currentRow[j];
+        } catch (err) {
+          continue;
+        }
         if (MISSING_VALUES.has(rawValue.toLowerCase())) {
           rowDict[fieldName] = null;
           continue;

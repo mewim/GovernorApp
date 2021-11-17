@@ -40,6 +40,8 @@ Take the first row without NA value as header.
 def get_header_row(csv_path, encoding, nrows=500):
     df = pd.read_csv(csv_path, nrows=nrows, header=None,
                      skip_blank_lines=False, encoding=encoding)
+    df.dropna(how='all', axis=1, inplace=True)
+    df.dropna(how='all', axis=0, inplace=True)
     for i, row in df.iterrows():
         is_valid_row = True
         for val in row:
