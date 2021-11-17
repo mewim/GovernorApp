@@ -99,8 +99,12 @@
       </div>
     </div>
 
-    <div class="table-preview-container" v-if="previewingTable">
-      <data-table />
+    <div
+      class="table-preview-container"
+      v-if="!!previewTableId"
+      ref="tablePreviewContainer"
+    >
+      <data-table :height="previewAreaHeight" :tableId="previewTableId" />
     </div>
   </div>
 </template>
@@ -125,7 +129,8 @@ export default {
       selectedResource: null,
       selectedDataset: null,
       selectedResourceStats: null,
-      previewingTable: false,
+      previewTableId: null,
+      previewAreaHeight: 0,
     };
   },
   computed: {
@@ -163,8 +168,10 @@ export default {
       this.selectedResourceStats = null;
     },
     previewFile: function (uuid) {
-      console.log("Preview", uuid);
-      this.previewingTable = true;
+      this.previewTableId = uuid;
+      this.$nextTick(() => {
+        this.updatePreviewAreaHeight();
+      });
     },
     loadSeachResult: async function (keyword) {
       const params = new URLSearchParams([["q", keyword]]);
@@ -186,6 +193,19 @@ export default {
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
     },
+    updatePreviewAreaHeight: function () {
+      if (!this.$refs.tablePreviewContainer) {
+        this.previewAreaHeight = 0;
+      }
+      this.previewAreaHeight =
+        this.$refs.tablePreviewContainer.getBoundingClientRect().height;
+    },
+  },
+  created() {
+    window.addEventListener("resize", this.updatePreviewAreaHeight);
+  },
+  destroyed() {
+    window.removeEventListener("resize", this.updatePreviewAreaHeight);
   },
 };
 </script>
@@ -202,6 +222,7 @@ export default {
   overflow: hidden;
   display: flex;
   flex-direction: row;
+  flex-grow: 1;
 }
 a {
   color: #42b983;
