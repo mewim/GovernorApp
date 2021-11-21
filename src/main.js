@@ -20,9 +20,11 @@ import App from "./App.vue";
 import { store } from "./store/store";
 import SearchView from "./components/SearchView.vue";
 import DataTable from "./components/DataTable.vue";
-Vue.component('search-view', SearchView)
-Vue.component('data-table', DataTable)
+import DataTableTabs from "./components/DataTableTabs.vue";
 
+Vue.component("search-view", SearchView);
+Vue.component("data-table", DataTable);
+Vue.component("data-table-tabs", DataTableTabs);
 
 Vue.config.productionTip = false;
 

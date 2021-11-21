@@ -135,6 +135,18 @@
       v-if="!!previewTableId"
       ref="tablePreviewContainer"
     >
+      <div class="">
+        <ul role="tablist" class="nav nav-tabs">
+          <!---->
+          <li v-for="(item, index) in new Array(100)" :key="index" role="presentation" class="nav-item">
+            <p class="nav-link">
+              <a href="#">First</a>
+              <span style="color:red"> &nbsp;<b-icon icon="exclamation-circle-fill"></b-icon></span>
+            </p>
+          </li>
+        </ul>
+      </div>
+
       <data-table
         :height="previewAreaHeight"
         :selectedFields="selectedFields"
@@ -283,8 +295,7 @@ export default {
 };
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style>
 .outer-container {
   height: 100%;
   overflow: hidden;
@@ -318,8 +329,8 @@ a {
 }
 .table-preview-container {
   padding-top: 4px;
-  min-height: 40%;
-  max-height: 40%;
+  min-height: 50%;
+  max-height: 50%;
 }
 .schema-table-span {
   width: 10px;
@@ -327,5 +338,8 @@ a {
 }
 span {
   margin-right: 2px;
+}
+.tab-content {
+  min-height: 100%;
 }
 </style>
