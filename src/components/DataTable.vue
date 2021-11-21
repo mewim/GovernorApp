@@ -1,4 +1,5 @@
 <template>
+<div style="height:100%">
   <ve-table
     :max-height="height"
     :virtual-scroll-option="virtualScrollOption"
@@ -9,11 +10,13 @@
     :cell-style-option="cellStyleOption"
     ref="table"
   />
+</div>
 </template>
 
 <script>
 import axios from "axios";
 import csvtojson from "csvtojson";
+import { VeLoading } from "vue-easytable";
 
 export default {
   data() {
@@ -27,6 +30,7 @@ export default {
       columnHiddenOption: {
         defaultHiddenColumnKeys: [],
       },
+      isLoading: true,
       matchedDict: {},
       cellStyleOption: {
         bodyCellClass: ({ column, rowIndex }) => {
@@ -83,6 +87,7 @@ export default {
       this.$refs.table.hideColumnsByKeys(keysHidden);
     },
     async reloadData() {
+      this.isLoading = true;
       this.columns.splice(0);
       this.tableData.splice(0);
       if (!this.tableId) {
@@ -156,9 +161,23 @@ export default {
         }
         this.tableData.push(rowDict);
       });
+      this.isLoading = false;
+      this.loadingInstance.close();
     },
   },
-  created() {},
+  mounted() {
+    this.loadingInstance = VeLoading({
+      target: this.$el,
+      name: "wave",
+    });
+    if (this.isLoading) {
+      this.loadingInstance.show();
+    }
+  },
+  destroyed() {
+    this.loadingInstance.destroy();
+    this.loadingInstance = null;
+  },
 };
 </script>
 
