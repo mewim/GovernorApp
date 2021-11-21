@@ -5,6 +5,7 @@
   "description": "Data crawler for Open Canada dataset.",
   "scripts": {
     "serve": "nodemon --exec \"vue-cli-service serve\"",
+    "serve-deployed": "npm run build && node src/server/DeployedServer",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint"
   },

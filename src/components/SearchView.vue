@@ -23,6 +23,7 @@
         sticky-header="100%"
         :items="searchResultTableItems"
         :fields="searchResultFields"
+        striped
       >
         <template #cell(languages)="data">
           {{ data.item.languages.join(", ") }}
@@ -46,12 +47,6 @@
           <h4>
             Release Date
             <span class="dataset-description-buttons-container">
-              <b-button
-                size="sm"
-                variant="primary"
-                @click="previewFile(selectedResource.id)"
-                >Preview</b-button
-              >
               <b-button
                 size="sm"
                 variant="danger"
@@ -88,12 +83,45 @@
           <p>{{ selectedResourceStats.tuples_count }}</p>
 
           <p></p>
-          <h4>Inferred Schema</h4>
+          <h4>
+            Collect Data
+            <span class="dataset-description-buttons-container">
+              <b-button size="sm" @click="showAllRows = !showAllRows">{{
+                toggleRowText
+              }}</b-button>
+              <b-button
+                size="sm"
+                variant="primary"
+                @click="previewFile(selectedResource.id)"
+                >Collect</b-button
+              >
+              <b-button
+                size="sm"
+                variant="danger"
+                @click="closePreview()"
+                v-if="!!previewTableId"
+                >Close Preview</b-button
+              >
+            </span>
+          </h4>
+
           <b-table
-            striped
+            ref="schemaFieldsTable"
             :items="selectedResourceStats.schema.fields"
             :fields="schemaFields"
+            selectable
+            @row-selected="schemaFieldsTableRowSelected"
           >
+            <template #cell(selected)="{ rowSelected }">
+              <template v-if="rowSelected">
+                <span class="schema-table-span" aria-hidden="true"
+                  >&check;</span
+                >
+              </template>
+              <template v-else>
+                <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
+              </template>
+            </template>
           </b-table>
         </div>
       </div>
@@ -104,7 +132,13 @@
       v-if="!!previewTableId"
       ref="tablePreviewContainer"
     >
-      <data-table :height="previewAreaHeight" :tableId="previewTableId" />
+      <data-table
+        :height="previewAreaHeight"
+        :selectedFields="selectedFields"
+        :showAllRows="showAllRows"
+        :resource="selectedResource"
+        :tableId="previewTableId"
+      />
     </div>
   </div>
 </template>
@@ -125,15 +159,27 @@ export default {
         "matched_columns",
         "matched_count",
       ],
-      schemaFields: ["name", "type"],
+      schemaFields: [
+        { key: "selected", label: "✓" },
+        { key: "name", label: "Inferred Column Name" },
+        { key: "type", label: "Inferred Column Type" },
+      ],
       selectedResource: null,
       selectedDataset: null,
       selectedResourceStats: null,
       previewTableId: null,
       previewAreaHeight: 0,
+      selectedFields: [],
+      showAllRows: false,
     };
   },
   computed: {
+    toggleRowText: function () {
+      if (this.showAllRows) {
+        return "Show Matched Rows";
+      }
+      return "Show All Rows";
+    },
     searchResultTableItems: function () {
       const items = [];
       this.results.forEach((r) => {
@@ -154,6 +200,9 @@ export default {
     },
   },
   methods: {
+    schemaFieldsTableRowSelected: function (rows) {
+      this.selectedFields = rows.map((r) => r.name);
+    },
     searchButtonClicked: async function () {
       this.closeDatasetDescription();
       if (this.searchBarText.length === 0) {
@@ -173,6 +222,9 @@ export default {
         this.updatePreviewAreaHeight();
       });
     },
+    closePreview: function () {
+      this.previewTableId = null;
+    },
     loadSeachResult: async function (keyword) {
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios
@@ -189,16 +241,31 @@ export default {
         (r) => r.id === fileId
       )[0];
       this.selectedResourceStats = await this.getInferredStats(fileId);
+      this.$nextTick(() => {
+        const matchedColumns = new Set(this.selectedResource.matches.columns);
+        for (
+          let i = 0;
+          i < this.selectedResourceStats.schema.fields.length;
+          ++i
+        ) {
+          if (
+            matchedColumns.has(this.selectedResourceStats.schema.fields[i].name)
+          ) {
+            this.$refs.schemaFieldsTable.selectRow(i);
+          }
+        }
+      });
     },
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
     },
     updatePreviewAreaHeight: function () {
-      if (!this.$refs.tablePreviewContainer) {
+      try {
+        this.previewAreaHeight =
+          this.$refs.tablePreviewContainer.getBoundingClientRect().height;
+      } catch (err) {
         this.previewAreaHeight = 0;
       }
-      this.previewAreaHeight =
-        this.$refs.tablePreviewContainer.getBoundingClientRect().height;
     },
   },
   created() {
@@ -235,7 +302,7 @@ a {
 .dataset-description-buttons-container {
   float: right;
 }
-.dataset-description-buttons-container > button:first-child {
+.dataset-description-buttons-container > button:not(:last-child) {
   margin-right: 4px;
 }
 .search-result-container > .b-table-sticky-header {
@@ -247,6 +314,10 @@ a {
   padding-top: 4px;
   min-height: 40%;
   max-height: 40%;
+}
+.schema-table-span {
+  width: 10px;
+  display: inline-block;
 }
 span {
   margin-right: 2px;

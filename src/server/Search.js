@@ -30,13 +30,13 @@ router.get("/", async (req, res) => {
     },
   });
   const documentsMatchedDict = {};
-  const splittedKeywords = keyword.toLowerCase().split(" ");
+  const splittedKeywords = keyword.split(" ");
   found.body.hits.hits.forEach((b) => {
     const uuid = adddashestouuid(b._source.file_id.split("-").join(""));
     const matchedFields = [];
     for (let k in b._source.tuple) {
       for (let kw of splittedKeywords) {
-        if (b._source.tuple[k].toLowerCase().includes(kw)) {
+        if (b._source.tuple[k].includes(kw)) {
           matchedFields.push(k);
           break;
         }
