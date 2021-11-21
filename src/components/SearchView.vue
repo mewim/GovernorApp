@@ -17,13 +17,17 @@
         </div>
       </div>
     </div>
-    <div class="search-result-container" v-if="!!results && results.length > 0">
+    <div class="search-result-container" v-if="searchSuccess">
+      <div v-if="searchSuccess && results.length === 0">
+        Sorry, no table has been found. Please try other keywords.
+      </div>
       <b-table
         hover
         sticky-header="100%"
         :items="searchResultTableItems"
         :fields="searchResultFields"
         striped
+        v-if="results.length > 0"
       >
         <template #cell(languages)="data">
           {{ data.item.languages.join(", ") }}
@@ -41,7 +45,6 @@
           >
         </template>
       </b-table>
-
       <div class="dataset-description-container" v-if="!!selectedDataset">
         <div>
           <h4>
@@ -171,6 +174,7 @@ export default {
       previewAreaHeight: 0,
       selectedFields: [],
       showAllRows: false,
+      searchSuccess: false,
     };
   },
   computed: {
@@ -207,9 +211,11 @@ export default {
       this.closeDatasetDescription();
       if (this.searchBarText.length === 0) {
         this.results = [];
+        this.searchSuccess = false;
         return;
       }
       this.results = await this.loadSeachResult(this.searchBarText);
+      this.searchSuccess = true;
     },
     closeDatasetDescription: function () {
       this.selectedResource = null;
