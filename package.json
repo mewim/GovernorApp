@@ -17,6 +17,7 @@
     "bootstrap-vue": "^2.21.2",
     "core-js": "^3.6.5",
     "csv-parser": "^3.0.0",
+    "csv-stringify": "^6.0.4",
     "csvtojson": "^2.0.10",
     "es6-promise-pool": "^2.5.0",
     "express": "^4.17.1",

@@ -17,20 +17,25 @@ router.get("/", async (req, res) => {
   if (!keyword) {
     return res.sendStatus(400);
   }
+  const splittedKeywords = keyword.split(" ");
+  const must = [];
+  splittedKeywords.forEach((k) => {
+    must.push({ term: { tuple: k } });
+  });
+
   const found = await client.search({
     index: "tuples",
     body: {
       from: 0,
       size: 4000,
       query: {
-        match: {
-          tuple: { query: keyword },
+        bool: {
+          must,
         },
       },
     },
   });
   const documentsMatchedDict = {};
-  const splittedKeywords = keyword.split(" ");
   found.body.hits.hits.forEach((b) => {
     const uuid = adddashestouuid(b._source.file_id.split("-").join(""));
     const matchedFields = [];

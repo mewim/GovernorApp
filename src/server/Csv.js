@@ -4,8 +4,9 @@ const mongoUtil = require("./MongoUtil");
 const path = require("path");
 const { createReadStream } = require("fs");
 const { spawn } = require("child_process");
-const { createInterface } = require("node:readline/promises");
 const COLLECTION = "inferredstats";
+const csvPaser = require("csv-parser");
+const csvStringify = require("csv-stringify/sync").stringify;
 
 const CSV_BASE_PATH = path.join(__dirname, "..", "..", "data", "files");
 const PYTHON_ENCODING_CONVERTER_PATH = path.join(
@@ -40,42 +41,45 @@ router.post("/:uuid", async (req, res) => {
     return res.send("");
   }
 
-  const rl = createInterface({
-    input: pythonEncodingConverter.stdout,
-    crlfDelay: Infinity,
+  let i = 0;
+  const lastLine = Math.max.apply(Math, rows);
+  const skipLines = Math.min.apply(Math, rows) - 1;
+  const paserOptions = { headers: false };
+  if (skipLines > 0) {
+    paserOptions.skipLines = skipLines;
+    i = skipLines;
+  }
+  const rowsSet = new Set(rows);
+
+  pythonEncodingConverter.stdin.on("error", () => {
+    // ignore error on SIGKILL of the Python process so we can quit early
+    return;
   });
 
-  const lastLine = Math.max.apply(Math, rows);
-  const rowsSet = new Set(rows);
-  let i = 0;
-  for await (const line of rl) {
-    if (!rowsSet.has(i)) {
-      ++i;
-      continue;
-    }
-    await new Promise((resolve, reject) => {
-      if (res.destroyed) {
-        return resolve();
+  pythonEncodingConverter.stdout
+    .pipe(csvPaser(paserOptions))
+    .on("data", (data) => {
+      if (!rowsSet.has(i)) {
+        ++i;
+        return;
       }
-      res.write(line + "\n", (err) => {
-        if (err) {
-          return reject(err);
+      const stringified = csvStringify([Object.values(data)]);
+      if (!res.destroyed) {
+        res.write(stringified);
+      }
+      if (i === lastLine) {
+        if (!res.destroyed) {
+          res.end();
         }
-        return resolve();
-      });
+        try {
+          pythonEncodingConverter.stdout.pause();
+          pythonEncodingConverter.kill("SIGKILL");
+        } catch (e) {
+          // continue anyway
+        }
+      }
+      ++i;
     });
-
-    if (i === lastLine && !res.destroyed) {
-      res.end();
-    }
-    ++i;
-  }
-  try {
-    pythonEncodingConverter.stdout.pause();
-    pythonEncodingConverter.kill("SIGKILL");
-  } catch (e) {
-    // continue anyway
-  }
 });
 
 module.exports = router;
