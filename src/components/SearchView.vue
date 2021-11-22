@@ -234,10 +234,6 @@ export default {
         showAllRows: this.showAllRows,
         selectedFields: this.selectedFields,
       });
-
-      this.$nextTick(() => {
-        this.updatePreviewAreaHeight();
-      });
     },
     loadSeachResult: async function (keyword) {
       const params = new URLSearchParams([["q", keyword]]);
@@ -273,20 +269,6 @@ export default {
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
     },
-    updatePreviewAreaHeight: function () {
-      try {
-        this.previewAreaHeight =
-          this.$refs.tablePreviewContainer.getBoundingClientRect().height;
-      } catch (err) {
-        this.previewAreaHeight = 0;
-      }
-    },
-  },
-  created() {
-    window.addEventListener("resize", this.updatePreviewAreaHeight);
-  },
-  destroyed() {
-    window.removeEventListener("resize", this.updatePreviewAreaHeight);
   },
 };
 </script>

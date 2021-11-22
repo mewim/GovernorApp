@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="data-table-tab-container">
     <div>
       <ul role="tablist" class="nav nav-tabs">
         <li v-for="item in openedResources" :key="item.resource.id">
@@ -15,7 +15,7 @@
       </ul>
     </div>
 
-    <div class="data-table-container">
+    <div class="data-table-container" ref="dataTableContainer">
       <data-table
         v-for="item in openedResources"
         v-show="activeResourceId === item.resource.id"
@@ -24,6 +24,7 @@
         :showAllRows="item.showAllRows"
         :resource="item.resource"
         :tableId="item.resource.id"
+        :height="tableAreaHeight"
       />
     </div>
   </div>
@@ -35,6 +36,7 @@ export default {
     return {
       activeResourceId: null,
       openedResources: [],
+      tableAreaHeight: 0,
     };
   },
   props: {},
@@ -59,6 +61,9 @@ export default {
       if (this.openedResources.length === 1) {
         this.$emit("showTabAreaChanged", true);
       }
+      this.$nextTick(() => {
+        this.updatePreviewAreaHeight();
+      });
     },
     closeResource: function (id) {
       for (let i = 0; i < this.openedResources.length; ++i) {
@@ -97,10 +102,23 @@ export default {
     setShowAllRows: function (id, newValue) {
       this.setAttributeForResource(id, "showAllRows", newValue);
     },
+    updatePreviewAreaHeight: function () {
+      try {
+        this.tableAreaHeight =
+          this.$refs.dataTableContainer.getBoundingClientRect().height;
+      } catch (err) {
+        this.tableAreaHeight = 0;
+      }
+    },
   },
 
   mounted() {},
-  destroyed() {},
+  created() {
+    window.addEventListener("resize", this.updatePreviewAreaHeight);
+  },
+  destroyed() {
+    window.removeEventListener("resize", this.updatePreviewAreaHeight);
+  },
 };
 </script>
 
@@ -126,6 +144,14 @@ export default {
       cursor: default;
       color: #495057;
     }
+  }
+}
+.data-table-tab-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .data-table-container {
+    flex-grow: 1;
   }
 }
 </style>
