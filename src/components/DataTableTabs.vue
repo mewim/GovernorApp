@@ -47,6 +47,13 @@ export default {
         : "nav-link";
     },
     openResource: function (r) {
+      for (let i = 0; i < this.openedResources.length; ++i) {
+        if (this.openedResources[i].resource.id === r.resource.id) {
+          this.activeResourceId = r.resource.id;
+          return;
+        }
+      }
+
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
       if (this.openedResources.length === 1) {
@@ -55,17 +62,19 @@ export default {
     },
     closeResource: function (id) {
       for (let i = 0; i < this.openedResources.length; ++i) {
-        if (!this.openedResources[i].resource.id === id) {
+        if (this.openedResources[i].resource.id !== id) {
           continue;
         }
-        const newActiveResourceIndex = this.openedResources[i - 1]
-          ? i - 1
-          : this.openedResources[i + 1]
-          ? i + 1
-          : null;
-        this.activeResourceId = this.openedResources[newActiveResourceIndex]
-          ? this.openedResources[newActiveResourceIndex].resource.id
-          : null;
+        if (id === this.activeResourceId) {
+          const newActiveResourceIndex = this.openedResources[i - 1]
+            ? i - 1
+            : this.openedResources[i + 1]
+            ? i + 1
+            : null;
+          this.activeResourceId = this.openedResources[newActiveResourceIndex]
+            ? this.openedResources[newActiveResourceIndex].resource.id
+            : null;
+        }
         this.openedResources.splice(i, 1);
         break;
       }
@@ -73,7 +82,23 @@ export default {
         this.$emit("showTabAreaChanged", false);
       }
     },
+    setAttributeForResource: function (id, key, newValue) {
+      for (let i = 0; i < this.openedResources.length; ++i) {
+        if (this.openedResources[i].resource.id !== id) {
+          continue;
+        }
+        this.openedResources[i][key] = newValue;
+        break;
+      }
+    },
+    setSelectedFields: function (id, newValue) {
+      this.setAttributeForResource(id, "selectedFields", newValue);
+    },
+    setShowAllRows: function (id, newValue) {
+      this.setAttributeForResource(id, "showAllRows", newValue);
+    },
   },
+
   mounted() {},
   destroyed() {},
 };
@@ -87,14 +112,19 @@ export default {
   }
   cursor: pointer;
 }
+.nav.nav-tabs {
+  border-top: 1px solid #dee2e6;
+  border-left: 1px solid #dee2e6;
+  border-right: 1px solid #dee2e6;
+}
 .nav-link {
   > a {
     text-decoration: none;
   }
   &.active {
-    >a{
-    cursor: default;
-    color: #495057;
+    > a {
+      cursor: default;
+      color: #495057;
     }
   }
 }

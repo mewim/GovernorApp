@@ -19,13 +19,8 @@
     </div>
     <div class="search-result-container" v-if="searchSuccess">
       <div
+        class="search-no-result"
         v-if="searchSuccess && results.length === 0"
-        style="
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          flex-grow: 1;
-        "
       >
         Sorry, no table has been found. Please try other keywords.
       </div>
@@ -176,6 +171,14 @@ export default {
       showTabArea: false,
     };
   },
+  watch: {
+    showAllRows: function (newValue) {
+      this.$refs.dataTableTabs.setShowAllRows(
+        this.selectedResource.id,
+        newValue
+      );
+    },
+  },
   computed: {
     toggleRowText: function () {
       if (this.showAllRows) {
@@ -205,6 +208,10 @@ export default {
   methods: {
     schemaFieldsTableRowSelected: function (rows) {
       this.selectedFields = rows.map((r) => r.name);
+      this.$refs.dataTableTabs.setSelectedFields(
+        this.selectedResource.id,
+        this.selectedFields
+      );
     },
     searchButtonClicked: async function () {
       this.closeDatasetDescription();
@@ -284,7 +291,7 @@ export default {
 };
 </script>
 
-<style>
+<style lang="scss">
 .outer-container {
   height: 100%;
   overflow: hidden;
@@ -315,6 +322,7 @@ a {
   flex-basis: 66.66%;
   overflow: scroll;
   flex-grow: 1;
+  margin-bottom: 0;
 }
 .table-preview-container {
   padding-top: 4px;
@@ -330,5 +338,11 @@ span {
 }
 .tab-content {
   min-height: 100%;
+}
+.search-no-result {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
 }
 </style>
