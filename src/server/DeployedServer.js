@@ -5,8 +5,6 @@ const path = require("path");
 const app = express();
 app.use(express.json());
 app.use("/api", api);
-const filesPath = path.join(__dirname, "..", "..", "data", "files");
-app.use("/files", express.static(filesPath));
 const distPath = path.join(__dirname, "..", "..", "dist");
 app.use("/", express.static(distPath));
 
