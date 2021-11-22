@@ -217,7 +217,7 @@ export default {
       this.closeDatasetDescription();
       if (this.searchBarText.length === 0) {
         this.results = [];
-        this.searchSuccess = false;
+        this.searchSuccess = true;
         return;
       }
       this.results = await this.loadSeachResult(this.searchBarText);
