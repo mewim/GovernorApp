@@ -28,9 +28,17 @@ router.get("/", async (req, res) => {
     body: {
       from: 0,
       size: 4000,
+
       query: {
         bool: {
-          must,
+          should: [
+            { match: { tuple: keyword } },
+            {
+              bool: {
+                must,
+              },
+            },
+          ],
         },
       },
     },
@@ -40,8 +48,12 @@ router.get("/", async (req, res) => {
     const uuid = adddashestouuid(b._source.file_id.split("-").join(""));
     const matchedFields = [];
     for (let k in b._source.tuple) {
+      if (b._source.tuple[k] === keyword) {
+        matchedFields.push(k);
+        continue;
+      }
       for (let kw of splittedKeywords) {
-        if (b._source.tuple[k].includes(kw)) {
+        if (b._source.tuple[k] === kw) {
           matchedFields.push(k);
           break;
         }

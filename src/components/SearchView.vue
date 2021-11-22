@@ -44,7 +44,7 @@
           <a
             href="#"
             @click="fileSelected(data.item.dataset_id, data.item.id)"
-            >{{ data.item.dataset_title }}</a
+            >{{ data.item.file_title }}</a
           >
         </template>
       </b-table>
