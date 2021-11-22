@@ -18,7 +18,15 @@
       </div>
     </div>
     <div class="search-result-container" v-if="searchSuccess">
-      <div v-if="searchSuccess && results.length === 0">
+      <div
+        v-if="searchSuccess && results.length === 0"
+        style="
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          flex-grow: 1;
+        "
+      >
         Sorry, no table has been found. Please try other keywords.
       </div>
       <b-table
@@ -87,7 +95,7 @@
 
           <p></p>
           <h4>
-            Collect Data
+            Data
             <span class="dataset-description-buttons-container">
               <b-button size="sm" @click="showAllRows = !showAllRows">{{
                 toggleRowText
@@ -96,14 +104,7 @@
                 size="sm"
                 variant="primary"
                 @click="previewFile(selectedResource.id)"
-                >Collect</b-button
-              >
-              <b-button
-                size="sm"
-                variant="danger"
-                @click="closePreview()"
-                v-if="!!previewTableId"
-                >Close Preview</b-button
+                >Open</b-button
               >
             </span>
           </h4>
@@ -132,27 +133,12 @@
 
     <div
       class="table-preview-container"
-      v-if="!!previewTableId"
+      v-show="showTabArea"
       ref="tablePreviewContainer"
     >
-      <div class="">
-        <ul role="tablist" class="nav nav-tabs">
-          <!---->
-          <li v-for="(item, index) in new Array(100)" :key="index" role="presentation" class="nav-item">
-            <p class="nav-link">
-              <a href="#">First</a>
-              <span style="color:red"> &nbsp;<b-icon icon="exclamation-circle-fill"></b-icon></span>
-            </p>
-          </li>
-        </ul>
-      </div>
-
-      <data-table
-        :height="previewAreaHeight"
-        :selectedFields="selectedFields"
-        :showAllRows="showAllRows"
-        :resource="selectedResource"
-        :tableId="previewTableId"
+      <data-table-tabs
+        ref="dataTableTabs"
+        v-on:showTabAreaChanged="showTabArea = !showTabArea"
       />
     </div>
   </div>
@@ -182,11 +168,12 @@ export default {
       selectedResource: null,
       selectedDataset: null,
       selectedResourceStats: null,
-      previewTableId: null,
       previewAreaHeight: 0,
       selectedFields: [],
       showAllRows: false,
       searchSuccess: false,
+      openedResources: {},
+      showTabArea: false,
     };
   },
   computed: {
@@ -234,14 +221,16 @@ export default {
       this.selectedDataset = null;
       this.selectedResourceStats = null;
     },
-    previewFile: function (uuid) {
-      this.previewTableId = uuid;
+    previewFile: function () {
+      this.$refs.dataTableTabs.openResource({
+        resource: this.selectedResource,
+        showAllRows: this.showAllRows,
+        selectedFields: this.selectedFields,
+      });
+
       this.$nextTick(() => {
         this.updatePreviewAreaHeight();
       });
-    },
-    closePreview: function () {
-      this.previewTableId = null;
     },
     loadSeachResult: async function (keyword) {
       const params = new URLSearchParams([["q", keyword]]);

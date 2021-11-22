@@ -56,7 +56,6 @@ export default {
     resource: {
       immediate: true,
       handler: function () {
-        this.tableId = this.resource.id;
         this.reloadData();
       },
     },
