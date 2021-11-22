@@ -33,7 +33,7 @@ export default {
       isLoading: true,
       matchedDict: {},
       cellStyleOption: {
-        bodyCellClass: ({row, column }) => {
+        bodyCellClass: ({ row, column }) => {
           if (
             this.matchedDict[row.rowKey] &&
             this.matchedDict[row.rowKey][column.field]
@@ -87,6 +87,9 @@ export default {
     },
     async reloadData() {
       this.isLoading = true;
+      if (this.loadingInstance) {
+        this.loadingInstance.show();
+      }
       this.columns.splice(0);
       this.tableData.splice(0);
       if (!this.tableId) {
