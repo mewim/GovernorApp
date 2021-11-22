@@ -1,16 +1,16 @@
 <template>
-<div style="height:100%">
-  <ve-table
-    :max-height="height"
-    :virtual-scroll-option="virtualScrollOption"
-    :columns="columns"
-    :table-data="tableData"
-    row-key-field-name="rowKey"
-    :columnHiddenOption="columnHiddenOption"
-    :cell-style-option="cellStyleOption"
-    ref="table"
-  />
-</div>
+  <div style="height: 100%">
+    <ve-table
+      :max-height="height"
+      :virtual-scroll-option="virtualScrollOption"
+      :columns="columns"
+      :table-data="tableData"
+      row-key-field-name="rowKey"
+      :columnHiddenOption="columnHiddenOption"
+      :cell-style-option="cellStyleOption"
+      ref="table"
+    />
+  </div>
 </template>
 
 <script>
@@ -22,7 +22,7 @@ export default {
   data() {
     return {
       virtualScrollOption: {
-        enable: false,
+        enable: true,
       },
       columns: [],
       tableData: [],
@@ -33,10 +33,10 @@ export default {
       isLoading: true,
       matchedDict: {},
       cellStyleOption: {
-        bodyCellClass: ({ column, rowIndex }) => {
+        bodyCellClass: ({row, column }) => {
           if (
-            this.matchedDict[rowIndex] &&
-            this.matchedDict[rowIndex][column.field]
+            this.matchedDict[row.rowKey] &&
+            this.matchedDict[row.rowKey][column.field]
           ) {
             return "table-body-cell-highlighted";
           }
@@ -128,7 +128,7 @@ export default {
       }
       this.resource.matches.matches.forEach((m) => {
         const i = this.showAllRows
-          ? m.row_number
+          ? m.row_number - 1 // header is hidden, -1 offset
           : rowToIndexDict[m.row_number];
         if (!this.matchedDict[i]) {
           this.matchedDict[i] = {};
