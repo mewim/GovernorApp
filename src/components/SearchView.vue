@@ -141,6 +141,7 @@
 
 <script>
 import axios from "axios";
+import { VeLoading } from "vue-easytable";
 
 export default {
   name: "Search",
@@ -169,6 +170,7 @@ export default {
       searchSuccess: false,
       openedResources: {},
       showTabArea: false,
+      loadingInstance: null,
     };
   },
   watch: {
@@ -236,10 +238,12 @@ export default {
       });
     },
     loadSeachResult: async function (keyword) {
+      this.loadingInstance.show();
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios
         .get(`/api/search`, { params })
         .then((res) => res.data);
+      this.loadingInstance.close();
       return results;
     },
     getInferredStats: function (fileId) {
@@ -269,6 +273,17 @@ export default {
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
     },
+  },
+  mounted() {
+    this.loadingInstance = VeLoading({
+      target: this.$el,
+      lock: true,
+      name: "wave",
+    });
+  },
+  destroyed() {
+    this.loadingInstance.destroy();
+    this.loadingInstance = null;
   },
 };
 </script>
