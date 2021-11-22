@@ -11,7 +11,7 @@ const connectMongo = async () => {
   try {
     await client.connect();
     await client.db("admin").command({ ping: 1 });
-    console.log("Connected successfully to MongoDB");
+    // console.log("Connected successfully to MongoDB");
     return client;
   } catch (err) {
     console.log("Cannot connect to MongoDB", err);
@@ -34,9 +34,10 @@ const getDb = async () => {
 
 const disconnect = () => {
   mongoClient.close();
-  console.log("MongoDB connection closed");
+  // console.log("MongoDB connection closed");
 };
 module.exports = {
   connectMongo,
   getDb,
+  disconnect
 };
