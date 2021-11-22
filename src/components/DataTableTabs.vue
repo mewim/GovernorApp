@@ -2,13 +2,11 @@
   <div>
     <div>
       <ul role="tablist" class="nav nav-tabs">
-        <li
-          v-for="item in openedResources"
-          :key="item.resource.id"
-          class="nav-item"
-        >
-          <p class="nav-link">
-            <a href="#">{{ item.resource.name }}</a>
+        <li v-for="item in openedResources" :key="item.resource.id">
+          <p :class="getTabClass(item.resource.id)">
+            <a href="#" @click="activeResourceId = item.resource.id">{{
+              item.resource.name
+            }}</a>
             <span class="close-button" @click="closeResource(item.resource.id)">
               &nbsp;<b-icon icon="x"></b-icon
             ></span>
@@ -43,6 +41,11 @@ export default {
   watch: {},
   computed: {},
   methods: {
+    getTabClass: function (resourceId) {
+      return resourceId === this.activeResourceId
+        ? "nav-link active"
+        : "nav-link";
+    },
     openResource: function (r) {
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
@@ -60,7 +63,6 @@ export default {
           : this.openedResources[i + 1]
           ? i + 1
           : null;
-        console.log(newActiveResourceIndex);
         this.activeResourceId = this.openedResources[newActiveResourceIndex]
           ? this.openedResources[newActiveResourceIndex].resource.id
           : null;
@@ -84,5 +86,16 @@ export default {
     color: #5a6268;
   }
   cursor: pointer;
+}
+.nav-link {
+  > a {
+    text-decoration: none;
+  }
+  &.active {
+    >a{
+    cursor: default;
+    color: #495057;
+    }
+  }
 }
 </style>
