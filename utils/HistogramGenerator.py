@@ -97,7 +97,7 @@ for f in schema["fields"]:
             except:
                 median = math.nan
             try:
-                hist = np.histogram(parsed_col, bins=10)
+                hist = np.histogram(parsed_col, bins=BINS)
             except:
                 hist = None
             hist_object = {

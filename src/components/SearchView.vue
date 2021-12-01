@@ -135,24 +135,36 @@
             </span>
           </h4>
 
-          <b-table
-            ref="schemaFieldsTable"
-            :items="selectedResourceStats.schema.fields"
-            :fields="schemaFields"
-            selectable
-            @row-selected="schemaFieldsTableRowSelected"
-          >
-            <template #cell(selected)="{ rowSelected }">
-              <template v-if="rowSelected">
-                <span class="schema-table-span" aria-hidden="true"
-                  >&check;</span
-                >
+          <div class="schema-fields-table-container">
+            <b-table
+              ref="schemaFieldsTable"
+              :items="selectedResourceStats.schema.fields"
+              :fields="schemaFields"
+              no-select-on-click
+              selectable
+              @row-selected="schemaFieldsTableRowSelected"
+              @row-clicked="schemaFieldsTableRowClicked"
+            >
+              <template #cell(selected)="{ rowSelected }">
+                <template v-if="rowSelected">
+                  <span class="schema-table-span" aria-hidden="true"
+                    >&check;</span
+                  >
+                </template>
+                <template v-else>
+                  <span class="schema-table-span" aria-hidden="true"
+                    >&nbsp;</span
+                  >
+                </template>
               </template>
-              <template v-else>
-                <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
+
+              <template #cell(stats)="row">
+                <b-button variant="primary" @click="showStats(row)">
+                  <b-icon icon="bar-chart-line-fill"></b-icon>
+                </b-button>
               </template>
-            </template>
-          </b-table>
+            </b-table>
+          </div>
         </div>
       </div>
     </div>
@@ -227,6 +239,7 @@ export default {
         { key: "selected", label: "✓" },
         { key: "name", label: "Inferred Column Name" },
         { key: "type", label: "Inferred Column Type" },
+        { key: "stats", label: "Stats" },
       ],
       selectedResource: null,
       selectedDataset: null,
@@ -279,12 +292,24 @@ export default {
     },
   },
   methods: {
+    showStats: function (row) {
+      const fieldName = row.item.name;
+      const resourceId = this.selectedResource.id;
+      console.log(resourceId, fieldName);
+    },
     schemaFieldsTableRowSelected: function (rows) {
       this.selectedFields = rows.map((r) => r.name);
       this.$refs.dataTableTabs.setSelectedFields(
         this.selectedResource.id,
         this.selectedFields
       );
+    },
+    schemaFieldsTableRowClicked: function (_, idx) {
+      if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
+        this.$refs.schemaFieldsTable.unselectRow(idx);
+      } else {
+        this.$refs.schemaFieldsTable.selectRow(idx);
+      }
     },
     searchButtonClicked: async function () {
       if (this.searchBarText.length === 0) {
@@ -452,6 +477,11 @@ span {
 div.search-results-fields-toggle-container {
   label {
     padding-left: 8px;
+  }
+}
+div.schema-fields-table-container {
+  tr {
+    cursor: pointer;
   }
 }
 </style>
