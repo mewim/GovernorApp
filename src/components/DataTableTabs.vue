@@ -2,6 +2,12 @@
   <div class="data-table-tab-container">
     <div>
       <ul role="tablist" class="nav nav-tabs">
+        <li>
+          <b-button variant="light" @click="toggleTableView()"
+            ><b-icon :icon="toggleTableViewButtonIcon"></b-icon
+          ></b-button>
+        </li>
+
         <li v-for="item in openedResources" :key="item.resource.id">
           <p :class="getTabClass(item.resource.id)">
             <a href="#" @click="activeResourceId = item.resource.id">{{
@@ -15,7 +21,7 @@
       </ul>
     </div>
 
-    <div class="data-table-container" ref="dataTableContainer">
+    <div class="data-table-container" ref="dataTableContainer" v-show="tableViewDisplayed">
       <data-table
         v-for="item in openedResources"
         v-show="activeResourceId === item.resource.id"
@@ -37,12 +43,24 @@ export default {
       activeResourceId: null,
       openedResources: [],
       tableAreaHeight: 0,
+      tableViewDisplayed: true,
     };
   },
   props: {},
   watch: {},
-  computed: {},
+  computed: {
+    toggleTableViewButtonIcon: function () {
+      if (this.tableViewDisplayed) {
+        return "arrow-bar-down";
+      }
+      return "arrow-bar-up";
+    },
+  },
   methods: {
+    toggleTableView: function () {
+      this.tableViewDisplayed = !this.tableViewDisplayed;
+      this.$emit("tableViewDisplayed", true);
+    },
     getTabClass: function (resourceId) {
       return resourceId === this.activeResourceId
         ? "nav-link active"

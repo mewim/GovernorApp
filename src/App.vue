@@ -17,7 +17,6 @@ export default {
   padding-top: 20px;
   padding-left: 10px;
   padding-right: 10px;
-  padding-bottom: 20px;
   display: block;
   position: absolute;
   height: 100%;

@@ -14,6 +14,14 @@
             v-on:click="searchButtonClicked()"
             >Search</b-button
           >
+          <b-button
+            variant="primary"
+            class="search-button"
+            v-on:click="searchButtonClicked()"
+            v-if="searchSuccess && results.length > 0"
+          >
+            <b-icon icon="gear-fill"></b-icon>
+          </b-button>
         </div>
       </div>
     </div>
@@ -24,41 +32,50 @@
       >
         Sorry, no table has been found. Please try other keywords.
       </div>
-      <b-table
-        hover
-        sticky-header="100%"
-        :items="searchResultTableItems"
-        :fields="searchResultFields"
-        striped
-        v-if="results.length > 0"
+      <div
+        class="search-result-cards-container"
+        v-if="searchSuccess && results.length > 0"
       >
-        <template #cell(languages)="data">
-          {{ data.item.languages.join(", ") }}
-        </template>
-
-        <template #cell(matched_columns)="data">
-          {{ data.item.matched_columns.join(", ") }}
-        </template>
-
-        <template #cell(file_title)="data">
-          <a
-            href="#"
-            @click="fileSelected(data.item.dataset_id, data.item.id)"
-            >{{ data.item.file_title }}</a
-          >
-        </template>
-      </b-table>
+        <b-card-group>
+          <b-card v-for="(r, i) in searchResultTableItems" :key="i">
+            <template #header>
+              <a href="#" @click="fileSelected(r.dataset_id, r.id)"
+                ><b>{{ r.file_title }}</b></a
+              >
+            </template>
+            <b-card-text>
+              <b>Dataset:</b>
+              <a target="_blank" :href="getUrl(r.dataset_id)">
+                {{ r.dataset_title }}
+              </a>
+            </b-card-text>
+            <b-card-text>
+              <b> Matched Count:</b> {{ r.matched_count }}
+            </b-card-text>
+            <b-card-text>
+              <b> Matched Columns:</b> {{ r.matched_columns.join(", ") }}
+            </b-card-text>
+            <b-card-text>
+              <b> Languages:</b> {{ r.languages.join(", ") }}
+            </b-card-text>
+            <b-card-text>
+              <b> Subjects:&nbsp;</b>
+              <span
+                class="badge rounded-pill bg-primary"
+                v-for="(s, i) in r.subject"
+                :key="i"
+                >{{ s.replaceAll("_", " ") }}</span
+              >
+            </b-card-text>
+          </b-card>
+        </b-card-group>
+      </div>
       <div class="dataset-description-container" v-if="!!selectedDataset">
         <div>
           <h4>
             Release Date
             <span class="dataset-description-buttons-container">
-              <b-button
-                size="sm"
-                variant="danger"
-                @click="closeDatasetDescription()"
-                >Close</b-button
-              >
+              <b-icon @click="closeDatasetDescription()" icon="x"></b-icon>
             </span>
           </h4>
         </div>
@@ -130,10 +147,12 @@
       class="table-preview-container"
       v-show="showTabArea"
       ref="tablePreviewContainer"
+      :class="{ 'table-content-hidden': !tableViewDisplayed }"
     >
       <data-table-tabs
         ref="dataTableTabs"
         v-on:showTabAreaChanged="showTabArea = !showTabArea"
+        v-on:tableViewDisplayed="tableViewDisplayed = !tableViewDisplayed"
       />
     </div>
   </div>
@@ -171,6 +190,7 @@ export default {
       openedResources: {},
       showTabArea: false,
       loadingInstance: null,
+      tableViewDisplayed: true,
     };
   },
   watch: {
@@ -200,6 +220,7 @@ export default {
             dataset_id: r.id,
             matched_columns: rs.matches.columns,
             matched_count: rs.matches.count,
+            subject: r.subject,
           });
         });
       });
@@ -304,6 +325,21 @@ export default {
 a {
   color: #42b983;
 }
+.search-result-cards-container {
+  flex-grow: 1;
+  flex-basis: 66.66%;
+  overflow-y: scroll;
+  div.card {
+    min-width: 500px;
+    border: 1px solid rgba(0, 0, 0, 0.125) !important;
+    border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    p {
+      margin-bottom: 4px;
+    }
+  }
+}
 .dataset-description-container {
   flex-basis: 33.33%;
   padding-left: 10px;
@@ -311,10 +347,18 @@ a {
 }
 .dataset-description-buttons-container {
   float: right;
+  > button:not(:last-child) {
+    margin-right: 4px;
+  }
+  svg {
+    color: #6c7572;
+    &:hover {
+      color: #5a6268;
+    }
+    cursor: pointer;
+  }
 }
-.dataset-description-buttons-container > button:not(:last-child) {
-  margin-right: 4px;
-}
+
 .search-result-container > .b-table-sticky-header {
   flex-basis: 66.66%;
   overflow: scroll;
@@ -325,6 +369,9 @@ a {
   padding-top: 4px;
   min-height: 50%;
   max-height: 50%;
+  &.table-content-hidden {
+    min-height: 50px;
+  }
 }
 .schema-table-span {
   width: 10px;
