@@ -159,7 +159,7 @@
               </template>
 
               <template #cell(stats)="row">
-                <b-button variant="primary" @click="showStats(row)">
+                <b-button variant="primary" size="sm" @click="showStats(row)">
                   <b-icon icon="bar-chart-line-fill"></b-icon>
                 </b-button>
               </template>

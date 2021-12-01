@@ -8,7 +8,7 @@
         <b-table ref="statsTable" :items="statTableData"> </b-table>
       </div>
       <div class="visualization-iframe-container">
-        <iframe class="visualization-iframe" :src="iframeSource"></iframe>
+        <iframe class="visualization-iframe" :srcdoc="iframeSource"></iframe>
       </div>
     </div>
     <div
@@ -32,14 +32,15 @@ export default {
       resourceId: null,
       fieldName: null,
       isLoading: true,
+      iframeSource: "",
     };
   },
   props: {},
   watch: {},
   computed: {
-    iframeSource() {
-      return `/api/plotlyplot/${this.resourceId}/${this.fieldName}`;
-    },
+    // iframeSource() {
+    //   return `/api/plotlyplot/${this.resourceId}/${this.fieldName}`;
+    // },
     statTableData() {
       const fieldName = this.fieldName;
       if (
@@ -78,6 +79,16 @@ export default {
           .then((res) => res.data);
       } catch (err) {
         this.inferredHistograms = null;
+      }
+      try {
+        this.iframeSource = await axios
+          .post(`/api/plotlyplot/`, {
+            uuid: this.resourceId,
+            field: this.fieldName,
+          })
+          .then((res) => res.data);
+      } catch (err) {
+        this.iframeSource = null;
       }
       console.log(this.inferredStats, this.inferredHistograms);
       this.loadingInstance.close();
