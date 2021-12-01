@@ -17,7 +17,7 @@
           <b-button
             variant="primary"
             class="search-button"
-            v-on:click="searchButtonClicked()"
+            @click="$refs.searchResultSettingsModel.show()"
             v-if="searchSuccess && results.length > 0"
           >
             <b-icon icon="gear-fill"></b-icon>
@@ -43,22 +43,22 @@
                 ><b>{{ r.file_title }}</b></a
               >
             </template>
-            <b-card-text>
+            <b-card-text v-if="searchResultFields.dataset_title">
               <b>Dataset:</b>
               <a target="_blank" :href="getUrl(r.dataset_id)">
                 {{ r.dataset_title }}
               </a>
             </b-card-text>
-            <b-card-text>
+            <b-card-text v-if="searchResultFields.matched_count">
               <b> Matched Count:</b> {{ r.matched_count }}
             </b-card-text>
-            <b-card-text>
+            <b-card-text v-if="searchResultFields.matched_columns">
               <b> Matched Columns:</b> {{ r.matched_columns.join(", ") }}
             </b-card-text>
-            <b-card-text>
+            <b-card-text v-if="searchResultFields.languages">
               <b> Languages:</b> {{ r.languages.join(", ") }}
             </b-card-text>
-            <b-card-text>
+            <b-card-text v-if="searchResultFields.subjects">
               <b> Subjects:&nbsp;</b>
               <span
                 class="badge rounded-pill bg-primary"
@@ -66,6 +66,14 @@
                 :key="i"
                 >{{ s.replaceAll("_", " ") }}</span
               >
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.portal_release_date">
+              <b> Release Date:</b>
+              {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.notes">
+              <b> Notes:</b>
+              {{ r.notes ? r.notes : "N/A" }}
             </b-card-text>
           </b-card>
         </b-card-group>
@@ -155,6 +163,38 @@
         v-on:tableViewDisplayed="tableViewDisplayed = !tableViewDisplayed"
       />
     </div>
+
+    <b-modal
+      ref="searchResultSettingsModel"
+      title="Search Results Fields"
+      ok-only
+      :hideHeaderClose="true"
+      :centered="true"
+    >
+      <div class="search-results-fields-toggle-container">
+        <b-form-checkbox v-model="searchResultFields.dataset_title">
+          Dataset
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.matched_count">
+          Matched Count
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.matched_columns">
+          Matched Columns
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.languages">
+          Languages
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.subjects">
+          Subjects
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.portal_release_date">
+          Release Date
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.notes">
+          Notes
+        </b-form-checkbox>
+      </div>
+    </b-modal>
   </div>
 </template>
 
@@ -168,13 +208,15 @@ export default {
     return {
       searchBarText: "",
       results: [],
-      searchResultFields: [
-        "file_title",
-        "dataset_title",
-        "languages",
-        "matched_columns",
-        "matched_count",
-      ],
+      searchResultFields: {
+        dataset_title: true,
+        languages: true,
+        matched_columns: true,
+        matched_count: true,
+        subjects: false,
+        portal_release_date: false,
+        notes: false,
+      },
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "name", label: "Inferred Column Name" },
@@ -218,9 +260,11 @@ export default {
             file_title: rs.name,
             languages: rs.language,
             dataset_id: r.id,
+            portal_release_date: r.portal_release_date,
             matched_columns: rs.matches.columns,
             matched_count: rs.matches.count,
             subject: r.subject,
+            notes: r.notes,
           });
         });
       });
@@ -388,5 +432,10 @@ span {
   justify-content: center;
   align-items: center;
   flex-grow: 1;
+}
+div.search-results-fields-toggle-container{
+  label{
+    padding-left: 8px;
+  }
 }
 </style>
