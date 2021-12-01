@@ -1,8 +1,14 @@
 <template>
   <div class="outer-container">
-    <div v-if="!isLoading && statTableData">
+    <div
+      class="stats-visualization-container"
+      v-if="!isLoading && statTableData"
+    >
       <div class="stats-table-container">
         <b-table ref="statsTable" :items="statTableData"> </b-table>
+      </div>
+      <div class="visualization-iframe-container">
+        <iframe class="visualization-iframe" :src="iframeSource"></iframe>
       </div>
     </div>
     <div
@@ -31,6 +37,9 @@ export default {
   props: {},
   watch: {},
   computed: {
+    iframeSource() {
+      return `/api/plotlyplot/${this.resourceId}/${this.fieldName}`;
+    },
     statTableData() {
       const fieldName = this.fieldName;
       if (
@@ -104,5 +113,19 @@ export default {
   justify-content: center;
   align-items: center;
   flex-grow: 1;
+}
+.stats-visualization-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  width: 100%;
+  .visualization-iframe-container {
+    flex-grow: 1;
+    width: 100%;
+    .visualization-iframe {
+      height: 100%;
+      width: 100%;
+    }
+  }
 }
 </style>
