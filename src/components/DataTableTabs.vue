@@ -3,7 +3,10 @@
     <div>
       <ul role="tablist" class="nav nav-tabs">
         <li>
-          <b-button variant="light" @click="toggleTableView()"
+          <b-button
+            variant="light"
+            @click="toggleTableView()"
+            class="toggle-table-button"
             ><b-icon :icon="toggleTableViewButtonIcon"></b-icon
           ></b-button>
         </li>
@@ -21,7 +24,11 @@
       </ul>
     </div>
 
-    <div class="data-table-container" ref="dataTableContainer" v-show="tableViewDisplayed">
+    <div
+      class="data-table-container"
+      ref="dataTableContainer"
+      v-show="tableViewDisplayed"
+    >
       <data-table
         v-for="item in openedResources"
         v-show="activeResourceId === item.resource.id"
@@ -31,6 +38,7 @@
         :resource="item.resource"
         :tableId="item.resource.id"
         :height="tableAreaHeight"
+        :ref="`table-${item.resource.id}`"
       />
     </div>
   </div>
@@ -60,6 +68,9 @@ export default {
     toggleTableView: function () {
       this.tableViewDisplayed = !this.tableViewDisplayed;
       this.$emit("tableViewDisplayed", true);
+      this.$nextTick(() => {
+        this.updatePreviewAreaHeight();
+      });
     },
     getTabClass: function (resourceId) {
       return resourceId === this.activeResourceId
@@ -70,10 +81,13 @@ export default {
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
           this.activeResourceId = r.resource.id;
+          this.openedResources[i].resource = r.resource;
+          this.$nextTick(() => {
+            this.updatePreviewAreaHeight();
+          });
           return;
         }
       }
-
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
       if (this.openedResources.length === 1) {
@@ -104,6 +118,9 @@ export default {
       if (this.openedResources.length === 0) {
         this.$emit("showTabAreaChanged", false);
       }
+      this.$nextTick(() => {
+        this.updatePreviewAreaHeight();
+      });
     },
     setAttributeForResource: function (id, key, newValue) {
       for (let i = 0; i < this.openedResources.length; ++i) {
@@ -171,5 +188,8 @@ export default {
   .data-table-container {
     flex-grow: 1;
   }
+}
+.toggle-table-button {
+  height: 100%;
 }
 </style>

@@ -37,7 +37,13 @@
         v-if="searchSuccess && results.length > 0"
       >
         <b-card-group>
-          <b-card v-for="(r, i) in searchResultTableItems" :key="i">
+          <b-card
+            v-for="(r, i) in searchResultTableItems"
+            :key="i"
+            :class="{
+              active: selectedResource && r.id === selectedResource.id,
+            }"
+          >
             <template #header>
               <a href="#" @click="fileSelected(r.dataset_id, r.id)"
                 ><b>{{ r.file_title }}</b></a
@@ -281,7 +287,6 @@ export default {
       );
     },
     searchButtonClicked: async function () {
-      this.closeDatasetDescription();
       if (this.searchBarText.length === 0) {
         this.results = [];
         this.searchSuccess = true;
@@ -364,7 +369,8 @@ export default {
   overflow: hidden;
   display: flex;
   flex-direction: row;
-  flex-grow: 1;
+  flex-grow: 2;
+  height: 100%;
 }
 a {
   color: #42b983;
@@ -374,6 +380,15 @@ a {
   flex-basis: 66.66%;
   overflow-y: scroll;
   div.card {
+    &.active {
+      > .card-header {
+        border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
+        background-color: #007bff !important;
+        a {
+          color: #ffffff !important;
+        }
+      }
+    }
     min-width: 500px;
     border: 1px solid rgba(0, 0, 0, 0.125) !important;
     border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
@@ -414,7 +429,8 @@ a {
   min-height: 50%;
   max-height: 50%;
   &.table-content-hidden {
-    min-height: 50px;
+    flex-grow: 1;
+    min-height: auto;
   }
 }
 .schema-table-span {
@@ -433,8 +449,8 @@ span {
   align-items: center;
   flex-grow: 1;
 }
-div.search-results-fields-toggle-container{
-  label{
+div.search-results-fields-toggle-container {
+  label {
     padding-left: 8px;
   }
 }

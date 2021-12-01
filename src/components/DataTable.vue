@@ -52,7 +52,6 @@ export default {
     tableId: String,
   },
   watch: {
-    // whenever question changes, this function will run
     resource: {
       immediate: true,
       handler: function () {
@@ -92,6 +91,7 @@ export default {
       }
       this.columns.splice(0);
       this.tableData.splice(0);
+      this.matchedDict = {};
       if (!this.tableId) {
         return;
       }
