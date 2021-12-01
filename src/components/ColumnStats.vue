@@ -15,7 +15,7 @@
       class="stats-not-available-message"
       v-if="!isLoading && !statTableData"
     >
-      <p>Sorry. The stats for the selected table fields is not available.</p>
+      <p>Sorry. The stats for the selected table field is not available.</p>
     </div>
   </div>
 </template>
