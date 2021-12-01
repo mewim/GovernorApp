@@ -17,7 +17,7 @@
           <b-button
             variant="primary"
             class="search-button"
-            @click="$refs.searchResultSettingsModel.show()"
+            @click="$refs.searchResultSettingsModal.show()"
             v-if="searchSuccess && results.length > 0"
           >
             <b-icon icon="gear-fill"></b-icon>
@@ -183,7 +183,7 @@
     </div>
 
     <b-modal
-      ref="searchResultSettingsModel"
+      ref="searchResultSettingsModal"
       title="Search Results Fields"
       ok-only
       :hideHeaderClose="true"
@@ -213,6 +213,19 @@
         </b-form-checkbox>
       </div>
     </b-modal>
+    <div>
+      <b-modal
+        ref="columnStatsModal"
+        title="Stats"
+        ok-only
+        static
+        :hideHeaderClose="true"
+        :centered="true"
+        size="xl"
+      >
+        <column-stats ref="columnStats" />
+      </b-modal>
+    </div>
   </div>
 </template>
 
@@ -295,7 +308,8 @@ export default {
     showStats: function (row) {
       const fieldName = row.item.name;
       const resourceId = this.selectedResource.id;
-      console.log(resourceId, fieldName);
+      this.$refs.columnStatsModal.show();
+      this.$refs.columnStats.reloadData(resourceId, fieldName);
     },
     schemaFieldsTableRowSelected: function (rows) {
       this.selectedFields = rows.map((r) => r.name);
