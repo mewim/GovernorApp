@@ -14,6 +14,14 @@
             v-on:click="searchButtonClicked()"
             >Search</b-button
           >
+          <b-button
+            variant="primary"
+            class="search-button"
+            @click="$refs.searchResultSettingsModal.show()"
+            v-if="searchSuccess && results.length > 0"
+          >
+            <b-icon icon="gear-fill"></b-icon>
+          </b-button>
         </div>
       </div>
     </div>
@@ -24,41 +32,64 @@
       >
         Sorry, no table has been found. Please try other keywords.
       </div>
-      <b-table
-        hover
-        sticky-header="100%"
-        :items="searchResultTableItems"
-        :fields="searchResultFields"
-        striped
-        v-if="results.length > 0"
+      <div
+        class="search-result-cards-container"
+        v-if="searchSuccess && results.length > 0"
       >
-        <template #cell(languages)="data">
-          {{ data.item.languages.join(", ") }}
-        </template>
-
-        <template #cell(matched_columns)="data">
-          {{ data.item.matched_columns.join(", ") }}
-        </template>
-
-        <template #cell(file_title)="data">
-          <a
-            href="#"
-            @click="fileSelected(data.item.dataset_id, data.item.id)"
-            >{{ data.item.file_title }}</a
+        <b-card-group>
+          <b-card
+            v-for="(r, i) in searchResultTableItems"
+            :key="i"
+            :class="{
+              active: selectedResource && r.id === selectedResource.id,
+            }"
           >
-        </template>
-      </b-table>
+            <template #header>
+              <a href="#" @click="fileSelected(r.dataset_id, r.id)"
+                ><b>{{ r.file_title }}</b></a
+              >
+            </template>
+            <b-card-text v-if="searchResultFields.dataset_title">
+              <b>Dataset:</b>
+              <a target="_blank" :href="getUrl(r.dataset_id)">
+                {{ r.dataset_title }}
+              </a>
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.matched_count">
+              <b> Matched Count:</b> {{ r.matched_count }}
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.matched_columns">
+              <b> Matched Columns:</b> {{ r.matched_columns.join(", ") }}
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.languages">
+              <b> Languages:</b> {{ r.languages.join(", ") }}
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.subjects">
+              <b> Subjects:&nbsp;</b>
+              <span
+                class="badge rounded-pill bg-primary"
+                v-for="(s, i) in r.subject"
+                :key="i"
+                >{{ s.replaceAll("_", " ") }}</span
+              >
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.portal_release_date">
+              <b> Release Date:</b>
+              {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
+            </b-card-text>
+            <b-card-text v-if="searchResultFields.notes">
+              <b> Notes:</b>
+              {{ r.notes ? r.notes : "N/A" }}
+            </b-card-text>
+          </b-card>
+        </b-card-group>
+      </div>
       <div class="dataset-description-container" v-if="!!selectedDataset">
         <div>
           <h4>
             Release Date
             <span class="dataset-description-buttons-container">
-              <b-button
-                size="sm"
-                variant="danger"
-                @click="closeDatasetDescription()"
-                >Close</b-button
-              >
+              <b-icon @click="closeDatasetDescription()" icon="x"></b-icon>
             </span>
           </h4>
         </div>
@@ -104,24 +135,36 @@
             </span>
           </h4>
 
-          <b-table
-            ref="schemaFieldsTable"
-            :items="selectedResourceStats.schema.fields"
-            :fields="schemaFields"
-            selectable
-            @row-selected="schemaFieldsTableRowSelected"
-          >
-            <template #cell(selected)="{ rowSelected }">
-              <template v-if="rowSelected">
-                <span class="schema-table-span" aria-hidden="true"
-                  >&check;</span
-                >
+          <div class="schema-fields-table-container">
+            <b-table
+              ref="schemaFieldsTable"
+              :items="selectedResourceStats.schema.fields"
+              :fields="schemaFields"
+              no-select-on-click
+              selectable
+              @row-selected="schemaFieldsTableRowSelected"
+              @row-clicked="schemaFieldsTableRowClicked"
+            >
+              <template #cell(selected)="{ rowSelected }">
+                <template v-if="rowSelected">
+                  <span class="schema-table-span" aria-hidden="true"
+                    >&check;</span
+                  >
+                </template>
+                <template v-else>
+                  <span class="schema-table-span" aria-hidden="true"
+                    >&nbsp;</span
+                  >
+                </template>
               </template>
-              <template v-else>
-                <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
+
+              <template #cell(stats)="row">
+                <b-button variant="primary" size="sm" @click="showStats(row)">
+                  <b-icon icon="bar-chart-line-fill"></b-icon>
+                </b-button>
               </template>
-            </template>
-          </b-table>
+            </b-table>
+          </div>
         </div>
       </div>
     </div>
@@ -130,11 +173,58 @@
       class="table-preview-container"
       v-show="showTabArea"
       ref="tablePreviewContainer"
+      :class="{ 'table-content-hidden': !tableViewDisplayed }"
     >
       <data-table-tabs
         ref="dataTableTabs"
         v-on:showTabAreaChanged="showTabArea = !showTabArea"
+        v-on:tableViewDisplayed="tableViewDisplayed = !tableViewDisplayed"
       />
+    </div>
+
+    <b-modal
+      ref="searchResultSettingsModal"
+      title="Search Results Fields"
+      ok-only
+      :hideHeaderClose="true"
+      :centered="true"
+    >
+      <div class="search-results-fields-toggle-container">
+        <b-form-checkbox v-model="searchResultFields.dataset_title">
+          Dataset
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.matched_count">
+          Matched Count
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.matched_columns">
+          Matched Columns
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.languages">
+          Languages
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.subjects">
+          Subjects
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.portal_release_date">
+          Release Date
+        </b-form-checkbox>
+        <b-form-checkbox v-model="searchResultFields.notes">
+          Notes
+        </b-form-checkbox>
+      </div>
+    </b-modal>
+    <div>
+      <b-modal
+        ref="columnStatsModal"
+        title="Stats"
+        ok-only
+        static
+        :hideHeaderClose="true"
+        :centered="true"
+        size="xl"
+      >
+        <column-stats ref="columnStats" />
+      </b-modal>
     </div>
   </div>
 </template>
@@ -149,17 +239,20 @@ export default {
     return {
       searchBarText: "",
       results: [],
-      searchResultFields: [
-        "file_title",
-        "dataset_title",
-        "languages",
-        "matched_columns",
-        "matched_count",
-      ],
+      searchResultFields: {
+        dataset_title: true,
+        languages: true,
+        matched_columns: true,
+        matched_count: true,
+        subjects: false,
+        portal_release_date: false,
+        notes: false,
+      },
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "name", label: "Inferred Column Name" },
         { key: "type", label: "Inferred Column Type" },
+        { key: "stats", label: "Stats" },
       ],
       selectedResource: null,
       selectedDataset: null,
@@ -171,6 +264,7 @@ export default {
       openedResources: {},
       showTabArea: false,
       loadingInstance: null,
+      tableViewDisplayed: true,
     };
   },
   watch: {
@@ -198,8 +292,11 @@ export default {
             file_title: rs.name,
             languages: rs.language,
             dataset_id: r.id,
+            portal_release_date: r.portal_release_date,
             matched_columns: rs.matches.columns,
             matched_count: rs.matches.count,
+            subject: r.subject,
+            notes: r.notes,
           });
         });
       });
@@ -208,6 +305,12 @@ export default {
     },
   },
   methods: {
+    showStats: function (row) {
+      const fieldName = row.item.name;
+      const resourceId = this.selectedResource.id;
+      this.$refs.columnStatsModal.show();
+      this.$refs.columnStats.reloadData(resourceId, fieldName);
+    },
     schemaFieldsTableRowSelected: function (rows) {
       this.selectedFields = rows.map((r) => r.name);
       this.$refs.dataTableTabs.setSelectedFields(
@@ -215,8 +318,14 @@ export default {
         this.selectedFields
       );
     },
+    schemaFieldsTableRowClicked: function (_, idx) {
+      if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
+        this.$refs.schemaFieldsTable.unselectRow(idx);
+      } else {
+        this.$refs.schemaFieldsTable.selectRow(idx);
+      }
+    },
     searchButtonClicked: async function () {
-      this.closeDatasetDescription();
       if (this.searchBarText.length === 0) {
         this.results = [];
         this.searchSuccess = true;
@@ -299,10 +408,35 @@ export default {
   overflow: hidden;
   display: flex;
   flex-direction: row;
-  flex-grow: 1;
+  flex-grow: 2;
+  height: 100%;
 }
 a {
   color: #42b983;
+}
+.search-result-cards-container {
+  flex-grow: 1;
+  flex-basis: 66.66%;
+  overflow-y: scroll;
+  div.card {
+    &.active {
+      > .card-header {
+        border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
+        background-color: #007bff !important;
+        a {
+          color: #ffffff !important;
+        }
+      }
+    }
+    min-width: 500px;
+    border: 1px solid rgba(0, 0, 0, 0.125) !important;
+    border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    p {
+      margin-bottom: 4px;
+    }
+  }
 }
 .dataset-description-container {
   flex-basis: 33.33%;
@@ -311,10 +445,18 @@ a {
 }
 .dataset-description-buttons-container {
   float: right;
+  > button:not(:last-child) {
+    margin-right: 4px;
+  }
+  svg {
+    color: #6c7572;
+    &:hover {
+      color: #5a6268;
+    }
+    cursor: pointer;
+  }
 }
-.dataset-description-buttons-container > button:not(:last-child) {
-  margin-right: 4px;
-}
+
 .search-result-container > .b-table-sticky-header {
   flex-basis: 66.66%;
   overflow: scroll;
@@ -325,6 +467,10 @@ a {
   padding-top: 4px;
   min-height: 50%;
   max-height: 50%;
+  &.table-content-hidden {
+    flex-grow: 1;
+    min-height: auto;
+  }
 }
 .schema-table-span {
   width: 10px;
@@ -341,5 +487,15 @@ span {
   justify-content: center;
   align-items: center;
   flex-grow: 1;
+}
+div.search-results-fields-toggle-container {
+  label {
+    padding-left: 8px;
+  }
+}
+div.schema-fields-table-container {
+  tr {
+    cursor: pointer;
+  }
 }
 </style>
