@@ -8,7 +8,9 @@ const client = new ElasticClient({
 });
 
 (async () => {
-  await client.indices.delete({ index: "tuples" });
+  try {
+    await client.indices.delete({ index: "tuples" });
+  } catch (err) {}
   await client.indices.create({
     index: "tuples",
     body: {
