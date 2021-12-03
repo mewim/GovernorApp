@@ -7,7 +7,8 @@
     "serve": "nodemon --exec \"vue-cli-service serve\"",
     "serve-deployed": "npm run build && node src/server/DeployedServer",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "install-python": "python3 -m pip install -r requirements.txt"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^7.15.0",
