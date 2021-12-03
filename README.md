@@ -3,6 +3,7 @@
 ## Project setup
 ```
 npm install
+npm run install-python
 ```
 
 ### Compiles and hot-reloads for development
