@@ -4,7 +4,6 @@ const path = require("path");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 module.exports = (app) => {
-  app.use(express.json());
   if (process.env.PROXY_API_REQUESTS) {
     app.use(
       "/api",
@@ -21,6 +20,7 @@ module.exports = (app) => {
       })
     );
   } else {
+    app.use(express.json());
     app.use("/api", api);
     const filesPath = path.join(__dirname, "..", "..", "data", "files");
     app.use("/files", express.static(filesPath));
