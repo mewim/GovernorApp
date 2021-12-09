@@ -25,7 +25,7 @@ router.get("/metadata", async (req, res) => {
       {
         params: {
           q,
-          rows: 500,
+          rows: 1000,
         },
       }
     );
@@ -82,10 +82,13 @@ router.get("/metadata", async (req, res) => {
       },
     ])
     .toArray();
+  const resourceIdsArray = resourceIds.map((r) => r.uuid);
+  const resourceIdsSet = new Set(resourceIdsArray);
+
   const datasets = await db
     .collection("metadata")
     .find({
-      "resources.id": { $in: resourceIds.map((r) => r.uuid) },
+      "resources.id": { $in: resourceIdsArray },
     })
     .toArray();
 
@@ -94,6 +97,7 @@ router.get("/metadata", async (req, res) => {
     if (dataSetDict[d._id]) {
       continue;
     }
+    d.resources = d.resources.filter((r) => resourceIdsSet.has(r.id));
     for (let r of d.resources) {
       r.matches = {
         uuid: r.id,
