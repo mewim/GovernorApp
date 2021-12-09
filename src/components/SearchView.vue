@@ -12,7 +12,13 @@
             variant="success"
             class="search-button"
             v-on:click="searchButtonClicked()"
-            >Search</b-button
+            >Search Tuples</b-button
+          >
+          <b-button
+            variant="success"
+            class="search-button"
+            v-on:click="searchButtonClicked(true)"
+            >Search Metadata</b-button
           >
           <b-button
             variant="primary"
@@ -325,13 +331,16 @@ export default {
         this.$refs.schemaFieldsTable.selectRow(idx);
       }
     },
-    searchButtonClicked: async function () {
+    searchButtonClicked: async function (searchMetadata) {
       if (this.searchBarText.length === 0) {
         this.results = [];
         this.searchSuccess = true;
         return;
       }
-      this.results = await this.loadSeachResult(this.searchBarText);
+      this.results = await this.loadSeachResult(
+        this.searchBarText,
+        searchMetadata
+      );
       this.searchSuccess = true;
     },
     closeDatasetDescription: function () {
@@ -346,12 +355,11 @@ export default {
         selectedFields: this.selectedFields,
       });
     },
-    loadSeachResult: async function (keyword) {
+    loadSeachResult: async function (keyword, searchMetadata) {
+      const url = searchMetadata ? "/api/search/metadata" : "/api/search/";
       this.loadingInstance.show();
       const params = new URLSearchParams([["q", keyword]]);
-      const results = await axios
-        .get(`/api/search`, { params })
-        .then((res) => res.data);
+      const results = await axios.get(url, { params }).then((res) => res.data);
       this.loadingInstance.close();
       return results;
     },
@@ -496,6 +504,15 @@ div.search-results-fields-toggle-container {
 div.schema-fields-table-container {
   tr {
     cursor: pointer;
+  }
+}
+.search-button {
+  margin-right: 2px;
+  &:first-child {
+    margin-left: 6px;
+  }
+  &:last-child {
+    margin-right: 0;
   }
 }
 </style>
