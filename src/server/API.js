@@ -6,6 +6,7 @@ const inferredstats = require("./InferredStats");
 const inferredhistograms = require("./InferredHistograms");
 const csv = require("./Csv");
 const plotlyplot = require("./PlotlyPlot");
+const dataset = require("./Dataset");
 
 
 router.use("/search", search);
@@ -13,6 +14,7 @@ router.use("/inferredstats", inferredstats);
 router.use("/inferredhistograms", inferredhistograms);
 router.use("/csv", csv);
 router.use("/plotlyplot", plotlyplot);
+router.use("/dataset", dataset);
 
 router.use((_, res) => {
   return res.sendStatus(501);

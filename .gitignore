@@ -106,3 +106,6 @@ dist
 data/files
 data/converted_files
 data/sample*
+data/d3l*
+
+glove.42B.300d.txt
