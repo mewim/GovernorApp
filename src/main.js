@@ -22,11 +22,13 @@ import SearchView from "./components/SearchView.vue";
 import DataTable from "./components/DataTable.vue";
 import DataTableTabs from "./components/DataTableTabs.vue";
 import ColumnStats from "./components/ColumnStats.vue";
+import DataTableDescription from "./components/DataTableDescription.vue";
 
 Vue.component("search-view", SearchView);
 Vue.component("data-table", DataTable);
 Vue.component("data-table-tabs", DataTableTabs);
 Vue.component("column-stats", ColumnStats);
+Vue.component("data-table-description", DataTableDescription);
 
 Vue.config.productionTip = false;
 
