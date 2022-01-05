@@ -144,6 +144,7 @@ export default {
           rowToIndexDict[r] = i;
         });
       }
+      console.log(this.resource)
       this.resource.matches.matches.forEach((m) => {
         const i = this.showAllRows
           ? m.row_number - 1 // header is hidden, -1 offset
@@ -198,7 +199,7 @@ export default {
 };
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .table-body-cell-highlighted {
   color: #007bff !important;
 }
