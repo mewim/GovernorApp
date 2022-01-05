@@ -4,6 +4,7 @@
       :dataset="dataset"
       :resourceStats="resourceStats"
       :resource="resource"
+      :searchMetadata="searchMetadata"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <ve-table
@@ -59,6 +60,7 @@ export default {
     dataset: Object,
     resourceStats: Object,
     tableId: String,
+    searchMetadata: Boolean,
   },
   watch: {
     resource: {
@@ -100,6 +102,7 @@ export default {
       this.$refs.table.hideColumnsByKeys(keysHidden);
     },
     async reloadData() {
+      const shouldShowAllRows = this.showAllRows || this.searchMetadata;
       this.isLoading = true;
       if (this.loadingInstance) {
         this.loadingInstance.show();
@@ -132,7 +135,7 @@ export default {
       const rowToIndexDict = {};
 
       let body;
-      if (!this.showAllRows) {
+      if (!shouldShowAllRows) {
         const uniqueRowNumbers = [
           ...new Set(this.resource.matches.matches.map((m) => m.row_number)),
         ];
@@ -144,9 +147,8 @@ export default {
           rowToIndexDict[r] = i;
         });
       }
-      console.log(this.resource)
       this.resource.matches.matches.forEach((m) => {
-        const i = this.showAllRows
+        const i = shouldShowAllRows
           ? m.row_number - 1 // header is hidden, -1 offset
           : rowToIndexDict[m.row_number];
         if (!this.matchedDict[i]) {
@@ -162,7 +164,7 @@ export default {
         output: "csv",
       }).fromString(csvString);
       csvRows.forEach((r, i) => {
-        if (this.showAllRows && i === this.inferredstats.header) {
+        if (shouldShowAllRows && i === this.inferredstats.header) {
           return;
         }
         const rowDict = { rowKey: i };

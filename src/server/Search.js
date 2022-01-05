@@ -195,12 +195,18 @@ router.get("/", async (req, res) => {
       continue;
     }
     d.resources = d.resources.filter((r) => r.id in documentsMatchedDict);
+    let matchedCount = 0;
     for (let r of d.resources) {
       r.matches = documentsMatchedDict[r.id];
+      matchedCount += r.matches.count;
     }
+    d.matched_count = matchedCount;
     dataSetDict[d._id] = d;
   }
-  res.send(Object.values(dataSetDict));
+  const output = Object.values(dataSetDict).sort(
+    (a, b) => b.matched_count - a.matched_count
+  );
+  res.send(output);
 });
 
 module.exports = router;

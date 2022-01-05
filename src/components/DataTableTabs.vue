@@ -49,6 +49,7 @@
         :key="item.resource.id"
         :resource="item.resource"
         :resourceStats="item.resourceStats"
+        :searchMetadata="item.searchMetadata"
         :dataset="item.dataset"
         :tableId="item.resource.id"
         :height="tableAreaHeight"
@@ -96,6 +97,7 @@ export default {
           this.activeResourceId = r.resource.id;
           this.openedResources[i].resource = r.resource;
           this.openedResources[i].dataset = r.dataset;
+          this.openedResources[i].searchMetadata = r.searchMetadata;
           this.openedResources[i].resourceStats = r.resourceStats;
           this.$nextTick(() => {
             this.updatePreviewAreaHeight();
@@ -149,7 +151,6 @@ export default {
         this.tableAreaHeight =
           window.innerHeight -
           this.$refs.dataTableTabBar.getBoundingClientRect().height;
-        console.log(this.tableAreaHeight);
       } catch (err) {
         this.tableAreaHeight = 0;
       }

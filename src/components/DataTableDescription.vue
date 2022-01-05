@@ -32,7 +32,10 @@
       <p></p>
       <h4>
         Data
-        <span class="dataset-description-buttons-container">
+        <span
+          class="dataset-description-buttons-container"
+          v-show="!searchMetadata"
+        >
           <b-button size="sm" @click="showAllRows = !showAllRows">{{
             toggleRowText
           }}</b-button>
@@ -112,6 +115,7 @@ export default {
     dataset: Object,
     resourceStats: Object,
     resource: Object,
+    searchMetadata: Boolean,
   },
   watch: {
     resourceStats: function () {
@@ -145,9 +149,11 @@ export default {
     selectMatchedFields: function () {
       this.$nextTick(() => {
         const matchedColumns = new Set(this.resource.matches.columns);
-        console.log(matchedColumns, this.resourceStats.schema);
         for (let i = 0; i < this.resourceStats.schema.fields.length; ++i) {
-          if (matchedColumns.has(this.resourceStats.schema.fields[i].name)) {
+          if (
+            matchedColumns.has(this.resourceStats.schema.fields[i].name) ||
+            this.searchMetadata
+          ) {
             this.$refs.schemaFieldsTable.selectRow(i);
           }
         }

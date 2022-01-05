@@ -90,7 +90,6 @@ export default {
       } catch (err) {
         this.iframeSource = null;
       }
-      console.log(this.inferredStats, this.inferredHistograms);
       this.loadingInstance.close();
       this.isLoading = false;
     },

@@ -35,27 +35,30 @@
         v-if="searchSuccess && results.length > 0"
       >
         <b-card-group>
-          <b-card v-for="(r, i) in searchResultTableItems" :key="i">
+          <b-card v-for="(r, i) in results" :key="i">
             <template #header>
-              <a href="#" @click="fileSelected(r.dataset_id, r.id)"
-                ><b>{{ r.file_title }}</b></a
-              >
+              <!-- <a href="#" @click="fileSelected(r.dataset_id, r.id)" -->
+              <b>{{ r.title }}</b>
+              <!-- </a
+              > -->
             </template>
-            <b-card-text v-if="searchResultFields.dataset_title">
+            <!-- <b-card-text v-if="searchResultFields.dataset_title">
               <b>Dataset:</b>
               <a target="_blank" :href="getUrl(r.dataset_id)">
                 {{ r.dataset_title }}
               </a>
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.matched_count">
+            </b-card-text> -->
+            <b-card-text
+              v-if="searchResultFields.matched_count && !searchMetadata"
+            >
               <b> Matched Count:</b> {{ r.matched_count }}
             </b-card-text>
-            <b-card-text v-if="searchResultFields.matched_columns">
+            <!-- <b-card-text v-if="searchResultFields.matched_columns">
               <b> Matched Columns:</b> {{ r.matched_columns.join(", ") }}
             </b-card-text>
             <b-card-text v-if="searchResultFields.languages">
               <b> Languages:</b> {{ r.languages.join(", ") }}
-            </b-card-text>
+            </b-card-text> -->
             <b-card-text v-if="searchResultFields.subjects">
               <b> Subjects:&nbsp;</b>
               <span
@@ -73,6 +76,22 @@
               <b> Notes:</b>
               {{ r.notes ? r.notes : "N/A" }}
             </b-card-text>
+
+            <b-table
+              hover
+              :items="getFileTableItem(r.resources)"
+              :fields="fileTableFields"
+              :sort-by="'count'"
+              outlined
+              fixed
+              small
+            >
+              <template #cell(file)="f">
+                <a href="#" @click="fileSelected(r.id, f.item.id)">{{
+                  f.item.file
+                }}</a>
+              </template>
+            </b-table>
           </b-card>
         </b-card-group>
       </div>
@@ -144,6 +163,7 @@ export default {
       searchSuccess: false,
       showTabArea: false,
       loadingInstance: null,
+      searchMetadata: false,
     };
   },
   watch: {
@@ -173,12 +193,51 @@ export default {
       items.sort((a, b) => b.matched_count - a.matched_count);
       return items;
     },
+
+    fileTableFields: function () {
+      const result = [
+        {
+          key: "file",
+          sortable: true,
+        },
+      ];
+      if (this.searchResultFields.languages) {
+        result.push({
+          key: "language",
+          sortable: true,
+        });
+      }
+      if (this.searchResultFields.matched_count && !this.searchMetadata) {
+        result.push({
+          key: "count",
+          sortable: true,
+        });
+      }
+      if (this.searchResultFields.matched_columns && !this.searchMetadata) {
+        result.push({
+          key: "matched_columns",
+        });
+      }
+      return result;
+    },
   },
   methods: {
+    getFileTableItem: function (resources) {
+      return resources.map((r) => {
+        return {
+          file: r.name,
+          language: r.language.join(", "),
+          matched_columns: r.matches.columns.join(", "),
+          count: r.matches.count,
+          id: r.id,
+        };
+      });
+    },
     toggleSettings: function () {
       this.$refs.searchResultSettingsModal.show();
     },
     searchButtonClicked: async function (searchMetadata) {
+      this.searchMetadata = searchMetadata;
       if (this.searchBarText.length === 0) {
         this.results = [];
         this.searchSuccess = true;
@@ -217,6 +276,7 @@ export default {
           resource: this.selectedResource,
           dataset: this.selectedDataset,
           resourceStats: this.selectedResourceStats,
+          searchMetadata: this.searchMetadata,
         },
         this.jumpImmediately
       );
@@ -272,7 +332,7 @@ export default {
         }
       }
     }
-    min-width: 500px;
+    min-width: 1000px;
     border: 1px solid rgba(0, 0, 0, 0.125) !important;
     border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
     margin-right: 10px;
@@ -282,7 +342,9 @@ export default {
     }
   }
 }
-
+.sr-only {
+  display: none;
+}
 .search-result-container > .b-table-sticky-header {
   overflow: scroll;
   flex-grow: 1;
