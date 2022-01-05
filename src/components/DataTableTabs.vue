@@ -47,8 +47,6 @@
         v-for="item in openedResources"
         v-show="!isSearchActive && activeResourceId === item.resource.id"
         :key="item.resource.id"
-        :selectedFields="item.selectedFields"
-        :showAllRows="item.showAllRows"
         :resource="item.resource"
         :resourceStats="item.resourceStats"
         :dataset="item.dataset"
@@ -142,12 +140,6 @@ export default {
         this.openedResources[i][key] = newValue;
         break;
       }
-    },
-    setSelectedFields: function (id, newValue) {
-      this.setAttributeForResource(id, "selectedFields", newValue);
-    },
-    setShowAllRows: function (id, newValue) {
-      this.setAttributeForResource(id, "showAllRows", newValue);
     },
     updatePreviewAreaHeight: function () {
       try {

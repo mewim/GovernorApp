@@ -115,6 +115,9 @@ export default {
     resourceStats: function () {
       this.selectMatchedFields();
     },
+    showAllRows: function (newVal) {
+      this.$parent.setShowAllRows(newVal);
+    },
   },
   methods: {
     getUrl: function (uuid) {
@@ -122,10 +125,7 @@ export default {
     },
     schemaFieldsTableRowSelected: function (rows) {
       this.selectedFields = rows.map((r) => r.name);
-      this.$parent.$parent.setSelectedFields(
-        this.resource.id,
-        this.selectedFields
-      );
+      this.$parent.setSelectedFields(this.selectedFields);
     },
     schemaFieldsTableRowClicked: function (_, idx) {
       if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {

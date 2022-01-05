@@ -39,6 +39,8 @@ export default {
       },
       isLoading: true,
       matchedDict: {},
+      selectedFields: [],
+      showAllRows: false,
       cellStyleOption: {
         bodyCellClass: ({ row, column }) => {
           if (
@@ -53,8 +55,6 @@ export default {
   },
   props: {
     height: Number,
-    selectedFields: Array,
-    showAllRows: Boolean,
     resource: Object,
     dataset: Object,
     resourceStats: Object,
@@ -79,6 +79,12 @@ export default {
     },
   },
   methods: {
+    setSelectedFields: function (newValue) {
+      this.selectedFields = newValue;
+    },
+    setShowAllRows: function (newValue) {
+      this.showAllRows = newValue;
+    },
     filterColumns() {
       const selectedFieldsSet = new Set(this.selectedFields);
       const keysHidden = [];
