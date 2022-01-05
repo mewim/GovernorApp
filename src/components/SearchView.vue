@@ -20,14 +20,6 @@
             v-on:click="searchButtonClicked(true)"
             >Search Metadata</b-button
           >
-          <b-button
-            variant="primary"
-            class="search-button"
-            @click="$refs.searchResultSettingsModal.show()"
-            v-if="searchSuccess && results.length > 0"
-          >
-            <b-icon icon="gear-fill"></b-icon>
-          </b-button>
         </div>
       </div>
     </div>
@@ -43,13 +35,7 @@
         v-if="searchSuccess && results.length > 0"
       >
         <b-card-group>
-          <b-card
-            v-for="(r, i) in searchResultTableItems"
-            :key="i"
-            :class="{
-              active: selectedResource && r.id === selectedResource.id,
-            }"
-          >
+          <b-card v-for="(r, i) in searchResultTableItems" :key="i">
             <template #header>
               <a href="#" @click="fileSelected(r.dataset_id, r.id)"
                 ><b>{{ r.file_title }}</b></a
@@ -93,12 +79,13 @@
     </div>
     <b-modal
       ref="searchResultSettingsModal"
-      title="Search Results Fields"
+      title="Settings"
       ok-only
       :hideHeaderClose="true"
       :centered="true"
     >
       <div class="search-results-fields-toggle-container">
+        <b>Search Results Fields</b>
         <b-form-checkbox v-model="searchResultFields.dataset_title">
           Dataset
         </b-form-checkbox>
@@ -119,6 +106,11 @@
         </b-form-checkbox>
         <b-form-checkbox v-model="searchResultFields.notes">
           Notes
+        </b-form-checkbox>
+
+        <b>Navigation Option</b>
+        <b-form-checkbox v-model="jumpImmediately">
+          Jump to table immediately upon open
         </b-form-checkbox>
       </div>
     </b-modal>
@@ -144,6 +136,7 @@ export default {
         portal_release_date: false,
         notes: false,
       },
+      jumpImmediately: true,
       selectedResource: null,
       selectedDataset: null,
       selectedResourceStats: null,
@@ -182,11 +175,8 @@ export default {
     },
   },
   methods: {
-    showStats: function (row) {
-      const fieldName = row.item.name;
-      const resourceId = this.selectedResource.id;
-      this.$refs.columnStatsModal.show();
-      this.$refs.columnStats.reloadData(resourceId, fieldName);
+    toggleSettings: function () {
+      this.$refs.searchResultSettingsModal.show();
     },
     searchButtonClicked: async function (searchMetadata) {
       if (this.searchBarText.length === 0) {
@@ -222,11 +212,14 @@ export default {
         (r) => r.id === fileId
       )[0];
       this.selectedResourceStats = await this.getInferredStats(fileId);
-      this.$parent.openResource({
-        resource: this.selectedResource,
-        dataset: this.selectedDataset,
-        resourceStats: this.selectedResourceStats
-      })
+      this.$parent.openResource(
+        {
+          resource: this.selectedResource,
+          dataset: this.selectedDataset,
+          resourceStats: this.selectedResourceStats,
+        },
+        this.jumpImmediately
+      );
     },
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
@@ -253,6 +246,11 @@ export default {
   display: flex;
   flex-direction: column;
 }
+.searchbar-container {
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-top: 10px;
+}
 .search-result-container {
   overflow: hidden;
   display: flex;
@@ -262,8 +260,8 @@ export default {
 }
 .search-result-cards-container {
   flex-grow: 1;
-  flex-basis: 66.66%;
   overflow-y: scroll;
+  margin-left: 10px;
   div.card {
     &.active {
       > .card-header {
@@ -286,19 +284,9 @@ export default {
 }
 
 .search-result-container > .b-table-sticky-header {
-  flex-basis: 66.66%;
   overflow: scroll;
   flex-grow: 1;
   margin-bottom: 0;
-}
-.table-preview-container {
-  padding-top: 4px;
-  min-height: 50%;
-  max-height: 50%;
-  &.table-content-hidden {
-    flex-grow: 1;
-    min-height: auto;
-  }
 }
 span {
   margin-right: 2px;

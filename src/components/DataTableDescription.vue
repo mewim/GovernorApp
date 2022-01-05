@@ -3,7 +3,9 @@
     <div>
       <h4>Release Date</h4>
     </div>
-    <p>{{ dataset.portal_release_date }}</p>
+    <p>
+      {{ dataset.portal_release_date ? dataset.portal_release_date : "N/A" }}
+    </p>
     <p></p>
 
     <h4>Subjects</h4>
@@ -120,6 +122,12 @@ export default {
     },
   },
   methods: {
+    showStats: function (row) {
+      const fieldName = row.item.name;
+      const resourceId = this.resource.id;
+      this.$refs.columnStatsModal.show();
+      this.$refs.columnStats.reloadData(resourceId, fieldName);
+    },
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
     },
@@ -152,7 +160,7 @@ export default {
 <style lang="scss" scoped>
 .dataset-description-container {
   flex-basis: 25%;
-  padding-left: 10px;
+  padding: 10px;
   overflow-y: scroll;
 }
 .dataset-description-buttons-container {

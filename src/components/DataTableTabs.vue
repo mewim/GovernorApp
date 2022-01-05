@@ -5,7 +5,7 @@
         <li>
           <b-button
             variant="primary"
-            @click="toggleSearchView()"
+            @click="toggleSettings()"
             class="toggle-table-button"
             ><b-icon icon="gear-fill"></b-icon
           ></b-button>
@@ -42,7 +42,7 @@
       v-show="tableViewDisplayed"
       :style="dataTableContainerStyle"
     >
-      <search-view v-show="isSearchActive" />
+      <search-view v-show="isSearchActive" ref="searchView" />
       <data-table
         v-for="item in openedResources"
         v-show="!isSearchActive && activeResourceId === item.resource.id"
@@ -79,6 +79,9 @@ export default {
     },
   },
   methods: {
+    toggleSettings: function () {
+      this.$refs.searchView.toggleSettings();
+    },
     toggleSearchView: function () {
       this.isSearchActive = true;
     },
@@ -87,11 +90,13 @@ export default {
         ? "nav-link active"
         : "nav-link";
     },
-    openResource: function (r) {
+    openResource: function (r, jumpImmediately) {
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
           this.activeResourceId = r.resource.id;
           this.openedResources[i].resource = r.resource;
+          this.openedResources[i].dataset = r.dataset;
+          this.openedResources[i].resourceStats = r.resourceStats;
           this.$nextTick(() => {
             this.updatePreviewAreaHeight();
           });
@@ -100,6 +105,7 @@ export default {
       }
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
+      this.isSearchActive = !jumpImmediately;
       if (this.openedResources.length === 1) {
         this.$emit("showTabAreaChanged", true);
       }
