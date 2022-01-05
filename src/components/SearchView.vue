@@ -174,20 +174,6 @@
         </div>
       </div>
     </div>
-
-    <div
-      class="table-preview-container"
-      v-show="showTabArea"
-      ref="tablePreviewContainer"
-      :class="{ 'table-content-hidden': !tableViewDisplayed }"
-    >
-      <data-table-tabs
-        ref="dataTableTabs"
-        v-on:showTabAreaChanged="showTabArea = !showTabArea"
-        v-on:tableViewDisplayed="tableViewDisplayed = !tableViewDisplayed"
-      />
-    </div>
-
     <b-modal
       ref="searchResultSettingsModal"
       title="Search Results Fields"
@@ -275,7 +261,7 @@ export default {
   },
   watch: {
     showAllRows: function (newValue) {
-      this.$refs.dataTableTabs.setShowAllRows(
+      this.$parent.setShowAllRows(
         this.selectedResource.id,
         newValue
       );
@@ -319,7 +305,7 @@ export default {
     },
     schemaFieldsTableRowSelected: function (rows) {
       this.selectedFields = rows.map((r) => r.name);
-      this.$refs.dataTableTabs.setSelectedFields(
+      this.$parent.setSelectedFields(
         this.selectedResource.id,
         this.selectedFields
       );
@@ -349,7 +335,7 @@ export default {
       this.selectedResourceStats = null;
     },
     previewFile: function () {
-      this.$refs.dataTableTabs.openResource({
+      this.$parent.openResource({
         resource: this.selectedResource,
         showAllRows: this.showAllRows,
         selectedFields: this.selectedFields,

@@ -4,18 +4,30 @@
       <ul role="tablist" class="nav nav-tabs">
         <li>
           <b-button
-            variant="light"
-            @click="toggleTableView()"
+            variant="primary"
+            @click="toggleSearchView()"
             class="toggle-table-button"
-            ><b-icon :icon="toggleTableViewButtonIcon"></b-icon
+            ><b-icon icon="gear-fill"></b-icon
+          ></b-button>
+
+          <b-button
+            variant="light"
+            @click="toggleSearchView()"
+            class="toggle-table-button"
+            ><b-icon icon="search"></b-icon
           ></b-button>
         </li>
 
         <li v-for="item in openedResources" :key="item.resource.id">
           <p :class="getTabClass(item.resource.id)">
-            <a href="#" @click="activeResourceId = item.resource.id">{{
-              item.resource.name
-            }}</a>
+            <a
+              href="#"
+              @click="
+                activeResourceId = item.resource.id;
+                isSearchActive = false;
+              "
+              >{{ item.resource.name }}</a
+            >
             <span class="close-button" @click="closeResource(item.resource.id)">
               &nbsp;<b-icon icon="x"></b-icon
             ></span>
@@ -29,9 +41,10 @@
       ref="dataTableContainer"
       v-show="tableViewDisplayed"
     >
+      <search-view v-show="isSearchActive" />
       <data-table
         v-for="item in openedResources"
-        v-show="activeResourceId === item.resource.id"
+        v-show="!isSearchActive && activeResourceId === item.resource.id"
         :key="item.resource.id"
         :selectedFields="item.selectedFields"
         :showAllRows="item.showAllRows"
@@ -45,32 +58,24 @@
 </template>
 
 <script>
+import SearchView from "./SearchView.vue";
 export default {
+  components: { SearchView },
   data() {
     return {
       activeResourceId: null,
       openedResources: [],
       tableAreaHeight: 0,
       tableViewDisplayed: true,
+      isSearchActive: true,
     };
   },
   props: {},
   watch: {},
-  computed: {
-    toggleTableViewButtonIcon: function () {
-      if (this.tableViewDisplayed) {
-        return "arrow-bar-down";
-      }
-      return "arrow-bar-up";
-    },
-  },
+  computed: {},
   methods: {
-    toggleTableView: function () {
-      this.tableViewDisplayed = !this.tableViewDisplayed;
-      this.$emit("tableViewDisplayed", true);
-      this.$nextTick(() => {
-        this.updatePreviewAreaHeight();
-      });
+    toggleSearchView: function () {
+      this.isSearchActive = true;
     },
     getTabClass: function (resourceId) {
       return resourceId === this.activeResourceId
@@ -139,8 +144,7 @@ export default {
     },
     updatePreviewAreaHeight: function () {
       try {
-        this.tableAreaHeight =
-          this.$refs.dataTableContainer.getBoundingClientRect().height;
+        this.tableAreaHeight = window.innerHeight - 45;
       } catch (err) {
         this.tableAreaHeight = 0;
       }
@@ -190,6 +194,6 @@ export default {
   }
 }
 .toggle-table-button {
-  height: 100%;
+  height: 43px;
 }
 </style>
