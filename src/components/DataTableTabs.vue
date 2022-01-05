@@ -49,6 +49,8 @@
         :selectedFields="item.selectedFields"
         :showAllRows="item.showAllRows"
         :resource="item.resource"
+        :resourceStats="item.resourceStats"
+        :dataset="item.dataset"
         :tableId="item.resource.id"
         :height="tableAreaHeight"
         :ref="`table-${item.resource.id}`"
@@ -144,7 +146,7 @@ export default {
     },
     updatePreviewAreaHeight: function () {
       try {
-        this.tableAreaHeight = window.innerHeight - 45;
+        this.tableAreaHeight = window.innerHeight - 43;
       } catch (err) {
         this.tableAreaHeight = 0;
       }
@@ -194,6 +196,6 @@ export default {
   }
 }
 .toggle-table-button {
-  height: 43px;
+  height: 41px;
 }
 </style>

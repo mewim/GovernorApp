@@ -37,7 +37,6 @@
           <b-button
             size="sm"
             variant="primary"
-            @click="previewFile(resource.id)"
             >Open</b-button
           >
         </span>
@@ -89,6 +88,9 @@
 <script>
 export default {
   name: "DataTableDescription",
+  mounted: function () {
+    this.selectMatchedFields();
+  },
   data: function () {
     return {
       schemaFields: [
@@ -116,14 +118,7 @@ export default {
   },
   watch: {
     resourceStats: function () {
-      this.$nextTick(() => {
-        const matchedColumns = new Set(this.resource.matches.columns);
-        for (let i = 0; i < this.resourceStats.schema.fields.length; ++i) {
-          if (matchedColumns.has(this.resourceStats.schema.fields[i].name)) {
-            this.$refs.schemaFieldsTable.selectRow(i);
-          }
-        }
-      });
+      this.selectMatchedFields();
     },
   },
   methods: {
@@ -144,11 +139,15 @@ export default {
         this.$refs.schemaFieldsTable.selectRow(idx);
       }
     },
-    previewFile: function () {
-      this.$parent.$parent.openResource({
-        resource: this.resource,
-        showAllRows: this.showAllRows,
-        selectedFields: this.selectedFields,
+    selectMatchedFields: function () {
+      this.$nextTick(() => {
+        const matchedColumns = new Set(this.resource.matches.columns);
+        console.log(matchedColumns, this.resourceStats.schema);
+        for (let i = 0; i < this.resourceStats.schema.fields.length; ++i) {
+          if (matchedColumns.has(this.resourceStats.schema.fields[i].name)) {
+            this.$refs.schemaFieldsTable.selectRow(i);
+          }
+        }
       });
     },
   },
@@ -157,7 +156,7 @@ export default {
 
 <style lang="scss" scoped>
 .dataset-description-container {
-  flex-basis: 33.33%;
+  flex-basis: 25%;
   padding-left: 10px;
   overflow-y: scroll;
 }

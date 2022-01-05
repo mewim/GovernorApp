@@ -1,15 +1,22 @@
 <template>
-  <div style="height: 100%">
-    <ve-table
-      :max-height="height"
-      :virtual-scroll-option="virtualScrollOption"
-      :columns="columns"
-      :table-data="tableData"
-      row-key-field-name="rowKey"
-      :columnHiddenOption="columnHiddenOption"
-      :cell-style-option="cellStyleOption"
-      ref="table"
+  <div class="data-table-outer-container">
+    <data-table-description
+      :dataset="dataset"
+      :resourceStats="resourceStats"
+      :resource="resource"
     />
+    <div class="data-table-inner-container" ref="tableContainer">
+      <ve-table
+        :max-height="height"
+        :virtual-scroll-option="virtualScrollOption"
+        :columns="columns"
+        :table-data="tableData"
+        row-key-field-name="rowKey"
+        :columnHiddenOption="columnHiddenOption"
+        :cell-style-option="cellStyleOption"
+        ref="table"
+      />
+    </div>
   </div>
 </template>
 
@@ -49,6 +56,8 @@ export default {
     selectedFields: Array,
     showAllRows: Boolean,
     resource: Object,
+    dataset: Object,
+    resourceStats: Object,
     tableId: String,
   },
   watch: {
@@ -169,7 +178,7 @@ export default {
   },
   mounted() {
     this.loadingInstance = VeLoading({
-      target: this.$el,
+      target: this.$refs.tableContainer,
       name: "wave",
     });
     if (this.isLoading) {
@@ -183,8 +192,20 @@ export default {
 };
 </script>
 
-<style>
+<style lang="scss" scoped>
 .table-body-cell-highlighted {
   color: #007bff !important;
+}
+.data-table-outer-container {
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  .data-table-inner-container {
+    display: flex;
+    flex-grow: 1;
+    .ve-table {
+      width: 100%;
+    }
+  }
 }
 </style>

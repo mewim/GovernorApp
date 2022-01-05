@@ -90,11 +90,6 @@
           </b-card>
         </b-card-group>
       </div>
-      <data-table-description
-        :dataset="selectedDataset"
-        :resourceStats="selectedResourceStats"
-        :resource="selectedResource"
-      />
     </div>
     <b-modal
       ref="searchResultSettingsModal"
@@ -228,6 +223,11 @@ export default {
         (r) => r.id === fileId
       )[0];
       this.selectedResourceStats = await this.getInferredStats(fileId);
+      this.$parent.openResource({
+        resource: this.selectedResource,
+        dataset: this.selectedDataset,
+        resourceStats: this.selectedResourceStats
+      })
     },
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
@@ -260,9 +260,6 @@ export default {
   flex-direction: row;
   flex-grow: 2;
   height: 100%;
-}
-a {
-  color: #42b983;
 }
 .search-result-cards-container {
   flex-grow: 1;
