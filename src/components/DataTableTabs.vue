@@ -1,6 +1,6 @@
 <template>
   <div class="data-table-tab-container">
-    <div>
+    <div ref="dataTableTabBar">
       <ul role="tablist" class="nav nav-tabs">
         <li>
           <b-button
@@ -40,6 +40,7 @@
       class="data-table-container"
       ref="dataTableContainer"
       v-show="tableViewDisplayed"
+      :style="dataTableContainerStyle"
     >
       <search-view v-show="isSearchActive" />
       <data-table
@@ -74,13 +75,17 @@ export default {
   },
   props: {},
   watch: {},
-  computed: {},
+  computed: {
+    dataTableContainerStyle: function () {
+      return { height: `${this.tableAreaHeight}px` };
+    },
+  },
   methods: {
     toggleSearchView: function () {
       this.isSearchActive = true;
     },
     getTabClass: function (resourceId) {
-      return resourceId === this.activeResourceId
+      return resourceId === this.activeResourceId && !this.isSearchActive
         ? "nav-link active"
         : "nav-link";
     },
@@ -146,14 +151,19 @@ export default {
     },
     updatePreviewAreaHeight: function () {
       try {
-        this.tableAreaHeight = window.innerHeight - 43;
+        this.tableAreaHeight =
+          window.innerHeight -
+          this.$refs.dataTableTabBar.getBoundingClientRect().height;
+        console.log(this.tableAreaHeight);
       } catch (err) {
         this.tableAreaHeight = 0;
       }
     },
   },
 
-  mounted() {},
+  mounted() {
+    this.updatePreviewAreaHeight();
+  },
   created() {
     window.addEventListener("resize", this.updatePreviewAreaHeight);
   },
@@ -191,9 +201,6 @@ export default {
   height: 100%;
   display: flex;
   flex-direction: column;
-  .data-table-container {
-    flex-grow: 1;
-  }
 }
 .toggle-table-button {
   height: 41px;

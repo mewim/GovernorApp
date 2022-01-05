@@ -151,7 +151,6 @@ export default {
       searchSuccess: false,
       showTabArea: false,
       loadingInstance: null,
-      tableViewDisplayed: true,
     };
   },
   watch: {

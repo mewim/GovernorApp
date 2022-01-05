@@ -34,11 +34,6 @@
           <b-button size="sm" @click="showAllRows = !showAllRows">{{
             toggleRowText
           }}</b-button>
-          <b-button
-            size="sm"
-            variant="primary"
-            >Open</b-button
-          >
         </span>
       </h4>
 
