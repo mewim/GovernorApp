@@ -106,9 +106,6 @@ export default {
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
       this.isSearchActive = !jumpImmediately;
-      if (this.openedResources.length === 1) {
-        this.$emit("showTabAreaChanged", true);
-      }
       this.$nextTick(() => {
         this.updatePreviewAreaHeight();
       });
@@ -132,7 +129,7 @@ export default {
         break;
       }
       if (this.openedResources.length === 0) {
-        this.$emit("showTabAreaChanged", false);
+        this.isSearchActive = true;
       }
       this.$nextTick(() => {
         this.updatePreviewAreaHeight();
