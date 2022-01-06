@@ -86,10 +86,12 @@
 </template>
 
 <script>
+import axios from "axios";
 export default {
   name: "DataTableDescription",
   mounted: function () {
     this.selectMatchedFields();
+    this.getJoinableResults(this.resource.id);
   },
   data: function () {
     return {
@@ -100,6 +102,7 @@ export default {
         { key: "stats", label: "Stats" },
       ],
       selectedFields: [],
+      joinableResults: [],
       showAllRows: false,
     };
   },
@@ -124,8 +127,16 @@ export default {
     showAllRows: function (newVal) {
       this.$parent.setShowAllRows(newVal);
     },
+    resource: function (newVal) {
+      this.getJoinableResults(newVal.id);
+    },
   },
   methods: {
+    getJoinableResults: async function (uuid) {
+      this.joinableResults = (
+        await axios.get("http://localhost:8080/api/joinable/" + uuid)
+      ).data;
+    },
     showStats: function (row) {
       const fieldName = row.item.name;
       const resourceId = this.resource.id;
