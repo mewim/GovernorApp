@@ -2,7 +2,6 @@ const express = require("express");
 const api = require("./API");
 const path = require("path");
 const { createProxyMiddleware } = require("http-proxy-middleware");
-
 module.exports = (app) => {
   if (process.env.PROXY_API_REQUESTS) {
     app.use(

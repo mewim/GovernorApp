@@ -25,6 +25,7 @@
 import axios from "axios";
 import csvtojson from "csvtojson";
 import { VeLoading } from "vue-easytable";
+import * as duckdb from "@duckdb/duckdb-wasm";
 
 export default {
   data() {
@@ -101,7 +102,38 @@ export default {
       this.$refs.table.showColumnsByKeys(keysShown);
       this.$refs.table.hideColumnsByKeys(keysHidden);
     },
+    async getDb() {
+      // ..., or load the bundles from jsdelivr
+      const MANUAL_BUNDLES = {
+        mvp: {
+          mainModule: "/js/duckdb.wasm",
+          mainWorker: "/js/duckdb-browser.worker.js",
+        },
+        eh: {
+          mainModule: "/js/duckdb-eh.wasm",
+          mainWorker: "/js/duckdb-browser-eh.worker.js",
+        },
+      };
+      // Select a bundle based on browser checks
+      const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
+      // Instantiate the asynchronus version of DuckDB-wasm
+      const worker = new Worker(bundle.mainWorker);
+      const logger = new duckdb.ConsoleLogger();
+      const db = new duckdb.AsyncDuckDB(logger, worker);
+      await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+
+      const conn = await db.connect();
+      const result = await conn.query(
+        `SELECT count(*)::INTEGER as v FROM generate_series(0, 100) t(v)`
+      );
+      console.log("result", result);
+      await conn.close();
+
+      return db;
+    },
     async reloadData() {
+      const db = await this.getDb();
+      console.log("db", db);
       const shouldShowAllRows = this.showAllRows || this.searchMetadata;
       this.isLoading = true;
       if (this.loadingInstance) {
