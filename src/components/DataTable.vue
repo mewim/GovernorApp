@@ -124,7 +124,7 @@ export default {
 
       const conn = await db.connect();
       const result = await conn.query(
-        `SELECT count(*)::INTEGER as v FROM generate_series(0, 100) t(v)`
+        `SELECT SUM(v), COUNT(*) FROM generate_series(0, 100) AS t(v)`
       );
       console.log("result", result);
       await conn.close();
