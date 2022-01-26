@@ -23,9 +23,8 @@
 
 <script>
 import axios from "axios";
-import csvtojson from "csvtojson";
 import { VeLoading } from "vue-easytable";
-import * as duckdb from "@duckdb/duckdb-wasm";
+import DuckDB from "../utils/DuckDB";
 
 export default {
   data() {
@@ -102,38 +101,7 @@ export default {
       this.$refs.table.showColumnsByKeys(keysShown);
       this.$refs.table.hideColumnsByKeys(keysHidden);
     },
-    async getDb() {
-      // ..., or load the bundles from jsdelivr
-      const MANUAL_BUNDLES = {
-        mvp: {
-          mainModule: "/js/duckdb.wasm",
-          mainWorker: "/js/duckdb-browser.worker.js",
-        },
-        eh: {
-          mainModule: "/js/duckdb-eh.wasm",
-          mainWorker: "/js/duckdb-browser-eh.worker.js",
-        },
-      };
-      // Select a bundle based on browser checks
-      const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
-      // Instantiate the asynchronus version of DuckDB-wasm
-      const worker = new Worker(bundle.mainWorker);
-      const logger = new duckdb.ConsoleLogger();
-      const db = new duckdb.AsyncDuckDB(logger, worker);
-      await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-
-      const conn = await db.connect();
-      const result = await conn.query(
-        `SELECT SUM(v), COUNT(*) FROM generate_series(0, 100) AS t(v)`
-      );
-      console.log("result", result);
-      await conn.close();
-
-      return db;
-    },
     async reloadData() {
-      const db = await this.getDb();
-      console.log("db", db);
       const shouldShowAllRows = this.showAllRows || this.searchMetadata;
       this.isLoading = true;
       if (this.loadingInstance) {
@@ -166,41 +134,41 @@ export default {
       this.matchedDict = {};
       const rowToIndexDict = {};
 
-      let body;
+      let uniqueRowNumbers;
       if (!shouldShowAllRows) {
-        const uniqueRowNumbers = [
+        uniqueRowNumbers = [
           ...new Set(this.resource.matches.matches.map((m) => m.row_number)),
         ];
         uniqueRowNumbers.sort((a, b) => {
           return a - b;
         });
-        body = { rows: uniqueRowNumbers };
         uniqueRowNumbers.forEach((r, i) => {
           rowToIndexDict[r] = i;
         });
       }
       this.resource.matches.matches.forEach((m) => {
         const i = shouldShowAllRows
-          ? m.row_number - 1 // header is hidden, -1 offset
+          ? m.row_number // header is hidden, -1 offset
           : rowToIndexDict[m.row_number];
         if (!this.matchedDict[i]) {
           this.matchedDict[i] = {};
         }
         this.matchedDict[i][m.field_name] = true;
       });
-      const csvString = await axios
-        .post(`/api/csv/${this.tableId}`, body)
-        .then((res) => res.data);
-      const csvRows = await csvtojson({
-        noheader: true,
-        output: "csv",
-      }).fromString(csvString);
-      csvRows.forEach((r, i) => {
-        if (shouldShowAllRows && i === this.inferredstats.header) {
-          return;
-        }
+      console.time("DuckDB Load");
+      await DuckDB.loadParquet(this.tableId);
+      console.timeEnd("DuckDB Load");
+
+      console.time("DuckDB Query");
+      const arrowTable = await (shouldShowAllRows
+        ? DuckDB.getFullTable(this.tableId)
+        : DuckDB.getTableByRowNumbers(this.tableId, uniqueRowNumbers));
+      console.timeEnd("DuckDB Query");
+
+      console.time("Post-process");
+      arrowTable.toArray().forEach((r, i) => {
         const rowDict = { rowKey: i };
-        for (let j = 0; j < r.length; ++j) {
+        for (let j = 0; j < this.inferredstats.schema.fields.length; ++j) {
           let fieldName, rawValue;
           try {
             const field = this.inferredstats.schema.fields[j];
@@ -215,6 +183,7 @@ export default {
       });
       this.isLoading = false;
       this.loadingInstance.close();
+      console.timeEnd("Post-process");
     },
   },
   mounted() {
