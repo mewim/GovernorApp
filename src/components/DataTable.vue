@@ -7,6 +7,16 @@
       :searchMetadata="searchMetadata"
     />
     <div class="data-table-inner-container" ref="tableContainer">
+      <div class="table-pagination">
+        <ve-pagination
+          :total="totalCount"
+          :page-size-option="[10, 25, 50, 100, 200, 500, 1000]"
+          :page-index="pageIndex"
+          :page-size="pageSize"
+          @on-page-number-change="pageNumberChange"
+          @on-page-size-change="pageSizeChange"
+        />
+      </div>
       <ve-table
         :max-height="height"
         :virtual-scroll-option="virtualScrollOption"
@@ -29,9 +39,13 @@ import DuckDB from "../utils/DuckDB";
 export default {
   data() {
     return {
+      pageIndex: 1,
+      pageSize: 25,
+      totalCount: 0,
       virtualScrollOption: {
         enable: true,
       },
+      uniqueRowNumbers: [],
       columns: [],
       tableData: [],
       inferredstats: null,
@@ -80,7 +94,21 @@ export default {
       },
     },
   },
+  computed: {
+    shouldShowAllRows: function () {
+      return this.showAllRows || this.searchMetadata;
+    },
+  },
   methods: {
+    pageNumberChange(pageIndex) {
+      this.pageIndex = pageIndex;
+      this.loadDataForCurrentPage();
+    },
+    pageSizeChange(pageSize) {
+      this.pageIndex = 1;
+      this.pageSize = pageSize;
+      this.loadDataForCurrentPage();
+    },
     setSelectedFields: function (newValue) {
       this.selectedFields = newValue;
     },
@@ -102,13 +130,11 @@ export default {
       this.$refs.table.hideColumnsByKeys(keysHidden);
     },
     async reloadData() {
-      const shouldShowAllRows = this.showAllRows || this.searchMetadata;
       this.isLoading = true;
       if (this.loadingInstance) {
         this.loadingInstance.show();
       }
       this.columns.splice(0);
-      this.tableData.splice(0);
       this.matchedDict = {};
       if (!this.tableId) {
         return;
@@ -132,42 +158,46 @@ export default {
       this.filterColumns();
 
       this.matchedDict = {};
-      const rowToIndexDict = {};
 
-      let uniqueRowNumbers;
-      if (!shouldShowAllRows) {
-        uniqueRowNumbers = [
+      if (!this.shouldShowAllRows) {
+        this.uniqueRowNumbers = [
           ...new Set(this.resource.matches.matches.map((m) => m.row_number)),
         ];
-        uniqueRowNumbers.sort((a, b) => {
-          return a - b;
-        });
-        uniqueRowNumbers.forEach((r, i) => {
-          rowToIndexDict[r] = i;
-        });
       }
       this.resource.matches.matches.forEach((m) => {
-        const i = shouldShowAllRows
-          ? m.row_number // header is hidden, -1 offset
-          : rowToIndexDict[m.row_number];
+        const i = m.row_number;
         if (!this.matchedDict[i]) {
           this.matchedDict[i] = {};
         }
         this.matchedDict[i][m.field_name] = true;
       });
       console.time("DuckDB Load");
-      await DuckDB.loadParquet(this.tableId);
+      const totalCount = await DuckDB.loadParquet(this.tableId);
+      console.log(totalCount);
       console.timeEnd("DuckDB Load");
-
+      this.totalCount = this.shouldShowAllRows
+        ? totalCount
+        : this.uniqueRowNumbers.length;
+      await this.loadDataForCurrentPage();
+      this.loadingInstance.close();
+      this.isLoading = false;
+    },
+    async loadDataForCurrentPage() {
+      this.tableData.splice(0);
       console.time("DuckDB Query");
-      const arrowTable = await (shouldShowAllRows
-        ? DuckDB.getFullTable(this.tableId)
-        : DuckDB.getTableByRowNumbers(this.tableId, uniqueRowNumbers));
+      const arrowTable = await (this.shouldShowAllRows
+        ? DuckDB.getFullTable(this.tableId, this.pageIndex, this.pageSize)
+        : DuckDB.getTableByRowNumbers(
+            this.tableId,
+            this.uniqueRowNumbers,
+            this.pageIndex,
+            this.pageSize
+          ));
       console.timeEnd("DuckDB Query");
 
       console.time("Post-process");
       arrowTable.toArray().forEach((r, i) => {
-        const rowDict = { rowKey: i };
+        const rowDict = { rowKey: r.row ? r.row[0] : i };
         for (let j = 0; j < this.inferredstats.schema.fields.length; ++j) {
           let fieldName, rawValue;
           try {
@@ -181,8 +211,6 @@ export default {
         }
         this.tableData.push(rowDict);
       });
-      this.isLoading = false;
-      this.loadingInstance.close();
       console.timeEnd("Post-process");
     },
   },
@@ -211,7 +239,19 @@ export default {
   display: flex;
   flex-direction: row;
   .data-table-inner-container {
+    .table-pagination {
+      display: flex;
+      flex-direction: row;
+      flex-grow: 1;
+      justify-content: center;
+      padding-top: 4px;
+      padding-bottom: 4px;
+      a.ve-dropdown-dt-selected {
+        width: 120px !important;
+      }
+    }
     display: flex;
+    flex-direction: column;
     flex-grow: 1;
     .ve-table {
       width: 100%;

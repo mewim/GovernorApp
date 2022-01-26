@@ -37,31 +37,48 @@ class DuckDB {
   }
 
   async loadParquet(uuid) {
-    if (this.loadedTables.has(uuid)) {
-      return;
-    }
     const db = await this.getDb();
-    const url = new URL(`/api/parquet/${uuid}.parquet`, window.location).href;
-    await db.registerFileURL(`parquet_${uuid}`, url);
     const conn = await db.connect();
-    await conn.query(`CREATE TABLE "${uuid}" AS SELECT * FROM "${url}"`);
+    if (!this.loadedTables.has(uuid)) {
+      const url = new URL(`/api/parquet/${uuid}.parquet`, window.location).href;
+      await db.registerFileURL(`parquet_${uuid}`, url);
+      await conn.query(`CREATE TABLE "${uuid}" AS SELECT * FROM "${url}"`);
+      this.loadedTables.add(uuid);
+    }
+    const countResult = await conn.query(`SELECT COUNT(*) FROM "${uuid}"`);
+    const totalCount = countResult.toArray()[0][0][0];
     await conn.close();
-    this.loadedTables.add(uuid);
+    return totalCount;
   }
 
-  async getFullTable(uuid) {
+  createPaginationSubquery(pageIndex, pageSize) {
+    if (!(Number.isInteger(pageIndex) && Number.isInteger(pageSize))) {
+      return "";
+    }
+    const offset = (pageIndex - 1) * pageSize;
+    return ` OFFSET ${offset} LIMIT ${pageSize}`;
+  }
+
+  async getFullTable(uuid, pageIndex, pageSize) {
     const db = await this.getDb();
     const conn = await db.connect();
-    const databaseResult = await conn.query(`SELECT * FROM "${uuid}"`);
+    const query = `
+      SELECT * FROM "${uuid}"
+      ${this.createPaginationSubquery(pageIndex, pageSize)}`;
+
+    const databaseResult = await conn.query(query);
     await conn.close();
     return databaseResult;
   }
 
-  async getTableByRowNumbers(uuid, rowNumbers) {
+  async getTableByRowNumbers(uuid, rowNumbers, pageIndex, pageSize) {
     const db = await this.getDb();
     const conn = await db.connect();
     const rowNumbersText = rowNumbers.map((r) => `'${r}'`).join(",");
-    const query = `SELECT * FROM (SELECT *, ROW_NUMBER() OVER() AS row FROM "${uuid}") WHERE row in (${rowNumbersText});`;
+    let query = `
+      SELECT * FROM (SELECT *, ROW_NUMBER() OVER() AS row FROM "${uuid}") 
+      WHERE row in (${rowNumbersText}) 
+      ${this.createPaginationSubquery(pageIndex, pageSize)}`;
     const databaseResult = await conn.query(query);
     await conn.close();
     return databaseResult;

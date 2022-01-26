@@ -9,7 +9,9 @@ import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap-vue/dist/bootstrap-vue.css";
 import "vue-easytable/libs/theme-default/index.css";
 import VueEasytable from "vue-easytable";
+import {VePagination} from "vue-easytable";
 
+Vue.use(VePagination);
 Vue.use(VueEasytable);
 Vue.use(BootstrapVue);
 Vue.use(IconsPlugin);
