@@ -8,8 +8,8 @@ app.use("/api", api);
 const distPath = path.join(__dirname, "..", "..", "dist");
 app.use("/", express.static(distPath));
 
-app.listen(8000, () => {
-  console.log("Deployed server started on port 8000");
+app.listen(8080, () => {
+  console.log("Deployed server started on port 8080");
 });
 
 process.on("SIGINT", function () {

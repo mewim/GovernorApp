@@ -35,6 +35,7 @@ router.get("/:uuid.parquet", async (req, res) => {
     return;
   });
   res.setHeader("content-type", "application/octet-stream");
+  res.set('cache-control', 'public, max-age=31536000')
   return parquetConverter.stdout.pipe(res);
 });
 

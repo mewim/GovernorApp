@@ -23,7 +23,6 @@
         :columns="columns"
         :table-data="tableData"
         row-key-field-name="rowKey"
-        :columnHiddenOption="columnHiddenOption"
         :cell-style-option="cellStyleOption"
         ref="table"
       />
@@ -55,7 +54,7 @@ export default {
       isLoading: true,
       matchedDict: {},
       selectedFields: [],
-      showAllRows: false,
+      showAllRows: true,
       cellStyleOption: {
         bodyCellClass: ({ row, column }) => {
           if (
@@ -66,6 +65,7 @@ export default {
           }
         },
       },
+      joinedTableId: null,
     };
   },
   props: {
@@ -100,6 +100,30 @@ export default {
     },
   },
   methods: {
+    async joinTable(metadata) {
+      this.loadingInstance.show();
+      try {
+        console.log(metadata);
+        console.time("Load target table");
+        const sourceColumnName = metadata.source.column.inferred_schema.name;
+        const targetId = metadata.target.uuid;
+        const targetColumnName = metadata.target.column.inferred_schema.name;
+        await DuckDB.loadParquet(targetId);
+        const joinViewResult = await DuckDB.createJoinedView(
+          this.tableId,
+          sourceColumnName,
+          targetId,
+          targetColumnName
+        );
+        this.joinedTableId = joinViewResult.viewName;
+        this.totalCount = joinViewResult.totalCount;
+        this.pageIndex = 1;
+        await this.loadDataForCurrentPage();
+      } catch (err) {
+        alert("Cannot perform the join", err);
+      }
+      this.loadingInstance.close();
+    },
     pageNumberChange(pageIndex) {
       this.pageIndex = pageIndex;
       this.loadDataForCurrentPage();
@@ -115,20 +139,7 @@ export default {
     setShowAllRows: function (newValue) {
       this.showAllRows = newValue;
     },
-    filterColumns() {
-      const selectedFieldsSet = new Set(this.selectedFields);
-      const keysHidden = [];
-      const keysShown = [];
-      for (let c of this.columns) {
-        if (selectedFieldsSet.has(c.field)) {
-          keysShown.push(c.key);
-        } else {
-          keysHidden.push(c.key);
-        }
-      }
-      this.$refs.table.showColumnsByKeys(keysShown);
-      this.$refs.table.hideColumnsByKeys(keysHidden);
-    },
+    filterColumns() {},
     async reloadData() {
       this.isLoading = true;
       if (this.loadingInstance) {
@@ -150,27 +161,27 @@ export default {
           key: String(i),
           title: f.name,
           width: 300,
-          // ellipsis: {
-          //   showTitle: true,
-          // },
+          ellipsis: {
+            showTitle: true,
+          },
         });
       });
       this.filterColumns();
 
       this.matchedDict = {};
 
-      if (!this.shouldShowAllRows) {
-        this.uniqueRowNumbers = [
-          ...new Set(this.resource.matches.matches.map((m) => m.row_number)),
-        ];
-      }
-      this.resource.matches.matches.forEach((m) => {
-        const i = m.row_number;
-        if (!this.matchedDict[i]) {
-          this.matchedDict[i] = {};
-        }
-        this.matchedDict[i][m.field_name] = true;
-      });
+      // if (!this.shouldShowAllRows) {
+      //   this.uniqueRowNumbers = [
+      //     ...new Set(this.resource.matches.matches.map((m) => m.row_number)),
+      //   ];
+      // }
+      // this.resource.matches.matches.forEach((m) => {
+      //   const i = m.row_number;
+      //   if (!this.matchedDict[i]) {
+      //     this.matchedDict[i] = {};
+      //   }
+      //   this.matchedDict[i][m.field_name] = true;
+      // });
       console.time("DuckDB Load");
       const totalCount = await DuckDB.loadParquet(this.tableId);
       console.timeEnd("DuckDB Load");
@@ -183,25 +194,40 @@ export default {
     },
     async loadDataForCurrentPage() {
       this.tableData.splice(0);
+      this.columns.splice(0);
+
       console.time("DuckDB Query");
+      const tableId = this.joinedTableId ? this.joinedTableId : this.tableId;
       const arrowTable = await (this.shouldShowAllRows
-        ? DuckDB.getFullTable(this.tableId, this.pageIndex, this.pageSize)
+        ? DuckDB.getFullTable(tableId, this.pageIndex, this.pageSize)
         : DuckDB.getTableByRowNumbers(
-            this.tableId,
+            tableId,
             this.uniqueRowNumbers,
             this.pageIndex,
             this.pageSize
           ));
+      arrowTable.schema.fields.forEach((f, i) => {
+        this.columns.push({
+          field: f.name,
+          key: String(i),
+          title: f.name,
+          width: 300,
+          ellipsis: {
+            showTitle: true,
+          },
+        });
+      });
+      console.log(arrowTable);
       console.timeEnd("DuckDB Query");
 
       console.time("Post-process");
       arrowTable.toArray().forEach((r, i) => {
         const rowDict = { rowKey: r.row ? r.row[0] : i };
-        for (let j = 0; j < this.inferredstats.schema.fields.length; ++j) {
+        for (let j = 0; j < this.columns.length; ++j) {
           let fieldName, rawValue;
           try {
-            const field = this.inferredstats.schema.fields[j];
-            fieldName = field.name;
+            const field = this.columns[j];
+            fieldName = field.field;
             rawValue = r[j];
           } catch (err) {
             continue;
@@ -253,6 +279,7 @@ export default {
     flex-direction: column;
     flex-grow: 1;
     .ve-table {
+      overflow-y: overflow;
       width: 100%;
     }
   }

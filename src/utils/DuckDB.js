@@ -5,6 +5,41 @@ class DuckDB {
   constructor() {
     this.db = null;
     this.loadedTables = new Set();
+    this.joinedTables = [];
+  }
+
+  addJoinedTables(source, sourceColumnName, target, targertColumnName) {
+    this.joinedTables.push({
+      source,
+      sourceColumnName,
+      target,
+      targertColumnName,
+    });
+    return this.joinedTables.length - 1;
+  }
+
+  findJoinedTables(source, sourceColumnName, target, targertColumnName) {
+    for (let i = 0; i < this.joinedTables.length; ++i) {
+      const currItem = this.joinedTables[i];
+      if (
+        currItem.source === source &&
+        currItem.sourceColumnName === sourceColumnName &&
+        currItem.target === target &&
+        currItem.targetName === targertColumnName
+      ) {
+        return i;
+      }
+    }
+  }
+
+  decodeColumnName(columnName) {
+    const split = columnName.split("_");
+    return {
+      source: split[0],
+      sourceColumnName: split[1],
+      target: split[2],
+      targertColumnName: split[3],
+    };
   }
 
   async init() {
@@ -34,6 +69,18 @@ class DuckDB {
       await this.init();
     }
     return this.db;
+  }
+
+  async unloadTable(uuid) {
+    if (!this.loadedTables.has(uuid)) {
+      return;
+    }
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const countResult = await conn.query(`SELECT COUNT(*) FROM "${uuid}"`);
+    const totalCount = countResult.toArray()[0][0][0];
+    await conn.close();
+    return totalCount;
   }
 
   async loadParquet(uuid) {
@@ -69,6 +116,30 @@ class DuckDB {
     const databaseResult = await conn.query(query);
     await conn.close();
     return databaseResult;
+  }
+
+  async createJoinedView(source, sourceColumnName, target, targertColumnName) {
+    const viewName = `view_${this.addJoinedTables(
+      source,
+      sourceColumnName,
+      target,
+      targertColumnName
+    )}`;
+    const query = `
+      CREATE VIEW ${viewName} AS 
+        SELECT * FROM "${source}" JOIN "${target}" 
+        ON "${source}"."${sourceColumnName}"="${target}"."${targertColumnName}"`;
+    const db = await this.getDb();
+    const conn = await db.connect();
+    await conn.query(query);
+    const countQuery = `SELECT COUNT(*) FROM ${viewName}`;
+    const countResult = await conn.query(countQuery);
+    const totalCount = countResult.toArray()[0][0][0];
+    await conn.close();
+    return {
+      totalCount,
+      viewName,
+    };
   }
 
   async getTableByRowNumbers(uuid, rowNumbers, pageIndex, pageSize) {

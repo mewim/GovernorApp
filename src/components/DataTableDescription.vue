@@ -13,14 +13,18 @@
         small
       >
         <template #cell(join)="row">
-          <b-button variant="primary" size="sm" @click="showStats(row)">
+          <b-button
+            variant="primary"
+            size="sm"
+            @click="joinTable(row.item.rawData)"
+          >
             Join
           </b-button>
         </template>
       </b-table>
     </div>
 
-    <div v-if="!!resourceStats">
+    <div v-if="false">
       <p></p>
       <h5>
         Data
@@ -82,7 +86,6 @@ import axios from "axios";
 export default {
   name: "DataTableDescription",
   mounted: function () {
-    this.selectMatchedFields();
     this.getJoinableResults(this.resource.id);
   },
   data: function () {
@@ -102,7 +105,7 @@ export default {
       ],
       selectedFields: [],
       joinableResults: [],
-      showAllRows: false,
+      showAllRows: true,
     };
   },
   computed: {
@@ -134,6 +137,7 @@ export default {
           target_table: m.target.name,
           target_column: targetColumnName,
           score: m.score.toFixed(2),
+          rawData: m,
         };
       });
     },
@@ -156,10 +160,11 @@ export default {
     },
   },
   methods: {
+    joinTable: async function (metadata) {
+      this.$parent.joinTable(metadata);
+    },
     getJoinableResults: async function (uuid) {
-      this.joinableResults = (
-        await axios.get("http://localhost:8080/api/joinable/" + uuid)
-      ).data;
+      this.joinableResults = (await axios.get("/api/joinable/" + uuid)).data;
     },
     showStats: function (row) {
       const fieldName = row.item.name;
@@ -198,7 +203,7 @@ export default {
 };
 </script>
 
-<style lang="scss" >
+<style lang="scss">
 .dataset-description-container {
   flex-basis: 25%;
   padding: 10px;
@@ -223,7 +228,7 @@ div.schema-fields-table-container {
   }
   table td {
     overflow-wrap: anywhere;
-    button{
+    button {
       overflow-wrap: normal;
     }
   }
