@@ -1,36 +1,28 @@
 <template>
   <div class="dataset-description-container" v-if="!!dataset">
-    <div>
-      <h4>Release Date</h4>
-    </div>
-    <p>
-      {{ dataset.portal_release_date ? dataset.portal_release_date : "N/A" }}
-    </p>
-    <p></p>
-
-    <h4>Subjects</h4>
-    <div>
-      <span
-        class="badge rounded-pill bg-primary"
-        v-for="(s, i) in dataset.subject"
-        :key="i"
-        >{{ s.replaceAll("_", " ") }}</span
-      >
-    </div>
-    <p></p>
-    <h4>Notes</h4>
-    <p>{{ dataset.notes }}</p>
-
-    <p></p>
-    <h4>URL</h4>
+    <h5>URL</h5>
     <a target="_blank" :href="getUrl(dataset.id)">{{ getUrl(dataset.id) }}</a>
+    <p></p>
+    <h5>Joinable Tables</h5>
+
+    <div class="schema-fields-table-container">
+      <b-table
+        ref="joinableResultsTable"
+        :items="joinableResultsTableData"
+        :fields="joinableFields"
+        small
+      >
+        <template #cell(join)="row">
+          <b-button variant="primary" size="sm" @click="showStats(row)">
+            Join
+          </b-button>
+        </template>
+      </b-table>
+    </div>
+
     <div v-if="!!resourceStats">
       <p></p>
-      <h4>Number of Rows</h4>
-      <p>{{ resourceStats.tuples_count }}</p>
-
-      <p></p>
-      <h4>
+      <h5>
         Data
         <span
           class="dataset-description-buttons-container"
@@ -40,7 +32,7 @@
             toggleRowText
           }}</b-button>
         </span>
-      </h4>
+      </h5>
 
       <div class="schema-fields-table-container">
         <b-table
@@ -95,6 +87,13 @@ export default {
   },
   data: function () {
     return {
+      joinableFields: [
+        { key: "source_column", label: "Source Column" },
+        { key: "target_table", label: "Target Table" },
+        { key: "target_column", label: "Target Column" },
+        { key: "score", label: "Score" },
+        { key: "join", label: "Join" },
+      ],
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "name", label: "Inferred Column Name" },
@@ -112,6 +111,31 @@ export default {
         return "Show Matched Rows";
       }
       return "Show All Rows";
+    },
+    joinableResultsTableData: function () {
+      return this.joinableResults.map((m) => {
+        let sourceColumnName, targetColumnName;
+        try {
+          sourceColumnName = m.source.column.inferred_schema.name;
+        } catch (err) {
+          // continue anyway
+          sourceColumnName = m.source.column.index;
+        }
+        try {
+          targetColumnName = m.target.column.inferred_schema.name;
+        } catch (err) {
+          // continue anyway
+          targetColumnName = m.target.column.index;
+        }
+
+        return {
+          target_id: m.target.uuid,
+          source_column: sourceColumnName,
+          target_table: m.target.name,
+          target_column: targetColumnName,
+          score: m.score.toFixed(2),
+        };
+      });
     },
   },
   props: {
@@ -174,7 +198,7 @@ export default {
 };
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss" >
 .dataset-description-container {
   flex-basis: 25%;
   padding: 10px;
@@ -196,6 +220,12 @@ export default {
 div.schema-fields-table-container {
   tr {
     cursor: pointer;
+  }
+  table td {
+    overflow-wrap: anywhere;
+    button{
+      overflow-wrap: normal;
+    }
   }
 }
 .schema-table-span {

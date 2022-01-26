@@ -78,6 +78,9 @@ export default {
     dataTableContainerStyle: function () {
       return { height: `${this.tableAreaHeight}px` };
     },
+    openedDataTables: function () {
+      return this.openedResources.filter((r) => !r.isJoinedTable);
+    },
   },
   methods: {
     toggleSettings: function () {
@@ -91,20 +94,23 @@ export default {
         ? "nav-link active"
         : "nav-link";
     },
-    openResource: function (r, jumpImmediately) {
+    openResource: function (r, jumpImmediately, isJoinedTable = false) {
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
           this.activeResourceId = r.resource.id;
-          this.openedResources[i].resource = r.resource;
-          this.openedResources[i].dataset = r.dataset;
-          this.openedResources[i].searchMetadata = r.searchMetadata;
-          this.openedResources[i].resourceStats = r.resourceStats;
+          if (!isJoinedTable) {
+            this.openedResources[i].resource = r.resource;
+            this.openedResources[i].dataset = r.dataset;
+            this.openedResources[i].searchMetadata = r.searchMetadata;
+            this.openedResources[i].resourceStats = r.resourceStats;
+          }
           this.$nextTick(() => {
             this.updatePreviewAreaHeight();
           });
           return;
         }
       }
+      r.isJoinedTable = isJoinedTable;
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
       this.isSearchActive = !jumpImmediately;
@@ -137,20 +143,12 @@ export default {
         this.updatePreviewAreaHeight();
       });
     },
-    setAttributeForResource: function (id, key, newValue) {
-      for (let i = 0; i < this.openedResources.length; ++i) {
-        if (this.openedResources[i].resource.id !== id) {
-          continue;
-        }
-        this.openedResources[i][key] = newValue;
-        break;
-      }
-    },
     updatePreviewAreaHeight: function () {
       try {
         this.tableAreaHeight =
           window.innerHeight -
-          this.$refs.dataTableTabBar.getBoundingClientRect().height;
+          this.$refs.dataTableTabBar.getBoundingClientRect().height -
+          40;
       } catch (err) {
         this.tableAreaHeight = 0;
       }

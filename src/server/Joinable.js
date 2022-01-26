@@ -8,7 +8,7 @@ const INFERREDSTATS_COLLECTION = "inferredstats";
 
 router.get("/:uuid", async (req, res) => {
   const db = await mongoUtil.getDb();
-  const metrics = req.query.metrics ? req.query.metrics : "jaccard";
+  const metrics = req.query.metrics ? req.query.metrics : "containment_min";
   const limit = !isNaN(req.query.limit) ? Number(req.query.limit) : 100;
 
   const uuid = req.params.uuid;
@@ -81,6 +81,7 @@ router.get("/:uuid", async (req, res) => {
           inferred_schema: sourceInferredstats.schema.fields[f.source.index],
         },
       },
+      score: f.score,
     });
   });
   return res.send(results);

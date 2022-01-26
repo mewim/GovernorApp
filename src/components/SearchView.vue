@@ -5,7 +5,7 @@
         <b-form-input
           v-model="searchBarText"
           v-on:keyup.enter="searchButtonClicked()"
-          placeholder="Enter a keyword"
+          placeholder="Enter a keyword / UUID"
         ></b-form-input>
         <div class="input-group-append">
           <b-button
@@ -19,6 +19,13 @@
             class="search-button"
             v-on:click="searchButtonClicked(true)"
             >Search Metadata</b-button
+          >
+
+          <b-button
+            variant="success"
+            class="search-button"
+            v-on:click="openRandom()"
+            >Open By ID</b-button
           >
         </div>
       </div>

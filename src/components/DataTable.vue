@@ -173,7 +173,6 @@ export default {
       });
       console.time("DuckDB Load");
       const totalCount = await DuckDB.loadParquet(this.tableId);
-      console.log(totalCount);
       console.timeEnd("DuckDB Load");
       this.totalCount = this.shouldShowAllRows
         ? totalCount
