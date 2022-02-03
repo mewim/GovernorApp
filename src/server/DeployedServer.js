@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use("/api", api);
 const distPath = path.join(__dirname, "..", "..", "dist");
-app.use("/", express.static(distPath));
+app.use("/", express.static(distPath, { maxAge: 31536000 }));
 
 app.listen(8080, () => {
   console.log("Deployed server started on port 8080");

@@ -6,6 +6,7 @@ class DuckDB {
     this.db = null;
     this.loadedTables = new Set();
     this.joinedTables = [];
+    this.initializationPromise = this.init();
   }
 
   addJoinedTables(source, sourceColumnName, target, targertColumnName) {
@@ -43,6 +44,10 @@ class DuckDB {
   }
 
   async init() {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      delete this.initializationPromise;
+    }
     const MANUAL_BUNDLES = {
       mvp: {
         mainModule: "/js/duckdb.wasm",
