@@ -9,6 +9,7 @@ const plotlyplot = require("./PlotlyPlot");
 const dataset = require("./Dataset");
 const joinable = require("./Joinable");
 const parquet = require("./Parquet");
+const keyjoinscores = require("./KeyJoinScores");
 
 
 router.use("/search", search);
@@ -19,6 +20,7 @@ router.use("/parquet", parquet);
 router.use("/plotlyplot", plotlyplot);
 router.use("/dataset", dataset);
 router.use("/joinable", joinable);
+router.use("/keyjoinscores", keyjoinscores);
 
 router.use((_, res) => {
   return res.sendStatus(501);
