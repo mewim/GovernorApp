@@ -10,7 +10,7 @@ const dataset = require("./Dataset");
 const joinable = require("./Joinable");
 const parquet = require("./Parquet");
 const keyjoinscores = require("./KeyJoinScores");
-
+const datadictionaries = require("./DataDictionaries");
 
 router.use("/search", search);
 router.use("/inferredstats", inferredstats);
@@ -21,6 +21,7 @@ router.use("/plotlyplot", plotlyplot);
 router.use("/dataset", dataset);
 router.use("/joinable", joinable);
 router.use("/keyjoinscores", keyjoinscores);
+router.use("/datadictionaries", datadictionaries);
 
 router.use((_, res) => {
   return res.sendStatus(501);
