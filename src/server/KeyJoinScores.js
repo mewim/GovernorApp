@@ -63,6 +63,38 @@ router.get("/:uuid", async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: "inferredstats",
+        let: { target_id: "$target.uuid", target_index: "$target.index" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$uuid", "$$target_id"] } } },
+          {
+            $project: {
+              _id: false,
+              match: { $arrayElemAt: ["$schema.fields", "$$target_index"] },
+            },
+          },
+        ],
+        as: "target.column_information",
+      },
+    },
+    { $unwind: "$target.column_information" },
+    {
+      $project: {
+        _id: false,
+        query_index: "$query_index",
+        target: {
+          uuid: "$target.uuid",
+          index: "$target.index",
+          score: "$target.score",
+          schema: {
+            field_name: "$target.column_information.match.name",
+            field_type: "$target.column_information.match.type",
+          },
+        },
+      },
+    },
+    {
       $group: {
         _id: "$query_index",
         targets: {
