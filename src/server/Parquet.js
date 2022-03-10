@@ -4,8 +4,16 @@ const mongoUtil = require("./MongoUtil");
 const path = require("path");
 const { spawn } = require("child_process");
 const COLLECTION = "inferredstats";
+const fs = require("fs");
 
 const CSV_BASE_PATH = path.join(__dirname, "..", "..", "data", "files");
+const PARQUET_CACHE_PATH = path.join(
+  __dirname,
+  "..",
+  "..",
+  "data",
+  "parquet_cache"
+);
 const PYTHON_PARQUET_CONVERTER_PATH = path.join(
   __dirname,
   "..",
@@ -22,20 +30,52 @@ router.get("/:uuid.parquet", async (req, res) => {
   if (!found) {
     return res.sendStatus(404);
   }
+
+  const useNumberIndex = !(
+    !req.query.use_number_index ||
+    req.query.use_number_index === "0" ||
+    req.query.use_number_index.toLowerCase() === "false"
+  );
+
+  res.setHeader("content-type", "application/octet-stream");
+  res.set("cache-control", "public, max-age=31536000");
+
+  const fileName = `${uuid}${useNumberIndex ? "_num_index" : ""}.parquet`;
+  const filePath = path.join(PARQUET_CACHE_PATH, fileName);
+  const isFileExists = await new Promise((resolve) => {
+    fs.access(filePath, fs.F_OK, (err) => {
+      if (err) {
+        return resolve(false);
+      }
+      return resolve(true);
+    });
+  });
+  if (isFileExists) {
+    return res.sendFile(filePath);
+  }
+
+  const fieldNames = found.schema.fields.map((f) => f.name);
   const encoding = found.encoding;
   const header = found.header;
-  const parquetConverter = spawn("python3", [
+
+  const params = [
     PYTHON_PARQUET_CONVERTER_PATH,
     path.join(CSV_BASE_PATH, `${uuid}.csv`),
     encoding,
     header,
-  ]);
+  ];
+  if (!useNumberIndex) {
+    params.push(JSON.stringify(fieldNames));
+  }
+
+  const parquetConverter = spawn("python3", params);
+  parquetConverter.stderr.pipe(process.stdout);
+
   parquetConverter.stdin.on("error", () => {
     // ignore error on SIGKILL of the Python process so we can quit early
     return;
   });
-  res.setHeader("content-type", "application/octet-stream");
-  res.set('cache-control', 'public, max-age=31536000')
+
   return parquetConverter.stdout.pipe(res);
 });
 
