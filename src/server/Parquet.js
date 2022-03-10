@@ -31,11 +31,7 @@ router.get("/:uuid.parquet", async (req, res) => {
     return res.sendStatus(404);
   }
 
-  const useNumberIndex = !(
-    !req.query.use_number_index ||
-    req.query.use_number_index === "0" ||
-    req.query.use_number_index.toLowerCase() === "false"
-  );
+  const useNumberIndex = false;
 
   res.setHeader("content-type", "application/octet-stream");
   res.set("cache-control", "public, max-age=31536000");
