@@ -160,29 +160,37 @@ class DuckDB {
     );
     const columnCounts = columnCountsResult.toArray()[0][0][0];
     const allColumns = [];
-    for(let i = 0; i < columnCounts; ++i){
+    for (let i = 0; i < columnCounts; ++i) {
       allColumns.push(i);
     }
-    const allColumnsText = allColumns.map((c) => `"${c}"`)
-    const selectClause = columnIndexes.map((c) => `"${c}"`);
+    const allColumnsText = allColumns.map((c) => `"${c}"`);
+    const selectClause = columnIndexes
+      ? `(${columnIndexes.map((c) => `"${c}"`).join(",")})`
+      : "*";
     const whereClause = keywords
-      .map((currKeywords) => {
-        const keywordsSplit = currKeywords.split(" ");
-        if (keywordsSplit.length > 1) {
-          const currentConditions = currKeywords
-            .split(" ")
-            .map((k) => `('${SQLEscape(k)}' IN (${allColumnsText}))`);
-          const currentAndConditions = `(${currentConditions.join(" AND ")})`;
-          return `(${currentAndConditions} OR ('${SQLEscape(
-            currKeywords
-          )}' IN (${allColumnsText})))`;
-        } else {
-          return `('${SQLEscape(currKeywords)}' IN (${allColumnsText}))`;
-        }
-      })
-      .join(" OR ");
+      ? keywords
+          .map((currKeywords) => {
+            const keywordsSplit = currKeywords.split(" ");
+            if (keywordsSplit.length > 1) {
+              const currentConditions = currKeywords
+                .split(" ")
+                .map((k) => `('${SQLEscape(k)}' IN (${allColumnsText}))`);
+              const currentAndConditions = `(${currentConditions.join(
+                " AND "
+              )})`;
+              return `(${currentAndConditions} OR ('${SQLEscape(
+                currKeywords
+              )}' IN (${allColumnsText})))`;
+            } else {
+              return `('${SQLEscape(currKeywords)}' IN (${allColumnsText}))`;
+            }
+          })
+          .join(" OR ")
+      : "";
 
-    const query = `CREATE VIEW "${viewName}" AS SELECT (${selectClause}) FROM "${uuid}" WHERE ${whereClause}`;
+    const query = `CREATE VIEW "${viewName}" AS SELECT ${selectClause} FROM "${uuid}" ${
+      whereClause ? `WHERE ${whereClause}` : ""
+    }`;
     console.log(query);
     await conn.query(query);
 

@@ -140,6 +140,7 @@ export default {
   data() {
     return {
       searchBarText: "",
+      keyword: "",
       results: [],
       isNotesDisplayed: [],
       searchResultFields: {
@@ -209,16 +210,14 @@ export default {
       this.$refs.searchResultSettingsModal.show();
     },
     shouldShowNotes: function (i) {
-      console.log("shouldShowNotes", i, this.isNotesDisplayed[i]);
       return this.isNotesDisplayed[i];
     },
     toggleNotesDisplayed: function (i) {
-      console.log(i);
       this.isNotesDisplayed[i] = !this.isNotesDisplayed[i];
-      console.log(this.isNotesDisplayed[i]);
     },
     searchButtonClicked: async function (searchMetadata) {
       this.searchSuccess = false;
+      this.keyword = this.searchBarText;
       this.searchMetadata = searchMetadata;
       if (this.searchBarText.length === 0) {
         this.results.splice(0);
@@ -262,7 +261,7 @@ export default {
           resource: this.selectedResource,
           dataset: this.selectedDataset,
           resourceStats: this.selectedResourceStats,
-          searchMetadata: this.searchMetadata,
+          keyword: this.searchMetadata ? null : this.keyword,
         },
         this.jumpImmediately
       );

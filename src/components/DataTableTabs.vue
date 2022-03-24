@@ -56,7 +56,7 @@
         :key="item.resource.id"
         :resource="item.resource"
         :resourceStats="item.resourceStats"
-        :searchMetadata="item.searchMetadata"
+        :keyword="item.keyword"
         :dataset="item.dataset"
         :tableId="item.resource.id"
         :height="tableAreaHeight"
@@ -112,8 +112,8 @@ export default {
           if (!isJoinedTable) {
             this.openedResources[i].resource = r.resource;
             this.openedResources[i].dataset = r.dataset;
-            this.openedResources[i].searchMetadata = r.searchMetadata;
             this.openedResources[i].resourceStats = r.resourceStats;
+            this.openedResources[i].keyword = r.keyword;
           }
           this.$nextTick(() => {
             this.updatePreviewAreaHeight();

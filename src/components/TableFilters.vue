@@ -70,27 +70,28 @@
 <script>
 // import axios from "axios";
 // import { VeLoading } from "vue-easytable";
-
 export default {
   name: "TableFilters",
   data() {
     return {
-      keywords: ["Filter 1", "Filter 2", "Filter 3", "Filter 4"],
       newKeyWordText: "",
       isAddingNewFilter: false,
     };
   },
+  props: {
+    keywords: Array,
+  },
   watch: {},
   computed: {},
   methods: {
-    removeFilter(i) {
-      this.keywords.splice(i, 1);
+    removeKeyword(i) {
+      this.$parent.$parent.removeKeyword(i);
     },
     showAddModal() {
       this.isAddingNewFilter = true;
     },
     addNewKeyword() {
-      this.keywords.push(this.newKeyWordText);
+      this.$parent.$parent.addNewKeyword(this.newKeyWordText);
       this.cancelNewKeyword();
     },
     cancelNewKeyword() {

@@ -12,7 +12,7 @@
     </div>
     <hr />
     <div>
-      <table-filters />
+      <table-filters :keywords="keywords" />
     </div>
     <hr />
     <!-- <div class="schema-fields-table-container">
@@ -35,9 +35,7 @@
     </div> -->
     <div>
       <p></p>
-      <h5>
-        Columns
-      </h5>
+      <h5>Columns</h5>
       <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
         >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
       >
@@ -111,12 +109,20 @@ export default {
         { key: "type", label: "Inferred Column Type" },
         { key: "stats", label: "Stats" },
       ],
-      selectedFields: [],
       joinableResults: [],
       isColumnDetailsVisible: false,
     };
   },
   computed: {
+    fields: function () {
+      return this.resourceStats.schema.fields.map((r, i) => {
+        return {
+          idx: i,
+          name: r.name,
+          type: r.type,
+        };
+      });
+    },
     joinableResultsTableData: function () {
       return this.joinableResults.map((m) => {
         let sourceColumnName, targetColumnName;
@@ -148,14 +154,18 @@ export default {
     dataset: Object,
     resourceStats: Object,
     resource: Object,
-    searchMetadata: Boolean,
+    keywords: Array,
+    selectedFields: Array,
   },
   watch: {
-    resourceStats: function () {
-      this.selectMatchedFields();
-    },
-    resource: function (newVal) {
-      this.getJoinableResults(newVal.id);
+    selectedFields: {
+      immediate: true,
+      handler:function() {
+        this.$refs.schemaFieldsTable.clearSelected();
+        for (let i = 0; i < this.selectedFields; ++i) {
+          this.$refs.schemaFieldsTable.select(this.selectedFields[i]);
+        }
+      },
     },
   },
   methods: {
@@ -171,10 +181,8 @@ export default {
       this.$refs.columnStatsModal.show();
       this.$refs.columnStats.reloadData(resourceId, fieldName);
     },
-
     schemaFieldsTableRowSelected: function (rows) {
-      this.selectedFields = rows.map((r) => r.name);
-      this.$parent.setSelectedFields(this.selectedFields);
+      this.selectedFields = rows.map((r) => r.idx);
     },
     schemaFieldsTableRowClicked: function (_, idx) {
       if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
@@ -182,19 +190,6 @@ export default {
       } else {
         this.$refs.schemaFieldsTable.selectRow(idx);
       }
-    },
-    selectMatchedFields: function () {
-      this.$nextTick(() => {
-        const matchedColumns = new Set(this.resource.matches.columns);
-        for (let i = 0; i < this.resourceStats.schema.fields.length; ++i) {
-          if (
-            matchedColumns.has(this.resourceStats.schema.fields[i].name) ||
-            this.searchMetadata
-          ) {
-            this.$refs.schemaFieldsTable.selectRow(i);
-          }
-        }
-      });
     },
   },
 };

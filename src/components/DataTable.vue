@@ -4,7 +4,8 @@
       :dataset="dataset"
       :resourceStats="resourceStats"
       :resource="resource"
-      :searchMetadata="searchMetadata"
+      :keywords="keywords"
+      :selectedFields="selectedFields"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -20,7 +21,7 @@
       <ve-table
         :max-height="height"
         :virtual-scroll-option="virtualScrollOption"
-        :columns="columns"
+        :columns="visiableColumns ? visiableColumns : columns"
         :table-data="tableData"
         row-key-field-name="rowKey"
         :cell-style-option="cellStyleOption"
@@ -46,26 +47,14 @@ export default {
       },
       uniqueRowNumbers: [],
       columns: [],
+      visiableColumns: [],
       tableData: [],
+      keywords: [],
       inferredstats: null,
-      columnHiddenOption: {
-        defaultHiddenColumnKeys: [],
-      },
       isLoading: true,
-      matchedDict: {},
       selectedFields: [],
-      showAllRows: true,
-      cellStyleOption: {
-        bodyCellClass: ({ row, column }) => {
-          if (
-            this.matchedDict[row.rowKey] &&
-            this.matchedDict[row.rowKey][column.field]
-          ) {
-            return "table-body-cell-highlighted";
-          }
-        },
-      },
-      joinedTableId: null,
+      cellStyleOption: {},
+      viewId: null,
     };
   },
   props: {
@@ -74,7 +63,7 @@ export default {
     dataset: Object,
     resourceStats: Object,
     tableId: String,
-    searchMetadata: Boolean,
+    keyword: String,
     isActive: Boolean,
   },
   watch: {
@@ -86,27 +75,29 @@ export default {
     },
     selectedFields: {
       handler: function () {
-        this.loadDataForCurrentPage();
-      },
-    },
-    showAllRows: {
-      handler: function () {
-        this.loadDataForCurrentPage();
-      },
-    },
-    isActive: {
-      handler: function (newValue) {
-        if (newValue) {
+        if (!this.isLoading) {
           this.loadDataForCurrentPage();
         }
       },
     },
-  },
-  computed: {
-    shouldShowAllRows: function () {
-      return this.showAllRows || this.searchMetadata;
+    keyword: {
+      immediate: true,
+      handler: function (newValue) {
+        this.keywords.splice(0, this.keywords.length);
+        this.keywords.push(newValue);
+      },
+    },
+    isActive: {
+      handler: function (newValue) {
+        if (newValue && !this.isLoading) {
+          this.$nextTick(() => {
+            this.loadDataForCurrentPage();
+          });
+        }
+      },
     },
   },
+  computed: {},
   methods: {
     async joinTable(metadata) {
       this.loadingInstance.show();
@@ -123,7 +114,7 @@ export default {
           targetId,
           targetColumnName
         );
-        this.joinedTableId = joinViewResult.viewName;
+        this.viewId = joinViewResult.viewName;
         this.totalCount = joinViewResult.totalCount;
         this.pageIndex = 1;
         await this.loadDataForCurrentPage();
@@ -131,6 +122,12 @@ export default {
         alert("Cannot perform the join", err);
       }
       this.loadingInstance.close();
+    },
+    addNewKeyword(newKeyWordText) {
+      this.keywords.push(newKeyWordText);
+    },
+    removeKeyword(i) {
+      this.keywords.splice(i, 1);
     },
     pageNumberChange(pageIndex) {
       this.pageIndex = pageIndex;
@@ -141,20 +138,13 @@ export default {
       this.pageSize = pageSize;
       this.loadDataForCurrentPage();
     },
-    setSelectedFields: function (newValue) {
-      this.selectedFields = newValue;
-    },
-    setShowAllRows: function (newValue) {
-      this.showAllRows = newValue;
-    },
-    filterColumns() {},
     async reloadData() {
       this.isLoading = true;
       if (this.loadingInstance) {
         this.loadingInstance.show();
       }
       this.columns.splice(0);
-      this.matchedDict = {};
+      this.selectedFields.splice(0);
       if (!this.tableId) {
         return;
       }
@@ -165,7 +155,7 @@ export default {
         .then((res) => res.data);
       this.inferredstats.schema.fields.forEach((f, i) => {
         this.columns.push({
-          field: f.name,
+          field: String(i),
           key: String(i),
           title: f.name,
           width: 300,
@@ -173,59 +163,46 @@ export default {
             showTitle: true,
           },
         });
+        this.resource.matches.columns.forEach((c) => {
+          if (c === f.name) {
+            this.selectedFields.push(i);
+          }
+        });
       });
-      this.filterColumns();
-
-      this.matchedDict = {};
-
-      // if (!this.shouldShowAllRows) {
-      //   this.uniqueRowNumbers = [
-      //     ...new Set(this.resource.matches.matches.map((m) => m.row_number)),
-      //   ];
-      // }
-      // this.resource.matches.matches.forEach((m) => {
-      //   const i = m.row_number;
-      //   if (!this.matchedDict[i]) {
-      //     this.matchedDict[i] = {};
-      //   }
-      //   this.matchedDict[i][m.field_name] = true;
-      // });
       console.time("DuckDB Load");
       const totalCount = await DuckDB.loadParquet(this.tableId);
       console.timeEnd("DuckDB Load");
-      this.totalCount = this.shouldShowAllRows
-        ? totalCount
-        : this.uniqueRowNumbers.length;
+      this.totalCount = totalCount;
+      await this.createDataView();
       await this.loadDataForCurrentPage();
       this.loadingInstance.close();
       this.isLoading = false;
     },
+    async createDataView() {
+      if (this.keywords.length > 0 || this.selectedFields.length > 0) {
+        const viewResult = await DuckDB.createDataTableView(
+          this.tableId,
+          this.keywords,
+          this.selectedFields
+        );
+        this.viewId = viewResult.viewName;
+        this.totalCount = viewResult.totalCount;
+        this.visiableColumns = this.columns.filter(
+          (_, i) => this.selectedFields.indexOf(i) >= 0
+        );
+      } else {
+        this.viewId = "";
+      }
+    },
     async loadDataForCurrentPage() {
       this.tableData.splice(0);
-      this.columns.splice(0);
-
-      const tableId = this.joinedTableId ? this.joinedTableId : this.tableId;
+      const tableId = this.viewId ? this.viewId : this.tableId;
       console.time(`DuckDB Query ${tableId}`);
-
-      const arrowTable = await (this.shouldShowAllRows
-        ? DuckDB.getFullTable(tableId, this.pageIndex, this.pageSize)
-        : DuckDB.getTableByRowNumbers(
-            tableId,
-            this.uniqueRowNumbers,
-            this.pageIndex,
-            this.pageSize
-          ));
-      arrowTable.schema.fields.forEach((f, i) => {
-        this.columns.push({
-          field: f.name,
-          key: String(i),
-          title: f.name,
-          width: 300,
-          ellipsis: {
-            showTitle: true,
-          },
-        });
-      });
+      const arrowTable = await DuckDB.getFullTable(
+        tableId,
+        this.pageIndex,
+        this.pageSize
+      );
       console.time(`DuckDB Query ${tableId}`);
 
       console.time(`Post-process ${tableId}`);
