@@ -44,34 +44,19 @@
         <b-card-group>
           <b-card v-for="(r, i) in results" :key="i">
             <template #header>
-              <!-- <a href="#" @click="fileSelected(r.dataset_id, r.id)" -->
               <b>{{ r.title }}</b>
-              <!-- </a
-              > -->
             </template>
-            <!-- <b-card-text v-if="searchResultFields.dataset_title">
-              <b>Dataset:</b>
-              <a target="_blank" :href="getUrl(r.dataset_id)">
-                {{ r.dataset_title }}
-              </a>
-            </b-card-text> -->
             <b-card-text
               v-if="searchResultFields.matched_count && !searchMetadata"
             >
               <b> Matched Count:</b> {{ r.matched_count }}
             </b-card-text>
-            <!-- <b-card-text v-if="searchResultFields.matched_columns">
-              <b> Matched Columns:</b> {{ r.matched_columns.join(", ") }}
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.languages">
-              <b> Languages:</b> {{ r.languages.join(", ") }}
-            </b-card-text> -->
             <b-card-text v-if="searchResultFields.subjects">
               <b> Subjects:&nbsp;</b>
               <span
                 class="badge rounded-pill bg-primary"
-                v-for="(s, i) in r.subject"
-                :key="i"
+                v-for="(s, j) in r.subject"
+                :key="j"
                 >{{ s.replaceAll("_", " ") }}</span
               >
             </b-card-text>
@@ -79,9 +64,15 @@
               <b> Release Date:</b>
               {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
             </b-card-text>
-            <b-card-text v-if="searchResultFields.notes">
-              <b> Notes:</b>
-              {{ r.notes ? r.notes : "N/A" }}
+            <b-card-text>
+              <b> Notes: </b>
+              <a
+                href="#"
+                @click="r.display_notes = r.display_notes ? '' : r.notes"
+              >
+                {{ r.display_notes ? "Hide" : "Show" }}
+              </a>
+              <p>{{ r.display_notes }}</p>
             </b-card-text>
 
             <b-table
@@ -130,9 +121,6 @@
         <b-form-checkbox v-model="searchResultFields.portal_release_date">
           Release Date
         </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.notes">
-          Notes
-        </b-form-checkbox>
 
         <b>Navigation Option</b>
         <b-form-checkbox v-model="jumpImmediately">
@@ -153,6 +141,7 @@ export default {
     return {
       searchBarText: "",
       results: [],
+      isNotesDisplayed: [],
       searchResultFields: {
         dataset_title: true,
         languages: true,
@@ -160,13 +149,11 @@ export default {
         matched_count: true,
         subjects: false,
         portal_release_date: false,
-        notes: false,
       },
       jumpImmediately: true,
       selectedResource: null,
       selectedDataset: null,
       selectedResourceStats: null,
-      previewAreaHeight: 0,
       searchSuccess: false,
       showTabArea: false,
       loadingInstance: null,
@@ -179,28 +166,6 @@ export default {
     },
   },
   computed: {
-    searchResultTableItems: function () {
-      const items = [];
-      this.results.forEach((r) => {
-        r.resources.forEach((rs) => {
-          items.push({
-            id: rs.id,
-            dataset_title: r.title,
-            file_title: rs.name,
-            languages: rs.language,
-            dataset_id: r.id,
-            portal_release_date: r.portal_release_date,
-            matched_columns: rs.matches.columns,
-            matched_count: rs.matches.count,
-            subject: r.subject,
-            notes: r.notes,
-          });
-        });
-      });
-      items.sort((a, b) => b.matched_count - a.matched_count);
-      return items;
-    },
-
     fileTableFields: function () {
       const result = [
         {
@@ -243,17 +208,25 @@ export default {
     toggleSettings: function () {
       this.$refs.searchResultSettingsModal.show();
     },
+    shouldShowNotes: function (i) {
+      console.log("shouldShowNotes", i, this.isNotesDisplayed[i]);
+      return this.isNotesDisplayed[i];
+    },
+    toggleNotesDisplayed: function (i) {
+      console.log(i);
+      this.isNotesDisplayed[i] = !this.isNotesDisplayed[i];
+      console.log(this.isNotesDisplayed[i]);
+    },
     searchButtonClicked: async function (searchMetadata) {
+      this.searchSuccess = false;
       this.searchMetadata = searchMetadata;
       if (this.searchBarText.length === 0) {
-        this.results = [];
+        this.results.splice(0);
         this.searchSuccess = true;
         return;
       }
-      this.results = await this.loadSeachResult(
-        this.searchBarText,
-        searchMetadata
-      );
+      await this.loadSeachResult(this.searchBarText, searchMetadata);
+
       this.searchSuccess = true;
     },
     closeDatasetDescription: function () {
@@ -262,12 +235,18 @@ export default {
       this.selectedResourceStats = null;
     },
     loadSeachResult: async function (keyword, searchMetadata) {
+      this.results.splice(0);
+      this.isNotesDisplayed.splice(0);
       const url = searchMetadata ? "/api/search/metadata" : "/api/search/";
       this.loadingInstance.show();
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios.get(url, { params }).then((res) => res.data);
+      results.forEach((r) => {
+        r.display_notes = "";
+        this.results.push(r);
+        this.isNotesDisplayed.push(false);
+      });
       this.loadingInstance.close();
-      return results;
     },
     getInferredStats: function (fileId) {
       return axios.get(`/api/inferredstats/${fileId}`).then((res) => res.data);
@@ -328,14 +307,16 @@ export default {
 .search-result-cards-container {
   flex-grow: 1;
   overflow-y: scroll;
-  margin-left: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+
   div.card {
     &.active {
       > .card-header {
         border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
-        background-color: #007bff !important;
+        background-color: var(--bs-blue) !important;
         a {
-          color: #ffffff !important;
+          color: white !important;
         }
       }
     }

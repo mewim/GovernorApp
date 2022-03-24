@@ -1,6 +1,4 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
-// import { Table } from 'apache-arrow';
-
 class DuckDB {
   constructor() {
     this.db = null;

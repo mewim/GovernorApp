@@ -215,9 +215,9 @@ export default {
     margin-right: 4px;
   }
   svg {
-    color: #6c7572;
+    color: var(--bs-gray-600);
     &:hover {
-      color: #5a6268;
+      color: var(--bs-gray-500);
     }
     cursor: pointer;
   }

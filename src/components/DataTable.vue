@@ -33,7 +33,7 @@
 <script>
 import axios from "axios";
 import { VeLoading } from "vue-easytable";
-import DuckDB from "../utils/DuckDB";
+import DuckDB from "../DuckDB";
 
 export default {
   data() {
@@ -257,7 +257,7 @@ export default {
 
 <style lang="scss">
 .table-body-cell-highlighted {
-  color: #007bff !important;
+  color: var(--bs-blue) !important;
 }
 .data-table-outer-container {
   height: 100%;

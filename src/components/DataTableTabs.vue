@@ -4,14 +4,14 @@
       <ul role="tablist" class="nav nav-tabs">
         <li>
           <b-button
-            variant="primary"
+            variant="success"
             @click="toggleSettings()"
             class="toggle-table-button"
             ><b-icon icon="gear-fill"></b-icon
           ></b-button>
 
           <b-button
-            variant="light"
+            variant="primary"
             @click="toggleSearchView()"
             class="toggle-table-button"
             ><b-icon icon="search"></b-icon
@@ -70,13 +70,18 @@ export default {
       tableAreaHeight: 0,
       tableViewDisplayed: true,
       isSearchActive: true,
+      TABLE_AREA_OFFSET: 40,
     };
   },
   props: {},
   watch: {},
   computed: {
     dataTableContainerStyle: function () {
-      return { height: `${this.tableAreaHeight}px` };
+      let height = this.tableAreaHeight;
+      if (this.isSearchActive) {
+        height += this.TABLE_AREA_OFFSET;
+      }
+      return { height: `${height}px` };
     },
     openedDataTables: function () {
       return this.openedResources.filter((r) => !r.isJoinedTable);
@@ -148,7 +153,7 @@ export default {
         this.tableAreaHeight =
           window.innerHeight -
           this.$refs.dataTableTabBar.getBoundingClientRect().height -
-          40;
+          this.TABLE_AREA_OFFSET;
       } catch (err) {
         this.tableAreaHeight = 0;
       }
@@ -169,16 +174,22 @@ export default {
 
 <style lang="scss" scoped>
 .close-button {
-  color: #6c7572;
+  color: var(--bs-gray-600);
   &:hover {
-    color: #5a6268;
+    color: var(--bs-gray-500);
   }
   cursor: pointer;
 }
 .nav.nav-tabs {
-  border-top: 1px solid #dee2e6;
-  border-left: 1px solid #dee2e6;
-  border-right: 1px solid #dee2e6;
+  border-top: 1px solid var(--bs-gray-300);
+  border-left: 1px solid var(--bs-gray-300);
+  border-right: 1px solid var(--bs-gray-300);
+  background: var(--bs-gray-100);
+  li {
+    button.btn {
+      border-radius: 0;
+    }
+  }
 }
 .nav-link {
   > a {
@@ -187,7 +198,7 @@ export default {
   &.active {
     > a {
       cursor: default;
-      color: #495057;
+      color: var(--bs-gray-700);
     }
   }
 }
