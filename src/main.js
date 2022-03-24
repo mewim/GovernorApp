@@ -9,7 +9,7 @@ import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap-vue/dist/bootstrap-vue.css";
 import "vue-easytable/libs/theme-default/index.css";
 import VueEasytable from "vue-easytable";
-import {VePagination} from "vue-easytable";
+import { VePagination } from "vue-easytable";
 
 Vue.use(VePagination);
 Vue.use(VueEasytable);
@@ -25,12 +25,16 @@ import DataTable from "./components/DataTable.vue";
 import DataTableTabs from "./components/DataTableTabs.vue";
 import ColumnStats from "./components/ColumnStats.vue";
 import DataTableDescription from "./components/DataTableDescription.vue";
+import DataTableDetails from "./components/DataTableDetails.vue";
+import TableFilters from "./components/TableFilters.vue";
 
 Vue.component("search-view", SearchView);
 Vue.component("data-table", DataTable);
 Vue.component("data-table-tabs", DataTableTabs);
 Vue.component("column-stats", ColumnStats);
 Vue.component("data-table-description", DataTableDescription);
+Vue.component("data-table-details", DataTableDetails);
+Vue.component("table-filters", TableFilters);
 
 Vue.config.productionTip = false;
 

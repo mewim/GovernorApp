@@ -10,7 +10,7 @@
       <div class="table-pagination">
         <ve-pagination
           :total="totalCount"
-          :page-size-option="[10, 25, 50, 100, 200, 500, 1000]"
+          :page-size-option="[10, 15, 25, 50, 100, 200, 500, 1000]"
           :page-index="pageIndex"
           :page-size="pageSize"
           @on-page-number-change="pageNumberChange"
@@ -75,6 +75,7 @@ export default {
     resourceStats: Object,
     tableId: String,
     searchMetadata: Boolean,
+    isActive: Boolean,
   },
   watch: {
     resource: {
@@ -85,12 +86,19 @@ export default {
     },
     selectedFields: {
       handler: function () {
-        this.filterColumns();
+        this.loadDataForCurrentPage();
       },
     },
     showAllRows: {
       handler: function () {
-        this.reloadData();
+        this.loadDataForCurrentPage();
+      },
+    },
+    isActive: {
+      handler: function (newValue) {
+        if (newValue) {
+          this.loadDataForCurrentPage();
+        }
       },
     },
   },
@@ -196,8 +204,9 @@ export default {
       this.tableData.splice(0);
       this.columns.splice(0);
 
-      console.time("DuckDB Query");
       const tableId = this.joinedTableId ? this.joinedTableId : this.tableId;
+      console.time(`DuckDB Query ${tableId}`);
+
       const arrowTable = await (this.shouldShowAllRows
         ? DuckDB.getFullTable(tableId, this.pageIndex, this.pageSize)
         : DuckDB.getTableByRowNumbers(
@@ -217,10 +226,9 @@ export default {
           },
         });
       });
-      console.log(arrowTable);
-      console.timeEnd("DuckDB Query");
+      console.time(`DuckDB Query ${tableId}`);
 
-      console.time("Post-process");
+      console.time(`Post-process ${tableId}`);
       arrowTable.toArray().forEach((r, i) => {
         const rowDict = { rowKey: r.row ? r.row[0] : i };
         for (let j = 0; j < this.columns.length; ++j) {
@@ -236,7 +244,7 @@ export default {
         }
         this.tableData.push(rowDict);
       });
-      console.timeEnd("Post-process");
+      console.timeEnd(`Post-process ${tableId}`);
     },
   },
   mounted() {
@@ -265,6 +273,7 @@ export default {
   flex-direction: row;
   .data-table-inner-container {
     .table-pagination {
+      border: 1px solid #eee;
       display: flex;
       flex-direction: row;
       flex-grow: 1;

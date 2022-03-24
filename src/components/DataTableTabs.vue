@@ -4,7 +4,7 @@
       <ul role="tablist" class="nav nav-tabs">
         <li>
           <b-button
-            variant="success"
+            variant="secondary"
             @click="toggleSettings()"
             class="toggle-table-button"
             ><b-icon icon="gear-fill"></b-icon
@@ -15,6 +15,13 @@
             @click="toggleSearchView()"
             class="toggle-table-button"
             ><b-icon icon="search"></b-icon
+          ></b-button>
+
+          <b-button
+            variant="success"
+            @click="toggleWorkingTableView()"
+            class="toggle-table-button"
+            ><b-icon icon="table"></b-icon
           ></b-button>
         </li>
 
@@ -53,6 +60,7 @@
         :dataset="item.dataset"
         :tableId="item.resource.id"
         :height="tableAreaHeight"
+        :isActive="!isSearchActive && activeResourceId === item.resource.id"
         :ref="`table-${item.resource.id}`"
       />
     </div>
@@ -78,9 +86,7 @@ export default {
   computed: {
     dataTableContainerStyle: function () {
       let height = this.tableAreaHeight;
-      if (this.isSearchActive) {
-        height += this.TABLE_AREA_OFFSET;
-      }
+      height += this.TABLE_AREA_OFFSET;
       return { height: `${height}px` };
     },
     openedDataTables: function () {
@@ -158,6 +164,9 @@ export default {
         this.tableAreaHeight = 0;
       }
     },
+    toggleWorkingTableView: function () {
+      console.log("toggleWorkingTableView");
+    },
   },
 
   mounted() {
@@ -184,7 +193,7 @@ export default {
   border-top: 1px solid var(--bs-gray-300);
   border-left: 1px solid var(--bs-gray-300);
   border-right: 1px solid var(--bs-gray-300);
-  background: var(--bs-gray-100);
+  background: var(--bs-gray-200);
   li {
     button.btn {
       border-radius: 0;
@@ -193,12 +202,12 @@ export default {
 }
 .nav-link {
   > a {
+    color: var(--bs-gray-700);
     text-decoration: none;
   }
   &.active {
     > a {
       cursor: default;
-      color: var(--bs-gray-700);
     }
   }
 }

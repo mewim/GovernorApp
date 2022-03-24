@@ -1,11 +1,21 @@
 <template>
   <div class="dataset-description-container" v-if="!!dataset">
-    <h5>URL</h5>
-    <a target="_blank" :href="getUrl(dataset.id)">{{ getUrl(dataset.id) }}</a>
-    <p></p>
-    <h5>Joinable Tables</h5>
-
-    <div class="schema-fields-table-container">
+    <div>
+      <data-table-details :dataset="dataset" :resource="resource" />
+    </div>
+    <hr />
+    <div>
+      <h5>Actions</h5>
+      <b-button size="sm">Set as Working Table</b-button>
+      &nbsp;
+      <b-button size="sm">Union with Working Table</b-button>
+    </div>
+    <hr />
+    <div>
+      <table-filters />
+    </div>
+    <hr />
+    <!-- <div class="schema-fields-table-container">
       <b-table
         ref="joinableResultsTable"
         :items="joinableResultsTableData"
@@ -22,23 +32,19 @@
           </b-button>
         </template>
       </b-table>
-    </div>
-
-    <div v-if="false">
+    </div> -->
+    <div>
       <p></p>
       <h5>
-        Data
-        <span
-          class="dataset-description-buttons-container"
-          v-show="!searchMetadata"
-        >
-          <b-button size="sm" @click="showAllRows = !showAllRows">{{
-            toggleRowText
-          }}</b-button>
-        </span>
+        Columns
       </h5>
-
-      <div class="schema-fields-table-container">
+      <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
+        >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
+      >
+      <div
+        class="schema-fields-table-container"
+        v-show="isColumnDetailsVisible"
+      >
         <b-table
           ref="schemaFieldsTable"
           :items="resourceStats.schema.fields"
@@ -83,7 +89,9 @@
 
 <script>
 import axios from "axios";
+import TableFilters from "./TableFilters.vue";
 export default {
+  components: { TableFilters },
   name: "DataTableDescription",
   mounted: function () {
     this.getJoinableResults(this.resource.id);
@@ -105,16 +113,10 @@ export default {
       ],
       selectedFields: [],
       joinableResults: [],
-      showAllRows: true,
+      isColumnDetailsVisible: false,
     };
   },
   computed: {
-    toggleRowText: function () {
-      if (this.showAllRows) {
-        return "Show Matched Rows";
-      }
-      return "Show All Rows";
-    },
     joinableResultsTableData: function () {
       return this.joinableResults.map((m) => {
         let sourceColumnName, targetColumnName;
@@ -152,9 +154,6 @@ export default {
     resourceStats: function () {
       this.selectMatchedFields();
     },
-    showAllRows: function (newVal) {
-      this.$parent.setShowAllRows(newVal);
-    },
     resource: function (newVal) {
       this.getJoinableResults(newVal.id);
     },
@@ -172,9 +171,7 @@ export default {
       this.$refs.columnStatsModal.show();
       this.$refs.columnStats.reloadData(resourceId, fieldName);
     },
-    getUrl: function (uuid) {
-      return "https://open.canada.ca/data/en/dataset/" + uuid;
-    },
+
     schemaFieldsTableRowSelected: function (rows) {
       this.selectedFields = rows.map((r) => r.name);
       this.$parent.setSelectedFields(this.selectedFields);

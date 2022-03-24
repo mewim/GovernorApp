@@ -1,9 +1,11 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
+const SQLEscape = require("sql-escape");
 class DuckDB {
   constructor() {
     this.db = null;
     this.loadedTables = new Set();
     this.joinedTables = [];
+    this.dataTableViews = new Set();
     this.initializationPromise = this.init();
   }
 
@@ -48,8 +50,8 @@ class DuckDB {
     }
     const MANUAL_BUNDLES = {
       mvp: {
-        mainModule: "/js/duckdb.wasm",
-        mainWorker: "/js/duckdb-browser.worker.js",
+        mainModule: "/js/duckdb-mvp.wasm",
+        mainWorker: "/js/duckdb-browser-mvp.worker.js",
       },
       eh: {
         mainModule: "/js/duckdb-eh.wasm",
@@ -64,7 +66,7 @@ class DuckDB {
     const db = new duckdb.AsyncDuckDB(logger, worker);
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
     this.db = db;
-    window.duckdb = db;
+    window.duckdb = this;
   }
 
   async getDb() {
@@ -136,6 +138,55 @@ class DuckDB {
     const conn = await db.connect();
     await conn.query(query);
     const countQuery = `SELECT COUNT(*) FROM ${viewName}`;
+    const countResult = await conn.query(countQuery);
+    const totalCount = countResult.toArray()[0][0][0];
+    await conn.close();
+    return {
+      totalCount,
+      viewName,
+    };
+  }
+
+  async createDataTableView(uuid, keywords, columnIndexes) {
+    if (!this.loadedTables.has(uuid)) {
+      await this.loadParquet(uuid);
+    }
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const viewName = `dataview-${uuid}`;
+    await conn.query(`DROP VIEW IF EXISTS "${viewName}"`);
+    const columnCountsResult = await conn.query(
+      `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}')`
+    );
+    const columnCounts = columnCountsResult.toArray()[0][0][0];
+    const allColumns = [];
+    for(let i = 0; i < columnCounts; ++i){
+      allColumns.push(i);
+    }
+    const allColumnsText = allColumns.map((c) => `"${c}"`)
+    const selectClause = columnIndexes.map((c) => `"${c}"`);
+    const whereClause = keywords
+      .map((currKeywords) => {
+        const keywordsSplit = currKeywords.split(" ");
+        if (keywordsSplit.length > 1) {
+          const currentConditions = currKeywords
+            .split(" ")
+            .map((k) => `('${SQLEscape(k)}' IN (${allColumnsText}))`);
+          const currentAndConditions = `(${currentConditions.join(" AND ")})`;
+          return `(${currentAndConditions} OR ('${SQLEscape(
+            currKeywords
+          )}' IN (${allColumnsText})))`;
+        } else {
+          return `('${SQLEscape(currKeywords)}' IN (${allColumnsText}))`;
+        }
+      })
+      .join(" OR ");
+
+    const query = `CREATE VIEW "${viewName}" AS SELECT (${selectClause}) FROM "${uuid}" WHERE ${whereClause}`;
+    console.log(query);
+    await conn.query(query);
+
+    const countQuery = `SELECT COUNT(*) FROM "${viewName}"`;
     const countResult = await conn.query(countQuery);
     const totalCount = countResult.toArray()[0][0][0];
     await conn.close();
