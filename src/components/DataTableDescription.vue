@@ -49,7 +49,6 @@
           :fields="schemaFields"
           no-select-on-click
           selectable
-          @row-selected="schemaFieldsTableRowSelected"
           @row-clicked="schemaFieldsTableRowClicked"
         >
           <template #cell(selected)="{ rowSelected }">
@@ -92,6 +91,7 @@ export default {
   components: { TableFilters },
   name: "DataTableDescription",
   mounted: function () {
+    this.syncSelectedFields();
     this.getJoinableResults(this.resource.id);
   },
   data: function () {
@@ -160,15 +160,22 @@ export default {
   watch: {
     selectedFields: {
       immediate: true,
-      handler:function() {
-        this.$refs.schemaFieldsTable.clearSelected();
-        for (let i = 0; i < this.selectedFields; ++i) {
-          this.$refs.schemaFieldsTable.select(this.selectedFields[i]);
+      handler: function () {
+        try {
+          this.syncSelectedFields();
+        } catch (err) {
+          // Continue
         }
       },
     },
   },
   methods: {
+    syncSelectedFields: function () {
+      this.$refs.schemaFieldsTable.clearSelected();
+      this.selectedFields.forEach((idx) => {
+        this.$refs.schemaFieldsTable.selectRow(idx);
+      });
+    },
     joinTable: async function (metadata) {
       this.$parent.joinTable(metadata);
     },
@@ -181,14 +188,11 @@ export default {
       this.$refs.columnStatsModal.show();
       this.$refs.columnStats.reloadData(resourceId, fieldName);
     },
-    schemaFieldsTableRowSelected: function (rows) {
-      this.selectedFields = rows.map((r) => r.idx);
-    },
     schemaFieldsTableRowClicked: function (_, idx) {
       if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
-        this.$refs.schemaFieldsTable.unselectRow(idx);
+        this.$parent.removeSelectedField(idx);
       } else {
-        this.$refs.schemaFieldsTable.selectRow(idx);
+        this.$parent.addSelectedField(idx);
       }
     },
   },

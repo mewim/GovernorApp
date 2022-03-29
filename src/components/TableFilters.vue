@@ -20,7 +20,7 @@
         class="d-flex justify-content-between align-items-center"
       >
         <span>
-          <b-icon-x @click="removeFilter(i)" />
+          <b-icon-x @click="removeKeyword(i)" />
           {{ k }}
         </span>
         <span

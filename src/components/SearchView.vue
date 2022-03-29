@@ -162,9 +162,6 @@ export default {
     };
   },
   watch: {
-    showAllRows: function (newValue) {
-      this.$parent.setShowAllRows(this.selectedResource.id, newValue);
-    },
   },
   computed: {
     fileTableFields: function () {

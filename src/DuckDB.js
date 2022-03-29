@@ -164,8 +164,9 @@ class DuckDB {
       allColumns.push(i);
     }
     const allColumnsText = allColumns.map((c) => `"${c}"`);
+    columnIndexes.sort((a, b) => a - b);
     const selectClause = columnIndexes
-      ? `(${columnIndexes.map((c) => `"${c}"`).join(",")})`
+      ? `${columnIndexes.map((c) => `"${c}"`).join(",")}`
       : "*";
     const whereClause = keywords
       ? keywords
