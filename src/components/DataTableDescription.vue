@@ -68,6 +68,13 @@
         </b-table>
       </div>
     </div>
+    <hr />
+    <div>
+      <joinable-tables
+        :resourceId="resource.id"
+        :sourceResourceStats="resourceStats"
+      />
+    </div>
     <div>
       <b-modal
         ref="columnStatsModal"
@@ -86,9 +93,7 @@
 
 <script>
 import axios from "axios";
-import TableFilters from "./TableFilters.vue";
 export default {
-  components: { TableFilters },
   name: "DataTableDescription",
   mounted: function () {
     this.syncSelectedFields();

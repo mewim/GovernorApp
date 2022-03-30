@@ -21,7 +21,7 @@
       <ve-table
         :max-height="height"
         :virtual-scroll-option="virtualScrollOption"
-        :columns="visiableColumns ? visiableColumns : columns"
+        :columns="visibleColumns ? visibleColumns : columns"
         :table-data="tableData"
         row-key-field-name="rowKey"
         :cell-style-option="cellStyleOption"
@@ -47,7 +47,7 @@ export default {
       },
       uniqueRowNumbers: [],
       columns: [],
-      visiableColumns: [],
+      visibleColumns: [],
       tableData: [],
       keywords: [],
       inferredstats: null,
@@ -91,7 +91,9 @@ export default {
             await this.loadingPromise;
           } else {
             this.$nextTick(() => {
-              this.loadDataForCurrentPage();
+              setTimeout(() => {
+                this.loadDataForCurrentPage();
+              }, 50);
             });
           }
         }
@@ -200,7 +202,7 @@ export default {
         );
         this.viewId = viewResult.viewName;
         this.totalCount = viewResult.totalCount;
-        this.visiableColumns = this.columns.filter(
+        this.visibleColumns = this.columns.filter(
           (_, i) => this.selectedFields.indexOf(i) >= 0
         );
       } else {
@@ -237,7 +239,6 @@ export default {
       arrowTable.toArray().forEach((r, i) => {
         const rowDict = { rowKey: r.row ? r.row[0] : i };
         const rowObject = r.toJSON();
-        console.log(rowObject);
         for (let j = 0; j < this.columns.length; ++j) {
           let fieldName, rawValue;
           try {

@@ -3,6 +3,8 @@ const router = express.Router();
 const mongoUtil = require("./MongoUtil");
 
 const COLLECTION = "keyjoinscores";
+const METADATA_COLLECTION = "metadata";
+
 const VALID_METRICS = new Set([
   "jaccard",
   "cosine",
@@ -17,8 +19,8 @@ router.get("/:uuid", async (req, res) => {
   const queryIndex = Number.parseInt(req.query.index);
   const queryScore = req.query.min_score
     ? Number.parseFloat(req.query.min_score)
-    : 0.7;
-  const queryMetric = req.query.metrics ? req.query.metrics : "containment";
+    : 0.6;
+  const queryMetric = req.query.metrics ? req.query.metrics : "jaccard";
 
   if (!queryId) {
     return res.sendStatus(400);
@@ -116,7 +118,24 @@ router.get("/:uuid", async (req, res) => {
     },
   ];
   const found = await db.collection(COLLECTION).aggregate(pipeline).toArray();
-  return res.send(found);
+  const uuidSet = new Set();
+  found.forEach((f) => {
+    f.targets.forEach((t) => {
+      uuidSet.add(t.uuid);
+    });
+  });
+  const resourceIds = [...uuidSet];
+  let resources = await db
+    .collection(METADATA_COLLECTION)
+    .aggregate([
+      { $match: { "resources.id": { $in: resourceIds } } },
+      { $unwind: "$resources" },
+      { $match: { "resources.id": { $in: resourceIds } } },
+      { $project: { _id: false, resource: "$resources" } },
+    ])
+    .toArray();
+  resources = resources.map((r) => r.resource);
+  return res.send({ results: found, resources });
 });
 
 module.exports = router;
