@@ -1,6 +1,10 @@
 <template>
   <div class="working-table-outer-container">
-    <working-table-description />
+    <working-table-description
+      :histories="histories"
+      :selectedColumns="selectedColumns"
+      :columns="columns"
+    />
     <div class="working-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
         <ve-pagination
@@ -18,7 +22,7 @@
         :virtual-scroll-option="virtualScrollOption"
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
-        :columns="columns"
+        :columns="visibleColumns"
         row-key-field-name="rowKey"
         ref="table"
       />
@@ -45,7 +49,7 @@ export default {
       tableData: [],
       inferredstats: null,
       loadingPromise: null,
-      selectedFields: [],
+      selectedColumns: [],
       cellStyleOption: {},
       histories: [],
       dataviewRefreshDelay: null,
@@ -84,6 +88,13 @@ export default {
       },
     },
   },
+  computed: {
+    visibleColumns: function () {
+      return this.columns.filter((c) => {
+        return this.selectedColumns.indexOf(c.key) >= 0;
+      });
+    },
+  },
   methods: {
     pageNumberChange(pageIndex) {
       this.pageIndex = pageIndex;
@@ -97,6 +108,9 @@ export default {
     async loadDataForCurrentPage() {
       this.tableData.splice(0);
       const tableId = this.tableId;
+      if (!tableId) {
+        return;
+      }
       console.time(`DuckDB Query ${tableId}`);
       const arrowTable = await DuckDB.getFullTable(
         tableId,
@@ -139,6 +153,9 @@ export default {
           width: 300,
         });
       });
+      table.columns.forEach((_, i) => {
+        this.selectedColumns.push(String(i));
+      });
       this.histories.push(table);
       await this.loadDataForCurrentPage();
     },
@@ -156,11 +173,15 @@ export default {
           targetKey: targetColumns[c.title].key,
         });
       }
-      const { totalCount, tableName } = await DuckDB.autoUnionWorkingTable(
+      this.$nextTick(() => {
+        this.$parent.toggleWorkingTable();
+      });
+      this.loadingPromise = DuckDB.autoUnionWorkingTable(
         table.viewId,
         table.baseTable.id,
         unionColumns
       );
+      const { totalCount, tableName } = await this.loadingPromise;
       this.totalCount = totalCount;
       this.tableId = tableName;
       this.histories.push(table);
@@ -169,24 +190,33 @@ export default {
     },
     async addData(table) {
       if (!this.tableId) {
+        this.$nextTick(() => {
+          this.$parent.toggleWorkingTable();
+        });
         this.loadingPromise = this.loadInitialTable(table);
       } else {
         const matchedTables = this.histories.filter(
           (f) => f.baseTable.id === table.baseTable.id
         );
         if (matchedTables.length > 0) {
-          return {success:false, };
+          return { success: false };
         }
         const autoUnionResult = await this.tryAutoUnion(table);
         if (!autoUnionResult) {
           alert("Cannot auto union");
         }
       }
-      this.$nextTick(() => {
-        this.$parent.toggleWorkingTable();
-      });
       await this.loadingPromise;
-      return {success:true};
+      return { success: true };
+    },
+    addSelectedColumn(item) {
+      this.selectedColumns.push(String(item));
+    },
+    removeSelectedColumn(item) {
+      this.selectedColumns.splice(
+        this.selectedColumns.indexOf(String(item)),
+        1
+      );
     },
   },
   mounted() {
