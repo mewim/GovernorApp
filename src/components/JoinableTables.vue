@@ -15,7 +15,7 @@
           <b-button
             size="sm"
             variant="primary"
-            @click="this.joinTable(joinable)"
+            @click="joinTable(joinable)"
             >Join</b-button
           >
         </div>
@@ -71,7 +71,7 @@ export default {
       this.joinableTables.splice(0);
       const url = `api/keyjoinscores/${this.resourceId}`;
       const data = await axios.get(url).then((res) => res.data);
-
+      
       data.resources.forEach((r) => (this.resourcesHash[r.id] = r));
       data.results.forEach((d) => {
         d.targets.forEach((t) => {
@@ -87,7 +87,7 @@ export default {
       this.isLoading = false;
     },
     joinTable: function (joinable) {
-      console.log("Join table:", joinable);
+      this.$parent.$parent.joinTable(joinable);
     },
   },
   props: {

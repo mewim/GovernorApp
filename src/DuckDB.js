@@ -1,5 +1,9 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 const SQLEscape = require("sql-escape");
+const VIEW_PREFIX = "view_";
+const FIRST_TABLE_NAME = "T1";
+const SECOND_TABLE_NAME = "T1";
+
 class DuckDB {
   constructor() {
     this.db = null;
@@ -9,37 +13,23 @@ class DuckDB {
     this.initializationPromise = this.init();
   }
 
-  addJoinedTables(source, sourceColumnName, target, targertColumnName) {
-    this.joinedTables.push({
+  addJoinedTables(source, sourceColumnIndex, target, targertColumnIndex) {
+    this.dataTableViews.add({
       source,
-      sourceColumnName,
+      sourceColumnIndex,
       target,
-      targertColumnName,
+      targertColumnIndex,
     });
-    return this.joinedTables.length - 1;
+    return [source, target].join("_");
   }
 
-  findJoinedTables(source, sourceColumnName, target, targertColumnName) {
-    for (let i = 0; i < this.joinedTables.length; ++i) {
-      const currItem = this.joinedTables[i];
-      if (
-        currItem.source === source &&
-        currItem.sourceColumnName === sourceColumnName &&
-        currItem.target === target &&
-        currItem.targetName === targertColumnName
-      ) {
-        return i;
-      }
-    }
-  }
-
-  decodeColumnName(columnName) {
-    const split = columnName.split("_");
+  decodecolumnIndex(columnIndex) {
+    const split = columnIndex.split("_");
     return {
       source: split[0],
-      sourceColumnName: split[1],
+      sourceColumnIndex: split[1],
       target: split[2],
-      targertColumnName: split[3],
+      targertColumnIndex: split[3],
     };
   }
 
@@ -123,21 +113,98 @@ class DuckDB {
     return databaseResult;
   }
 
-  async createJoinedView(source, sourceColumnName, target, targertColumnName) {
-    const viewName = `view_${this.addJoinedTables(
+  async createJoinedView(
+    source,
+    sourceJoinIndex,
+    target,
+    targetJoinIndex,
+    keywords,
+    sourceColumnIndexes,
+    targetColumnIndexes
+  ) {
+    const viewName = `${VIEW_PREFIX}${this.addJoinedTables(
       source,
-      sourceColumnName,
+      sourceJoinIndex,
       target,
-      targertColumnName
+      targetJoinIndex
     )}`;
-    const query = `
-      CREATE VIEW ${viewName} AS 
-        SELECT * FROM "${source}" JOIN "${target}" 
-        ON "${source}"."${sourceColumnName}"="${target}"."${targertColumnName}"`;
     const db = await this.getDb();
     const conn = await db.connect();
+    const sourceColumnCountsResult = await conn.query(
+      `SELECT COUNT(*) AS count FROM pragma_table_info('${source}')`
+    );
+    const sourceColumnCounts = sourceColumnCountsResult.toArray()[0][0][0];
+    const targetColumnCountsResult = await conn.query(
+      `SELECT COUNT(*) AS count FROM pragma_table_info('${target}')`
+    );
+    const targetColumnCounts = targetColumnCountsResult.toArray()[0][0][0];
+
+    const allColumns = [];
+    for (let i = 0; i < sourceColumnCounts; ++i) {
+      allColumns.push({ table: FIRST_TABLE_NAME, index: i });
+    }
+
+    for (let i = 0; i < targetColumnCounts; ++i) {
+      if (i === targetJoinIndex) {
+        continue;
+      }
+      allColumns.push({ table: SECOND_TABLE_NAME, index: i });
+    }
+    const allColumnsText = allColumns.map((c) => `${c.table}."${c.index}"`);
+
+    const matchedColumns = [];
+    if (sourceColumnIndexes) {
+      sourceColumnIndexes.forEach((s) => {
+        matchedColumns.push(`T1."${s}"`);
+      });
+    }
+
+    if (targetColumnIndexes) {
+      targetColumnIndexes.forEach((s) => {
+        if (s !== sourceJoinIndex) {
+          matchedColumns.push(`T2."${s}"`);
+        }
+      });
+    }
+
+    const selectClause =
+      matchedColumns.length > 0 ? `${matchedColumns.join(",")}` : "*";
+
+    const whereClause = keywords
+      ? keywords
+          .map((currKeywords) => {
+            const keywordsSplit = currKeywords.split(" ");
+            if (keywordsSplit.length > 1) {
+              const currentConditions = currKeywords
+                .split(" ")
+                .map((k) => `('${SQLEscape(k)}' IN (${allColumnsText}))`);
+              const currentAndConditions = `(${currentConditions.join(
+                " AND "
+              )})`;
+              return `(${currentAndConditions} OR ('${SQLEscape(
+                currKeywords
+              )}' IN (${allColumnsText})))`;
+            } else {
+              return `('${SQLEscape(currKeywords)}' IN (${allColumnsText}))`;
+            }
+          })
+          .join(" OR ")
+      : "";
+
+    const query = `CREATE VIEW "${viewName}" AS 
+      (
+        WITH T1 AS (SELECT * FROM "${source}"), 
+             T2 AS (SELECT * FROM "${target}") 
+            SELECT ${selectClause} FROM T1 JOIN T2 ON 
+              T1."${sourceJoinIndex}"=T2."${targetJoinIndex}" 
+            ${whereClause ? `WHERE ${whereClause}` : ""}
+      )`;
+
+    console.log(query);
+    await conn.query(`DROP VIEW IF EXISTS "${VIEW_PREFIX}${source}"`);
+    await conn.query(`DROP VIEW IF EXISTS "${viewName}"`);
     await conn.query(query);
-    const countQuery = `SELECT COUNT(*) FROM ${viewName}`;
+    const countQuery = `SELECT COUNT(*) FROM "${viewName}"`;
     const countResult = await conn.query(countQuery);
     const totalCount = countResult.toArray()[0][0][0];
     await conn.close();
@@ -153,7 +220,7 @@ class DuckDB {
     }
     const db = await this.getDb();
     const conn = await db.connect();
-    const viewName = `dataview-${uuid}`;
+    const viewName = `${VIEW_PREFIX}${uuid}`;
     await conn.query(`DROP VIEW IF EXISTS "${viewName}"`);
     const columnCountsResult = await conn.query(
       `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}')`
@@ -199,6 +266,7 @@ class DuckDB {
     const countResult = await conn.query(countQuery);
     const totalCount = countResult.toArray()[0][0][0];
     await conn.close();
+    this.dataTableViews.add(viewName);
     return {
       totalCount,
       viewName,
@@ -217,6 +285,10 @@ class DuckDB {
     await conn.close();
     return databaseResult;
   }
+
+  decodeRegularResult() {}
+
+  decodeJoinedResult() {}
 }
 
 const instance = new DuckDB();

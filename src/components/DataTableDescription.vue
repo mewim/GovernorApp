@@ -15,24 +15,6 @@
       <table-filters :keywords="keywords" />
     </div>
     <hr />
-    <!-- <div class="schema-fields-table-container">
-      <b-table
-        ref="joinableResultsTable"
-        :items="joinableResultsTableData"
-        :fields="joinableFields"
-        small
-      >
-        <template #cell(join)="row">
-          <b-button
-            variant="primary"
-            size="sm"
-            @click="joinTable(row.item.rawData)"
-          >
-            Join
-          </b-button>
-        </template>
-      </b-table>
-    </div> -->
     <div>
       <p></p>
       <h5>Columns</h5>
@@ -92,30 +74,21 @@
 </template>
 
 <script>
-import axios from "axios";
 export default {
   name: "DataTableDescription",
   mounted: function () {
     this.syncSelectedFields();
-    this.getJoinableResults(this.resource.id);
   },
   data: function () {
     return {
-      joinableFields: [
-        { key: "source_column", label: "Source Column" },
-        { key: "target_table", label: "Target Table" },
-        { key: "target_column", label: "Target Column" },
-        { key: "score", label: "Score" },
-        { key: "join", label: "Join" },
-      ],
       schemaFields: [
         { key: "selected", label: "✓" },
-        { key: "name", label: "Inferred Column Name" },
-        { key: "type", label: "Inferred Column Type" },
+        { key: "name", label: "Column" },
+        { key: "type", label: "Type" },
         { key: "stats", label: "Stats" },
       ],
       joinableResults: [],
-      isColumnDetailsVisible: false,
+      isColumnDetailsVisible: false
     };
   },
   computed: {
@@ -183,9 +156,6 @@ export default {
     },
     joinTable: async function (metadata) {
       this.$parent.joinTable(metadata);
-    },
-    getJoinableResults: async function (uuid) {
-      this.joinableResults = (await axios.get("/api/joinable/" + uuid)).data;
     },
     showStats: function (row) {
       const fieldName = row.item.name;

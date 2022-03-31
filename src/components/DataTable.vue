@@ -56,6 +56,12 @@ export default {
       cellStyleOption: {},
       viewId: null,
       dataviewRefreshDelay: null,
+      joinedTable: {
+        resource: null,
+        sourceIndex: null,
+        targetIndex: null,
+        resourceStats: null,
+      },
     };
   },
   props: {
@@ -114,28 +120,21 @@ export default {
   },
   computed: {},
   methods: {
-    async joinTable(metadata) {
-      try {
-        console.log(metadata);
-        console.time("Load target table");
-        const sourceColumnName = metadata.source.column.inferred_schema.name;
-        const targetId = metadata.target.uuid;
-        const targetColumnName = metadata.target.column.inferred_schema.name;
-        await DuckDB.loadParquet(targetId);
-        const joinViewResult = await DuckDB.createJoinedView(
-          this.tableId,
-          sourceColumnName,
-          targetId,
-          targetColumnName
-        );
-        this.viewId = joinViewResult.viewName;
-        this.totalCount = joinViewResult.totalCount;
-        this.pageIndex = 1;
+    async joinTable(joinable) {
+      this.joinedTable.resource = joinable.target_resource;
+      this.joinedTable.sourceIndex = joinable.source_index;
+      this.joinedTable.targetIndex = joinable.target_index;
+      this.joinedTable.resourceStats = await axios
+        .get(`/api/inferredstats/${this.joinedTable.resource.id}`)
+        .then((res) => res.data);
+      console.time(`Load target table ${this.joinedTable.resource.id}`);
+      await DuckDB.loadParquet(this.joinedTable.resource.id);
+      console.timeEnd(`Load target table ${this.joinedTable.resource.id}`);
 
-        await this.loadDataForCurrentPage();
-      } catch (err) {
-        alert("Cannot perform the join", err);
-      }
+      console.time(`Create joined view ${this.joinedTable.resource.id}`);
+      await this.createDataView();
+      console.timeEnd(`Create joined view ${this.joinedTable.resource.id}`);
+      await this.loadDataForCurrentPage();
     },
     addNewKeyword(newKeyWordText) {
       this.keywords.push(newKeyWordText);
@@ -194,7 +193,21 @@ export default {
       await this.loadingPromise;
     },
     async createDataView() {
-      if (this.keywords.length > 0 || this.selectedFields.length > 0) {
+      if (this.joinedTable.resource) {
+        console.time(`Create joined view ${this.joinedTable.resource.id}`);
+        const joinViewResult = await DuckDB.createJoinedView(
+          this.tableId,
+          this.joinedTable.sourceIndex,
+          this.joinedTable.resource.id,
+          this.joinedTable.targetIndex,
+          this.keywords,
+          this.selectedFields
+        );
+        this.viewId = joinViewResult.viewName;
+        this.totalCount = joinViewResult.totalCount;
+        this.pageIndex = 1;
+        console.timeEnd(`Create joined view ${this.joinedTable.resource.id}`);
+      } else if (this.keywords.length > 0 || this.selectedFields.length > 0) {
         const viewResult = await DuckDB.createDataTableView(
           this.tableId,
           this.keywords,
@@ -233,6 +246,7 @@ export default {
         this.pageIndex,
         this.pageSize
       );
+      console.log(arrowTable);
       console.timeEnd(`DuckDB Query ${tableId}`);
 
       console.time(`Post-process ${tableId}`);
