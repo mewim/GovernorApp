@@ -13,7 +13,8 @@
         />
       </div>
       <ve-table
-        :max-height="height"
+        v-if="!!tableId"
+        :max-height="height ? height : 10"
         :virtual-scroll-option="virtualScrollOption"
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
@@ -26,25 +27,31 @@
 
 <script>
 import { VeLoading } from "vue-easytable";
-// import DuckDB from "../DuckDB";
+import DuckDB from "../DuckDB";
 
 export default {
   data() {
+    const pageSize = 25;
+    const tableData = [];
+    for (let i = 0; i < pageSize; ++i) {
+      tableData.push({});
+    }
     return {
       pageIndex: 1,
-      pageSize: 25,
+      pageSize: pageSize,
       totalCount: 0,
       virtualScrollOption: {
         enable: true,
       },
       uniqueRowNumbers: [],
       columns: [],
-      tableData: [],
+      tableId: null,
+      tableData,
       inferredstats: null,
       loadingPromise: null,
       selectedFields: [],
       cellStyleOption: {},
-      viewId: null,
+      histories: [],
       dataviewRefreshDelay: null,
     };
   },
@@ -53,10 +60,35 @@ export default {
     height: Number,
   },
   watch: {
+    height: {
+      handler: function (newValue) {
+        console.log("height", newValue);
+      },
+    },
     isActive: {
       handler: async function (newValue) {
         if (newValue) {
+          if (this.loadingPromise) {
+            await this.loadingPromise;
+          } else {
+            this.$nextTick(() => {
+              setTimeout(() => {
+                this.loadDataForCurrentPage();
+              }, 50);
+            });
+          }
+        }
+      },
+    },
+    loadingPromise: {
+      handler: function (newValue) {
+        if (!this.loadingInstance) {
           return;
+        }
+        if (newValue) {
+          this.loadingInstance.show();
+        } else {
+          this.loadingInstance.close();
         }
       },
     },
@@ -64,10 +96,66 @@ export default {
   methods: {
     pageNumberChange(pageIndex) {
       this.pageIndex = pageIndex;
+      this.loadingPromise = this.loadDataForCurrentPage();
     },
     pageSizeChange(pageSize) {
       this.pageIndex = 1;
       this.pageSize = pageSize;
+      this.loadingPromise = this.loadDataForCurrentPage();
+    },
+    async loadDataForCurrentPage() {
+      this.tableData.splice(0);
+      const tableId = this.tableId;
+      console.time(`DuckDB Query ${tableId}`);
+      const arrowTable = await DuckDB.getFullTable(
+        tableId,
+        this.pageIndex,
+        this.pageSize
+      );
+      console.timeEnd(`DuckDB Query ${tableId}`);
+      console.time(`Post-process ${tableId}`);
+      arrowTable.toArray().forEach((r, i) => {
+        const rowDict = { rowKey: i };
+        const rowObject = r.toJSON();
+        Object.keys(rowObject).forEach((k) => {
+          const key = k.split("_")[1];
+          if (key) {
+            rowDict[key] = rowObject[k];
+          }
+        });
+        this.tableData.push(rowDict);
+      });
+      console.timeEnd(`Post-process ${tableId}`);
+      this.loadingPromise = null;
+    },
+    async loadInitialTable(table) {
+      console.time("Working table creation");
+      const { totalCount, tableName } = await DuckDB.createWorkingTable(
+        table.viewId,
+        table.baseTable.id
+      );
+      console.timeEnd("Working table creation");
+      this.totalCount = totalCount;
+      this.tableId = tableName;
+      table.columns.forEach((c, i) => {
+        this.columns.push({
+          field: String(i),
+          key: String(i),
+          ellipsis: { showTitle: true },
+          title: c.title,
+          width: 300,
+        });
+      });
+      await this.loadDataForCurrentPage();
+    },
+    addData(table) {
+      this.$nextTick(() => {
+        this.$parent.toggleWorkingTable();
+        console.log("addData", table);
+        if (!this.tableId) {
+          this.loadingPromise = this.loadInitialTable(table);
+        }
+      });
     },
   },
   mounted() {

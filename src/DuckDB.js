@@ -3,6 +3,7 @@ const SQLEscape = require("sql-escape");
 const VIEW_PREFIX = "view_";
 const FIRST_TABLE_NAME = "T1";
 const SECOND_TABLE_NAME = "T2";
+const WORKING_TABLE_NAME = "__work";
 
 class DuckDB {
   constructor() {
@@ -291,6 +292,32 @@ class DuckDB {
     const databaseResult = await conn.query(query);
     await conn.close();
     return databaseResult;
+  }
+
+  async createWorkingTable(viewId, sourceTableId) {
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const tableName = WORKING_TABLE_NAME;
+    await conn.query(`DROP VIEW IF EXISTS "${tableName}"`);
+    const columns = await conn.query(
+      `SELECT * FROM pragma_table_info('${viewId}')`
+    );
+    let selectClause = columns
+      .toArray()
+      .map((c, i) => `"${c.name}" AS "W_${i}"`)
+      .join(", ");
+    selectClause += `, '${sourceTableId}' AS TID`;
+    const query = `CREATE TABLE ${tableName} AS SELECT ${selectClause} FROM "${viewId}"`;
+    console.debug(query);
+    await conn.query(query);
+    const countQuery = `SELECT COUNT(*) FROM "${tableName}"`;
+    const countResult = await conn.query(countQuery);
+    const totalCount = countResult.toArray()[0][0][0];
+    await conn.close();
+    return {
+      totalCount,
+      tableName,
+    };
   }
 }
 

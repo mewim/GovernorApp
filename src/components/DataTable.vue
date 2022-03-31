@@ -294,7 +294,6 @@ export default {
       console.timeEnd(`Post-process ${tableId}`);
       this.loadingPromise = null;
     },
-
     addSelectedField(item) {
       if (!item.isJoinedTable) {
         this.selectedFields.push(item.index);
@@ -313,6 +312,15 @@ export default {
         );
       }
       this.refreshDataView();
+    },
+    addToWorkingTable() {
+      this.$parent.$refs.workingTable.addData({
+        baseTable: this.resource,
+        dataset: this.dataset,
+        joinedTable: this.joinedTable,
+        columns: this.visibleColumns,
+        viewId: this.viewId,
+      });
     },
   },
   mounted() {

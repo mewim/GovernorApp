@@ -53,7 +53,11 @@
 
       <data-table
         v-for="item in openedResources"
-        v-show="!isSearchActive && activeResourceId === item.resource.id"
+        v-show="
+          !isSearchActive &&
+          !isWorkingTableActive &&
+          activeResourceId === item.resource.id
+        "
         :key="item.resource.id"
         :resource="item.resource"
         :resourceStats="item.resourceStats"
@@ -108,6 +112,9 @@ export default {
       this.isSearchActive = true;
     },
     toggleWorkingTable: function () {
+      this.$nextTick(() => {
+        this.updatePreviewAreaHeight();
+      });
       this.isSearchActive = false;
       this.isWorkingTableActive = true;
     },
@@ -117,7 +124,9 @@ export default {
       this.activeResourceId = resourceId;
     },
     getTabClass: function (resourceId) {
-      return resourceId === this.activeResourceId && !this.isSearchActive
+      return resourceId === this.activeResourceId &&
+        !this.isSearchActive &&
+        !this.isWorkingTableActive
         ? "nav-link active"
         : "nav-link";
     },
@@ -177,7 +186,7 @@ export default {
           this.$refs.dataTableTabBar.getBoundingClientRect().height -
           this.TABLE_AREA_OFFSET;
       } catch (err) {
-        this.tableAreaHeight = 0;
+        this.tableAreaHeight = window.innerHeight;
       }
     },
   },

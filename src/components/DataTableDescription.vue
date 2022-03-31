@@ -10,7 +10,9 @@
     <hr />
     <div>
       <h5>Actions</h5>
-      <b-button size="sm">Add to Working Table</b-button>
+      <b-button size="sm" @click="addToWorkingTable()"
+        >Add to Working Table</b-button
+      >
     </div>
     <hr />
     <div>
@@ -221,6 +223,9 @@ export default {
       } else {
         this.$parent.addSelectedField(clickedItem);
       }
+    },
+    addToWorkingTable: function () {
+      this.$parent.addToWorkingTable();
     },
   },
 };
