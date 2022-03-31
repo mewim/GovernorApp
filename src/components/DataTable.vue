@@ -98,10 +98,11 @@ export default {
           if (this.loadingPromise) {
             await this.loadingPromise;
           } else {
+            // Hack to trigger rerender when the view is changed
             this.$nextTick(() => {
-              setTimeout(() => {
-                this.loadDataForCurrentPage();
-              }, 50);
+              const backup = this.tableData.slice();
+              this.tableData.splice(0);
+              backup.forEach((b) => this.tableData.push(b));
             });
           }
         }
