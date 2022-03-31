@@ -1,7 +1,11 @@
 <template>
   <div class="dataset-description-container" v-if="!!dataset">
     <div>
-      <data-table-details :dataset="dataset" :resource="resource" />
+      <data-table-details
+        :dataset="dataset"
+        :resource="resource"
+        :joinedResource="joinedTable.resource"
+      />
     </div>
     <hr />
     <div>
@@ -27,7 +31,7 @@
       >
         <b-table
           ref="schemaFieldsTable"
-          :items="resourceStats.schema.fields"
+          :items="schemaFieldsTableItems"
           :fields="schemaFields"
           no-select-on-click
           selectable
@@ -53,6 +57,7 @@
     <hr />
     <div>
       <joinable-tables
+        v-if="!joinedTable.resource"
         :resourceId="resource.id"
         :sourceResourceStats="resourceStats"
       />
@@ -88,7 +93,7 @@ export default {
         { key: "stats", label: "Stats" },
       ],
       joinableResults: [],
-      isColumnDetailsVisible: false
+      isColumnDetailsVisible: false,
     };
   },
   computed: {
@@ -100,6 +105,37 @@ export default {
           type: r.type,
         };
       });
+    },
+    schemaFieldsTableItems: function () {
+      const result = [];
+      if (!this.resourceStats) {
+        return result;
+      }
+      this.resourceStats.schema.fields.forEach((r, i) => {
+        result.push({
+          name: r.name,
+          type: r.type,
+          stats: r.stats,
+          index: i,
+        });
+      });
+      if (!this.joinedTable.resourceStats) {
+        return result;
+      }
+      this.joinedTable.resourceStats.schema.fields.forEach((r, i) => {
+        // DuckDB cannot retrive the joined column on the target table, so skip
+        if (i === this.joinedTable.targetIndex) {
+          return;
+        }
+        result.push({
+          name: r.name,
+          type: r.type,
+          stats: r.stats,
+          index: i,
+          isJoinedTable: true,
+        });
+      });
+      return result;
     },
     joinableResultsTableData: function () {
       return this.joinableResults.map((m) => {
@@ -134,10 +170,20 @@ export default {
     resource: Object,
     keywords: Array,
     selectedFields: Array,
+    joinedTable: Object,
   },
   watch: {
     selectedFields: {
       immediate: true,
+      handler: function () {
+        try {
+          this.syncSelectedFields();
+        } catch (err) {
+          // Continue
+        }
+      },
+    },
+    "joinedTable.selectedFields": {
       handler: function () {
         try {
           this.syncSelectedFields();
@@ -153,6 +199,12 @@ export default {
       this.selectedFields.forEach((idx) => {
         this.$refs.schemaFieldsTable.selectRow(idx);
       });
+      this.joinedTable.selectedFields.forEach((idx) => {
+        this.$refs.schemaFieldsTable.selectRow(
+          // -1 offset for the joined column
+          idx + this.resourceStats.schema.fields.length - 1
+        );
+      });
     },
     joinTable: async function (metadata) {
       this.$parent.joinTable(metadata);
@@ -164,10 +216,11 @@ export default {
       this.$refs.columnStats.reloadData(resourceId, fieldName);
     },
     schemaFieldsTableRowClicked: function (_, idx) {
+      const clickedItem = this.schemaFieldsTableItems[idx];
       if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
-        this.$parent.removeSelectedField(idx);
+        this.$parent.removeSelectedField(clickedItem);
       } else {
-        this.$parent.addSelectedField(idx);
+        this.$parent.addSelectedField(clickedItem);
       }
     },
   },
@@ -176,6 +229,7 @@ export default {
 
 <style lang="scss">
 .dataset-description-container {
+  background-color: var(--bs-gray-100);
   flex-basis: 25%;
   padding: 10px;
   overflow-y: scroll;

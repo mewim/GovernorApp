@@ -2,8 +2,9 @@
   <div v-if="!!dataset">
     <div class="title-container">
       <h5>Table: {{ resource.name }}</h5>
+      <h5 v-if="!!joinedResource">Joined Table: {{ joinedResource.name }}</h5>
       <a href="#" @click="isTableDetailsVisible = !isTableDetailsVisible"
-        >[{{ isTableDetailsVisible ? "Hide" : "Show" }} Details]</a
+        >[{{ isTableDetailsVisible ? "Hide" : "Show" }} Dataset Details]</a
       >
     </div>
     <b-collapse v-model="isTableDetailsVisible" class="mt-2">
@@ -47,6 +48,7 @@ export default {
   props: {
     dataset: Object,
     resource: Object,
+    joinedResource: Object,
   },
 };
 </script>

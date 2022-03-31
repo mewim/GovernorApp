@@ -2,13 +2,12 @@ import * as duckdb from "@duckdb/duckdb-wasm";
 const SQLEscape = require("sql-escape");
 const VIEW_PREFIX = "view_";
 const FIRST_TABLE_NAME = "T1";
-const SECOND_TABLE_NAME = "T1";
+const SECOND_TABLE_NAME = "T2";
 
 class DuckDB {
   constructor() {
     this.db = null;
     this.loadedTables = new Set();
-    this.joinedTables = [];
     this.dataTableViews = new Set();
     this.initializationPromise = this.init();
   }
@@ -154,15 +153,21 @@ class DuckDB {
 
     const matchedColumns = [];
     if (sourceColumnIndexes) {
+      sourceColumnIndexes.sort((a, b) => a - b);
       sourceColumnIndexes.forEach((s) => {
-        matchedColumns.push(`T1."${s}"`);
+        matchedColumns.push(
+          `${FIRST_TABLE_NAME}."${s}" AS "${FIRST_TABLE_NAME}-${s}"`
+        );
       });
     }
 
     if (targetColumnIndexes) {
+      targetColumnIndexes.sort((a, b) => a - b);
       targetColumnIndexes.forEach((s) => {
         if (s !== sourceJoinIndex) {
-          matchedColumns.push(`T2."${s}"`);
+          matchedColumns.push(
+            `${SECOND_TABLE_NAME}."${s}" AS "${SECOND_TABLE_NAME}-${s}"`
+          );
         }
       });
     }
@@ -193,10 +198,10 @@ class DuckDB {
 
     const query = `CREATE VIEW "${viewName}" AS 
       (
-        WITH T1 AS (SELECT * FROM "${source}"), 
-             T2 AS (SELECT * FROM "${target}") 
-            SELECT ${selectClause} FROM T1 JOIN T2 ON 
-              T1."${sourceJoinIndex}"=T2."${targetJoinIndex}" 
+        WITH ${FIRST_TABLE_NAME} AS (SELECT * FROM "${source}"), 
+             ${SECOND_TABLE_NAME} AS (SELECT * FROM "${target}") 
+            SELECT ${selectClause} FROM ${FIRST_TABLE_NAME} JOIN ${SECOND_TABLE_NAME} ON 
+              ${FIRST_TABLE_NAME}."${sourceJoinIndex}"=${SECOND_TABLE_NAME}."${targetJoinIndex}" 
             ${whereClause ? `WHERE ${whereClause}` : ""}
       )`;
 
@@ -233,7 +238,9 @@ class DuckDB {
     const allColumnsText = allColumns.map((c) => `"${c}"`);
     columnIndexes.sort((a, b) => a - b);
     const selectClause = columnIndexes
-      ? `${columnIndexes.map((c) => `"${c}"`).join(",")}`
+      ? `${columnIndexes
+          .map((c) => `"${c}" AS "${FIRST_TABLE_NAME}-${c}"`)
+          .join(",")}`
       : "*";
     const whereClause = keywords
       ? keywords

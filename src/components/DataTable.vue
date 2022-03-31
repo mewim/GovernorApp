@@ -6,6 +6,7 @@
       :resource="resource"
       :keywords="keywords"
       :selectedFields="selectedFields"
+      :joinedTable="joinedTable"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -35,6 +36,8 @@
 import axios from "axios";
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
+const FIRST_TABLE_NAME = "T1";
+const SECOND_TABLE_NAME = "T2";
 
 export default {
   data() {
@@ -46,7 +49,6 @@ export default {
         enable: true,
       },
       uniqueRowNumbers: [],
-      columns: [],
       visibleColumns: [],
       tableData: [],
       keywords: [],
@@ -61,6 +63,7 @@ export default {
         sourceIndex: null,
         targetIndex: null,
         resourceStats: null,
+        selectedFields: [],
       },
     };
   },
@@ -118,7 +121,43 @@ export default {
       },
     },
   },
-  computed: {},
+  computed: {
+    columns: function () {
+      const results = [];
+      if (!this.inferredstats) {
+        return results;
+      }
+      this.inferredstats.schema.fields.forEach((f, i) => {
+        const key = `${FIRST_TABLE_NAME}-${i}`;
+        results.push({
+          field: key,
+          key: key,
+          title: f.name,
+          width: 300,
+          ellipsis: {
+            showTitle: true,
+          },
+        });
+      });
+      console.log(this.joinedTable.resourceStats);
+      if (!this.joinedTable.resourceStats) {
+        return results;
+      }
+      this.joinedTable.resourceStats.schema.fields.forEach((f, i) => {
+        const key = `${SECOND_TABLE_NAME}-${i}`;
+        results.push({
+          field: key,
+          key: key,
+          title: f.name,
+          width: 300,
+          ellipsis: {
+            showTitle: true,
+          },
+        });
+      });
+      return results;
+    },
+  },
   methods: {
     async joinTable(joinable) {
       this.joinedTable.resource = joinable.target_resource;
@@ -165,15 +204,6 @@ export default {
         .get(`/api/inferredstats/${this.tableId}`)
         .then((res) => res.data);
       this.inferredstats.schema.fields.forEach((f, i) => {
-        this.columns.push({
-          field: String(i),
-          key: String(i),
-          title: f.name,
-          width: 300,
-          ellipsis: {
-            showTitle: true,
-          },
-        });
         if (!this.keyword) {
           this.selectedFields.push(i);
         } else {
@@ -194,19 +224,19 @@ export default {
     },
     async createDataView() {
       if (this.joinedTable.resource) {
-        console.time(`Create joined view ${this.joinedTable.resource.id}`);
         const joinViewResult = await DuckDB.createJoinedView(
           this.tableId,
           this.joinedTable.sourceIndex,
           this.joinedTable.resource.id,
           this.joinedTable.targetIndex,
           this.keywords,
-          this.selectedFields
+          this.selectedFields,
+          this.joinedTable.selectedFields
         );
         this.viewId = joinViewResult.viewName;
         this.totalCount = joinViewResult.totalCount;
         this.pageIndex = 1;
-        console.timeEnd(`Create joined view ${this.joinedTable.resource.id}`);
+        this.filterColumns();
       } else if (this.keywords.length > 0 || this.selectedFields.length > 0) {
         const viewResult = await DuckDB.createDataTableView(
           this.tableId,
@@ -215,12 +245,22 @@ export default {
         );
         this.viewId = viewResult.viewName;
         this.totalCount = viewResult.totalCount;
-        this.visibleColumns = this.columns.filter(
-          (_, i) => this.selectedFields.indexOf(i) >= 0
-        );
+        this.filterColumns();
       } else {
         this.viewId = "";
       }
+    },
+    filterColumns() {
+      this.visibleColumns = this.columns.filter((column) => {
+        const split = column.key.split("-");
+        const isJoinedTable = split[0] === SECOND_TABLE_NAME;
+        const i = parseInt(split[1]);
+        console.log(isJoinedTable, i);
+        return (
+          (!isJoinedTable && this.selectedFields.indexOf(i) >= 0) ||
+          (isJoinedTable && this.joinedTable.selectedFields.indexOf(i) >= 0)
+        );
+      });
     },
     refreshDataView() {
       clearTimeout(this.dataviewRefreshDelay);
@@ -246,36 +286,35 @@ export default {
         this.pageIndex,
         this.pageSize
       );
-      console.log(arrowTable);
       console.timeEnd(`DuckDB Query ${tableId}`);
-
       console.time(`Post-process ${tableId}`);
       arrowTable.toArray().forEach((r, i) => {
-        const rowDict = { rowKey: r.row ? r.row[0] : i };
+        const rowDict = { rowKey: i };
         const rowObject = r.toJSON();
-        for (let j = 0; j < this.columns.length; ++j) {
-          let fieldName, rawValue;
-          try {
-            const field = this.columns[j];
-            fieldName = field.field;
-            rawValue = rowObject[j];
-          } catch (err) {
-            continue;
-          }
-          rowDict[fieldName] = rawValue;
-        }
+        Object.keys(rowObject).forEach((k) => (rowDict[k] = rowObject[k]));
         this.tableData.push(rowDict);
       });
       console.timeEnd(`Post-process ${tableId}`);
       this.loadingPromise = null;
     },
 
-    addSelectedField(fieldIndex) {
-      this.selectedFields.push(fieldIndex);
+    addSelectedField(item) {
+      if (!item.isJoinedTable) {
+        this.selectedFields.push(item.index);
+      } else {
+        this.joinedTable.selectedFields.push(item.index);
+      }
       this.refreshDataView();
     },
-    removeSelectedField(fieldIndex) {
-      this.selectedFields.splice(this.selectedFields.indexOf(fieldIndex), 1);
+    removeSelectedField(item) {
+      if (!item.isJoinedTable) {
+        this.selectedFields.splice(this.selectedFields.indexOf(item.index), 1);
+      } else {
+        this.joinedTable.selectedFields.splice(
+          this.joinedTable.selectedFields.indexOf(item.index),
+          1
+        );
+      }
       this.refreshDataView();
     },
   },
@@ -302,7 +341,7 @@ export default {
 .data-table-outer-container {
   height: 100%;
   display: flex;
-  flex-direction: row;
+  flex-direction: row-reverse;
   .data-table-inner-container {
     .table-pagination {
       border: 1px solid #eee;
