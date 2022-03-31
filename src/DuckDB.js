@@ -319,6 +319,27 @@ class DuckDB {
       tableName,
     };
   }
+
+  async autoUnionWorkingTable(viewId, sourceTableId, unionColumns) {
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const tableName = WORKING_TABLE_NAME;
+    let selectClause = unionColumns
+      .map((c) => `"${c.targetKey}" AS "W_${c.sourceKey}"`)
+      .join(", ");
+    selectClause += `, '${sourceTableId}' AS TID`;
+    const query = `INSERT INTO ${tableName} SELECT ${selectClause} FROM "${viewId}"`;
+    console.debug(query);
+    await conn.query(query);
+    const countQuery = `SELECT COUNT(*) FROM "${tableName}"`;
+    const countResult = await conn.query(countQuery);
+    const totalCount = countResult.toArray()[0][0][0];
+    await conn.close();
+    return {
+      totalCount,
+      tableName,
+    };
+  }
 }
 
 const instance = new DuckDB();

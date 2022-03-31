@@ -156,7 +156,6 @@ export default {
       selectedDataset: null,
       selectedResourceStats: null,
       searchSuccess: false,
-      showTabArea: false,
       loadingInstance: null,
       searchMetadata: false,
     };

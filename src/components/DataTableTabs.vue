@@ -41,14 +41,14 @@
     <div
       class="data-table-container"
       ref="dataTableContainer"
-      v-show="tableViewDisplayed"
       :style="dataTableContainerStyle"
     >
       <search-view v-show="isSearchActive" ref="searchView" />
       <working-table
         v-show="isWorkingTableActive"
-        ref="workingTable"
         :height="tableAreaHeight"
+        :isActive="isWorkingTableActive"
+        ref="workingTable"
       />
 
       <data-table
@@ -77,15 +77,12 @@
 </template>
 
 <script>
-import SearchView from "./SearchView.vue";
 export default {
-  components: { SearchView },
   data() {
     return {
       activeResourceId: null,
       openedResources: [],
       tableAreaHeight: 0,
-      tableViewDisplayed: true,
       isSearchActive: true,
       isWorkingTableActive: false,
       TABLE_AREA_OFFSET: 40,
@@ -140,9 +137,6 @@ export default {
             this.openedResources[i].resourceStats = r.resourceStats;
             this.openedResources[i].keyword = r.keyword;
           }
-          this.$nextTick(() => {
-            this.updatePreviewAreaHeight();
-          });
           return;
         }
       }
@@ -150,9 +144,6 @@ export default {
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
       this.isSearchActive = !jumpImmediately;
-      this.$nextTick(() => {
-        this.updatePreviewAreaHeight();
-      });
     },
     closeResource: function (id) {
       for (let i = 0; i < this.openedResources.length; ++i) {
@@ -175,9 +166,6 @@ export default {
       if (this.openedResources.length === 0) {
         this.isSearchActive = true;
       }
-      this.$nextTick(() => {
-        this.updatePreviewAreaHeight();
-      });
     },
     updatePreviewAreaHeight: function () {
       try {

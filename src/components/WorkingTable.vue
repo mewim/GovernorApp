@@ -19,6 +19,7 @@
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
         :columns="columns"
+        row-key-field-name="rowKey"
         ref="table"
       />
     </div>
@@ -105,12 +106,14 @@ export default {
       console.timeEnd(`DuckDB Query ${tableId}`);
       console.time(`Post-process ${tableId}`);
       arrowTable.toArray().forEach((r, i) => {
-        const rowDict = { rowKey: i };
+        const rowDict = { rowKey: String(i) };
         const rowObject = r.toJSON();
         Object.keys(rowObject).forEach((k) => {
           const key = k.split("_")[1];
           if (key) {
             rowDict[key] = rowObject[k];
+          } else {
+            rowDict[k] = rowObject[k];
           }
         });
         this.tableData.push(rowDict);
@@ -136,16 +139,54 @@ export default {
           width: 300,
         });
       });
+      this.histories.push(table);
       await this.loadDataForCurrentPage();
+    },
+    async tryAutoUnion(table) {
+      const targetColumns = {};
+      const unionColumns = [];
+      table.columns.forEach((c) => (targetColumns[c.title] = c));
+      for (let i = 0; i < this.columns.length; ++i) {
+        const c = this.columns[i];
+        if (!targetColumns[c.title]) {
+          return false;
+        }
+        unionColumns.push({
+          sourceKey: c.key,
+          targetKey: targetColumns[c.title].key,
+        });
+      }
+      const { totalCount, tableName } = await DuckDB.autoUnionWorkingTable(
+        table.viewId,
+        table.baseTable.id,
+        unionColumns
+      );
+      this.totalCount = totalCount;
+      this.tableId = tableName;
+      this.histories.push(table);
+      await this.loadDataForCurrentPage();
+      return true;
     },
     async addData(table) {
       if (!this.tableId) {
         this.loadingPromise = this.loadInitialTable(table);
+      } else {
+        const matchedTables = this.histories.filter(
+          (f) => f.baseTable.id === table.baseTable.id
+        );
+        if (matchedTables.length > 0) {
+          return {success:false, };
+        }
+        const autoUnionResult = await this.tryAutoUnion(table);
+        if (!autoUnionResult) {
+          alert("Cannot auto union");
+        }
       }
       this.$nextTick(() => {
         this.$parent.toggleWorkingTable();
       });
       await this.loadingPromise;
+      return {success:true};
     },
   },
   mounted() {

@@ -313,14 +313,17 @@ export default {
       }
       this.refreshDataView();
     },
-    addToWorkingTable() {
-      this.$parent.$refs.workingTable.addData({
+    async addToWorkingTable() {
+      const result = await this.$parent.$refs.workingTable.addData({
         baseTable: this.resource,
         dataset: this.dataset,
         joinedTable: this.joinedTable,
         columns: this.visibleColumns,
         viewId: this.viewId,
       });
+      if (!result) {
+        alert("Union failed");
+      }
     },
   },
   mounted() {
