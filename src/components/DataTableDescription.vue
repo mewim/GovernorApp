@@ -10,9 +10,7 @@
     <hr />
     <div>
       <h5>Actions</h5>
-      <b-button size="sm">Set as Working Table</b-button>
-      &nbsp;
-      <b-button size="sm">Union with Working Table</b-button>
+      <b-button size="sm">Add to Working Table</b-button>
     </div>
     <hr />
     <div>
@@ -25,6 +23,7 @@
       <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
         >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
       >
+      <p></p>
       <div
         class="schema-fields-table-container"
         v-show="isColumnDetailsVisible"
@@ -248,6 +247,9 @@ export default {
   }
 }
 div.schema-fields-table-container {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.25rem;
   tr {
     cursor: pointer;
   }

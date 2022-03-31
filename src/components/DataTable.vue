@@ -48,7 +48,6 @@ export default {
       virtualScrollOption: {
         enable: true,
       },
-      uniqueRowNumbers: [],
       visibleColumns: [],
       tableData: [],
       keywords: [],
@@ -139,7 +138,6 @@ export default {
           },
         });
       });
-      console.log(this.joinedTable.resourceStats);
       if (!this.joinedTable.resourceStats) {
         return results;
       }
@@ -255,7 +253,6 @@ export default {
         const split = column.key.split("-");
         const isJoinedTable = split[0] === SECOND_TABLE_NAME;
         const i = parseInt(split[1]);
-        console.log(isJoinedTable, i);
         return (
           (!isJoinedTable && this.selectedFields.indexOf(i) >= 0) ||
           (isJoinedTable && this.joinedTable.selectedFields.indexOf(i) >= 0)

@@ -205,7 +205,7 @@ class DuckDB {
             ${whereClause ? `WHERE ${whereClause}` : ""}
       )`;
 
-    console.log(query);
+    console.debug(query);
     await conn.query(`DROP VIEW IF EXISTS "${VIEW_PREFIX}${source}"`);
     await conn.query(`DROP VIEW IF EXISTS "${viewName}"`);
     await conn.query(query);
@@ -266,7 +266,7 @@ class DuckDB {
     const query = `CREATE VIEW "${viewName}" AS SELECT ${selectClause} FROM "${uuid}" ${
       whereClause ? `WHERE ${whereClause}` : ""
     }`;
-    console.log(query);
+    console.debug(query);
     await conn.query(query);
 
     const countQuery = `SELECT COUNT(*) FROM "${viewName}"`;
@@ -292,10 +292,6 @@ class DuckDB {
     await conn.close();
     return databaseResult;
   }
-
-  decodeRegularResult() {}
-
-  decodeJoinedResult() {}
 }
 
 const instance = new DuckDB();

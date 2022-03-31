@@ -19,7 +19,7 @@
 
           <b-button
             variant="success"
-            @click="toggleWorkingTableView()"
+            @click="toggleWorkingTable()"
             class="toggle-table-button"
             ><b-icon icon="table"></b-icon
           ></b-button>
@@ -27,14 +27,9 @@
 
         <li v-for="item in openedResources" :key="item.resource.id">
           <p :class="getTabClass(item.resource.id)">
-            <a
-              href="#"
-              @click="
-                activeResourceId = item.resource.id;
-                isSearchActive = false;
-              "
-              >{{ item.resource.name }}</a
-            >
+            <a href="#" @click="toggleResource(item.resource.id)">{{
+              item.resource.name
+            }}</a>
             <span class="close-button" @click="closeResource(item.resource.id)">
               &nbsp;<b-icon icon="x"></b-icon
             ></span>
@@ -50,6 +45,12 @@
       :style="dataTableContainerStyle"
     >
       <search-view v-show="isSearchActive" ref="searchView" />
+      <working-table
+        v-show="isWorkingTableActive"
+        ref="workingTable"
+        :height="tableAreaHeight"
+      />
+
       <data-table
         v-for="item in openedResources"
         v-show="!isSearchActive && activeResourceId === item.resource.id"
@@ -60,7 +61,11 @@
         :dataset="item.dataset"
         :tableId="item.resource.id"
         :height="tableAreaHeight"
-        :isActive="!isSearchActive && activeResourceId === item.resource.id"
+        :isActive="
+          !isSearchActive &&
+          !isWorkingTableActive &&
+          activeResourceId === item.resource.id
+        "
         :ref="`table-${item.resource.id}`"
       />
     </div>
@@ -78,6 +83,7 @@ export default {
       tableAreaHeight: 0,
       tableViewDisplayed: true,
       isSearchActive: true,
+      isWorkingTableActive: false,
       TABLE_AREA_OFFSET: 40,
     };
   },
@@ -98,7 +104,17 @@ export default {
       this.$refs.searchView.toggleSettings();
     },
     toggleSearchView: function () {
+      this.isWorkingTableActive = false;
       this.isSearchActive = true;
+    },
+    toggleWorkingTable: function () {
+      this.isSearchActive = false;
+      this.isWorkingTableActive = true;
+    },
+    toggleResource: function (resourceId) {
+      this.isSearchActive = false;
+      this.isWorkingTableActive = false;
+      this.activeResourceId = resourceId;
     },
     getTabClass: function (resourceId) {
       return resourceId === this.activeResourceId && !this.isSearchActive
@@ -163,9 +179,6 @@ export default {
       } catch (err) {
         this.tableAreaHeight = 0;
       }
-    },
-    toggleWorkingTableView: function () {
-      console.log("toggleWorkingTableView");
     },
   },
 

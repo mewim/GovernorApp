@@ -28,6 +28,8 @@ import DataTableDescription from "./components/DataTableDescription.vue";
 import DataTableDetails from "./components/DataTableDetails.vue";
 import TableFilters from "./components/TableFilters.vue";
 import JoinableTables from "./components/JoinableTables.vue";
+import WorkingTable from "./components/WorkingTable.vue";
+import WorkingTableDescription from "./components/WorkingTableDescription.vue";
 
 Vue.component("search-view", SearchView);
 Vue.component("data-table", DataTable);
@@ -37,6 +39,8 @@ Vue.component("data-table-description", DataTableDescription);
 Vue.component("data-table-details", DataTableDetails);
 Vue.component("table-filters", TableFilters);
 Vue.component("joinable-tables", JoinableTables);
+Vue.component("working-table", WorkingTable);
+Vue.component("working-table-description", WorkingTableDescription);
 
 Vue.config.productionTip = false;
 
