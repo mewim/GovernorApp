@@ -13,8 +13,8 @@
         />
       </div>
       <ve-table
-        v-if="!!tableId"
-        :max-height="height ? height : 10"
+        v-if="!!tableId && tableData.length > 0"
+        :max-height="height"
         :virtual-scroll-option="virtualScrollOption"
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
@@ -31,14 +31,9 @@ import DuckDB from "../DuckDB";
 
 export default {
   data() {
-    const pageSize = 25;
-    const tableData = [];
-    for (let i = 0; i < pageSize; ++i) {
-      tableData.push({});
-    }
     return {
       pageIndex: 1,
-      pageSize: pageSize,
+      pageSize: 25,
       totalCount: 0,
       virtualScrollOption: {
         enable: true,
@@ -46,7 +41,7 @@ export default {
       uniqueRowNumbers: [],
       columns: [],
       tableId: null,
-      tableData,
+      tableData: [],
       inferredstats: null,
       loadingPromise: null,
       selectedFields: [],
@@ -60,11 +55,6 @@ export default {
     height: Number,
   },
   watch: {
-    height: {
-      handler: function (newValue) {
-        console.log("height", newValue);
-      },
-    },
     isActive: {
       handler: async function (newValue) {
         if (newValue) {
@@ -148,14 +138,14 @@ export default {
       });
       await this.loadDataForCurrentPage();
     },
-    addData(table) {
+    async addData(table) {
+      if (!this.tableId) {
+        this.loadingPromise = this.loadInitialTable(table);
+      }
       this.$nextTick(() => {
         this.$parent.toggleWorkingTable();
-        console.log("addData", table);
-        if (!this.tableId) {
-          this.loadingPromise = this.loadInitialTable(table);
-        }
       });
+      await this.loadingPromise;
     },
   },
   mounted() {
