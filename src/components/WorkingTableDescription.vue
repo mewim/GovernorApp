@@ -1,5 +1,24 @@
 <template>
   <div class="working-table-description-container">
+    <h5>History</h5>
+
+    <b-list-group>
+      <b-list-group-item v-for="(h, i) in histories" :key="i">
+        <div class="d-flex w-100 justify-content-between">
+          <span>{{ h.baseTable.name }}</span>
+          <b-button size="sm" variant="danger" @click="removeTable(h)"
+            >Remove</b-button
+          >
+        </div>
+        <small>Filters: {{ h.filters.join(", ") }} </small>
+        <br />
+        <small v-if="h.joinedTable.resource"
+          >Joined with: {{ h.joinedTable.resource.name }}
+        </small>
+      </b-list-group-item>
+    </b-list-group>
+
+    <hr />
     <h5>Columns</h5>
     <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
       >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
@@ -76,6 +95,9 @@ export default {
       } else {
         this.$parent.addSelectedColumn(idx);
       }
+    },
+    removeTable: function (h) {
+      this.$parent.removeTable(h);
     },
   },
 };

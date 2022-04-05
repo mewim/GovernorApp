@@ -321,6 +321,7 @@ export default {
         joinedTable: this.joinedTable,
         columns: this.visibleColumns,
         viewId: this.viewId,
+        filters: this.keywords,
       });
       if (!result) {
         alert("Union failed");

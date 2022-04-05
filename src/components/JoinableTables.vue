@@ -12,10 +12,7 @@
       <b-list-group-item v-for="(joinable, i) in joinableTables" :key="i">
         <div class="d-flex w-100 justify-content-between">
           <span>{{ joinable.target_resource.name }}</span>
-          <b-button
-            size="sm"
-            variant="primary"
-            @click="joinTable(joinable)"
+          <b-button size="sm" variant="primary" @click="joinTable(joinable)"
             >Join</b-button
           >
         </div>
@@ -71,7 +68,7 @@ export default {
       this.joinableTables.splice(0);
       const url = `api/keyjoinscores/${this.resourceId}`;
       const data = await axios.get(url).then((res) => res.data);
-      
+
       data.resources.forEach((r) => (this.resourcesHash[r.id] = r));
       data.results.forEach((d) => {
         d.targets.forEach((t) => {

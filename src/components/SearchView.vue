@@ -160,8 +160,7 @@ export default {
       searchMetadata: false,
     };
   },
-  watch: {
-  },
+  watch: {},
   computed: {
     fileTableFields: function () {
       const result = [

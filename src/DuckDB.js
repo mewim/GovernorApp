@@ -340,6 +340,23 @@ class DuckDB {
       tableName,
     };
   }
+
+  async removeFromWorkingTable(sourceTableId) {
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const tableName = WORKING_TABLE_NAME;
+    const query = `DELETE FROM ${tableName} WHERE TID = '${sourceTableId}'`;
+    console.debug(query);
+    await conn.query(query);
+    const countQuery = `SELECT COUNT(*) FROM "${tableName}"`;
+    const countResult = await conn.query(countQuery);
+    const totalCount = countResult.toArray()[0][0][0];
+    await conn.close();
+    return {
+      totalCount,
+      tableName,
+    };
+  }
 }
 
 const instance = new DuckDB();

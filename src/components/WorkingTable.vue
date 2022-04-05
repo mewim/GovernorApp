@@ -4,8 +4,13 @@
       :histories="histories"
       :selectedColumns="selectedColumns"
       :columns="columns"
+      v-if="!!tableId"
     />
-    <div class="working-table-inner-container" ref="tableContainer">
+    <div
+      class="working-table-inner-container"
+      ref="tableContainer"
+      v-show="!!tableId"
+    >
       <div class="table-pagination">
         <ve-pagination
           :total="totalCount"
@@ -26,6 +31,10 @@
         row-key-field-name="rowKey"
         ref="table"
       />
+    </div>
+    <div class="working-table-empty" v-if="!tableId">
+      The working table is currently empty. You can add rows to it by opening a
+      file and click on "Add to Working Table from the right panel."
     </div>
   </div>
 </template>
@@ -138,6 +147,7 @@ export default {
     },
     async loadInitialTable(table) {
       console.time("Working table creation");
+      this.tableId = "Loading";
       const { totalCount, tableName } = await DuckDB.createWorkingTable(
         table.viewId,
         table.baseTable.id
@@ -219,6 +229,17 @@ export default {
         1
       );
     },
+    async removeTable(t) {
+      const { totalCount, tableName } = await DuckDB.removeFromWorkingTable(
+        t.baseTable.id
+      );
+      this.totalCount = totalCount;
+      this.tableName = tableName;
+      this.histories = this.histories.filter(
+        (h) => h.baseTable.id !== t.baseTable.id
+      );
+      await this.loadDataForCurrentPage();
+    },
   },
   mounted() {
     this.loadingInstance = VeLoading({
@@ -236,6 +257,12 @@ export default {
 <style lang="scss">
 .table-body-cell-highlighted {
   color: var(--bs-blue) !important;
+}
+.working-table-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
 }
 .working-table-outer-container {
   height: 100%;
