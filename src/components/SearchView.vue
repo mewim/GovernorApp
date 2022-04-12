@@ -74,22 +74,77 @@
               </a>
               <p>{{ r.display_notes }}</p>
             </b-card-text>
-
-            <b-table
-              hover
-              :items="getFileTableItem(r.resources)"
-              :fields="fileTableFields"
-              :sort-by="'count'"
-              outlined
-              fixed
-              small
-            >
-              <template #cell(file)="f">
-                <a href="#" @click="fileSelected(r.id, f.item.id)">{{
-                  f.item.file
-                }}</a>
-              </template>
-            </b-table>
+            <div class="file-description-cards-outer-container">
+              <button
+                style="
+                  position: absolute;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  z-index: 2;
+                  display: none;
+                "
+              >
+                <b-icon icon="chevron-left"></b-icon>
+              </button>
+              <button
+                style="
+                  position: absolute;
+                  top: 50%;
+                  right: 0;
+                  transform: translateY(-50%);
+                  z-index: 2;
+                  display: none;
+                "
+              >
+                <b-icon icon="chevron-right"></b-icon>
+              </button>
+              <div class="file-description-cards-container">
+                <b-card
+                  v-for="(res, i) in r.resources"
+                  :key="i"
+                  class="mb-2 file-description-card"
+                >
+                  <b-card-text
+                    class="file-description-card-title"
+                    :id="res.id + '-title'"
+                    ><a href="#" @click="fileSelected(r.id, res.id)">{{
+                      res.name
+                    }}</a></b-card-text
+                  >
+                  <b-tooltip
+                    placement="right"
+                    :target="res.id + '-title'"
+                    triggers="hover"
+                  >
+                    Open file: <i>{{ res.name }}</i>
+                  </b-tooltip>
+                  <b-card-text
+                    class="file-description-card-description"
+                    v-if="searchResultFields.languages"
+                  >
+                    <b>
+                      Language{{ res.language.length > 1 ? "s" : "" }}:
+                      {{ res.language.join(", ") }}
+                    </b>
+                  </b-card-text>
+                  <b-card-text
+                    class="file-description-card-description"
+                    v-if="searchResultFields.matched_count && !searchMetadata"
+                  >
+                    <b>
+                      {{ res.matches.count }} match{{
+                        res.matches.count > 1 ? "es" : ""
+                      }}</b
+                    >
+                    on
+                    <span
+                      style="font-style: italic"
+                      >{{res.matches.columns.join(", "),}}</span
+                    >
+                  </b-card-text>
+                </b-card>
+              </div>
+            </div>
           </b-card>
         </b-card-group>
       </div>
@@ -108,9 +163,6 @@
         </b-form-checkbox>
         <b-form-checkbox v-model="searchResultFields.matched_count">
           Matched Count
-        </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.matched_columns">
-          Matched Columns
         </b-form-checkbox>
         <b-form-checkbox v-model="searchResultFields.languages">
           Languages
@@ -146,7 +198,6 @@ export default {
       searchResultFields: {
         dataset_title: true,
         languages: true,
-        matched_columns: true,
         matched_count: true,
         subjects: false,
         portal_release_date: false,
@@ -161,46 +212,8 @@ export default {
     };
   },
   watch: {},
-  computed: {
-    fileTableFields: function () {
-      const result = [
-        {
-          key: "file",
-          sortable: true,
-        },
-      ];
-      if (this.searchResultFields.languages) {
-        result.push({
-          key: "language",
-          sortable: true,
-        });
-      }
-      if (this.searchResultFields.matched_count && !this.searchMetadata) {
-        result.push({
-          key: "count",
-          sortable: true,
-        });
-      }
-      if (this.searchResultFields.matched_columns && !this.searchMetadata) {
-        result.push({
-          key: "matched_columns",
-        });
-      }
-      return result;
-    },
-  },
+  computed: {},
   methods: {
-    getFileTableItem: function (resources) {
-      return resources.map((r) => {
-        return {
-          file: r.name,
-          language: r.language.join(", "),
-          matched_columns: r.matches.columns.join(", "),
-          count: r.matches.count,
-          id: r.id,
-        };
-      });
-    },
     toggleSettings: function () {
       this.$refs.searchResultSettingsModal.show();
     },
@@ -297,6 +310,32 @@ export default {
   flex-direction: row;
   flex-grow: 2;
   height: 100%;
+}
+.file-description-cards-outer-container {
+  position: relative;
+  .file-description-cards-container {
+    display: flex;
+    max-width: 100%;
+    position: relative;
+    overflow: auto;
+    .file-description-card {
+      min-width: 20rem;
+      max-width: 20rem;
+      .file-description-card-title.card-text {
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+      }
+      .file-description-card-description.card-text {
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+      }
+    }
+  }
 }
 .search-result-cards-container {
   flex-grow: 1;

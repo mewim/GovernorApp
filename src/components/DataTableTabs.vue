@@ -4,7 +4,7 @@
       <ul role="tablist" class="nav nav-tabs">
         <li>
           <b-button
-            variant="secondary"
+            variant="info"
             @click="toggleSettings()"
             class="toggle-table-button"
             ><b-icon icon="gear-fill"></b-icon
@@ -21,8 +21,8 @@
             variant="success"
             @click="toggleWorkingTable()"
             class="toggle-table-button"
-            ><b-icon icon="table"></b-icon
-          ></b-button>
+            ><b-icon icon="table"></b-icon>&nbsp;Working Table</b-button
+          >
         </li>
 
         <li v-for="item in openedResources" :key="item.resource.id">
@@ -192,18 +192,8 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.close-button {
-  color: var(--bs-gray-600);
-  &:hover {
-    color: var(--bs-gray-500);
-  }
-  cursor: pointer;
-}
 .nav.nav-tabs {
-  border-top: 1px solid var(--bs-gray-300);
-  border-left: 1px solid var(--bs-gray-300);
-  border-right: 1px solid var(--bs-gray-300);
-  background: var(--bs-gray-200);
+  background: var(--bs-gray-700);
   li {
     button.btn {
       border-radius: 0;
@@ -212,14 +202,35 @@ export default {
 }
 .nav-link {
   > a {
-    color: var(--bs-gray-700);
+    color: var(--bs-white);
     text-decoration: none;
   }
   &.active {
     > a {
+      color: var(--bs-grey-700);
       cursor: default;
     }
+    .close-button {
+      > svg {
+        color: var(--bs-gray-600);
+        &:hover {
+          color: var(--bs-gray-500);
+        }
+      }
+    }
   }
+  .close-button {
+    > svg {
+      color: var(--bs-white);
+      &:hover {
+        color: var(--bs-gray-300);
+      }
+    }
+    cursor: pointer;
+  }
+}
+.btn.btn-info {
+  color: var(--bs-white);
 }
 .data-table-tab-container {
   height: 100%;
