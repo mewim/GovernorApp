@@ -122,10 +122,8 @@
                     class="file-description-card-description"
                     v-if="searchResultFields.languages"
                   >
-                    <b>
-                      Language{{ res.language.length > 1 ? "s" : "" }}:
-                      {{ res.language.join(", ") }}
-                    </b>
+                    <b> Language{{ res.language.length > 1 ? "s" : "" }}: </b>
+                    {{ res.language.join(", ") }}
                   </b-card-text>
                   <b-card-text
                     class="file-description-card-description"
