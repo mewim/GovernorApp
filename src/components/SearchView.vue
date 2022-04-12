@@ -75,29 +75,6 @@
               <p>{{ r.display_notes }}</p>
             </b-card-text>
             <div class="file-description-cards-outer-container">
-              <button
-                style="
-                  position: absolute;
-                  top: 50%;
-                  transform: translateY(-50%);
-                  z-index: 2;
-                  display: none;
-                "
-              >
-                <b-icon icon="chevron-left"></b-icon>
-              </button>
-              <button
-                style="
-                  position: absolute;
-                  top: 50%;
-                  right: 0;
-                  transform: translateY(-50%);
-                  z-index: 2;
-                  display: none;
-                "
-              >
-                <b-icon icon="chevron-right"></b-icon>
-              </button>
               <div class="file-description-cards-container">
                 <b-card
                   v-for="(res, i) in r.resources"
