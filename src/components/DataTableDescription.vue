@@ -76,6 +76,11 @@
         :resourceId="resource.id"
         :sourceResourceStats="resourceStats"
       />
+      <hr />
+      <unionable-tables
+        v-if="!joinedTable.resource"
+        :resourceId="resource.id"
+      />
     </div>
     <div>
       <b-modal
