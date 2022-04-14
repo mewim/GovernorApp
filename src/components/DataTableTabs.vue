@@ -21,7 +21,7 @@
             variant="success"
             @click="toggleWorkingTable()"
             class="toggle-table-button"
-            ><b-icon icon="table"></b-icon>&nbsp;Working Table</b-button
+            ><b-icon icon="table"></b-icon>&nbsp;Unioned Table</b-button
           >
         </li>
 
