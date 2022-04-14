@@ -12,9 +12,17 @@
       <b-list-group-item v-for="(joinable, i) in joinableTables" :key="i">
         <div class="d-flex w-100 justify-content-between">
           <span>{{ joinable.target_resource.name }}</span>
-          <b-button size="sm" variant="primary" @click="joinTable(joinable)"
-            >Join</b-button
-          >
+          <span>
+            <b-button size="sm" variant="primary" @click="openTable(joinable)"
+              >Open</b-button
+            >
+            <span v-if="showJoinButton">
+              &nbsp;
+              <b-button size="sm" variant="primary" @click="joinTable(joinable)"
+                >Join</b-button
+              >
+            </span>
+          </span>
         </div>
         <small
           >Column: {{ joinable.target_field_name }} ({{
@@ -87,13 +95,29 @@ export default {
       });
       this.isLoading = false;
     },
-    joinTable: function (joinable) {
-      this.$parent.$parent.joinTable(joinable);
+    openTable: async function (joinable) {
+      const resource = joinable.target_resource;
+      const resourceStats = await axios
+        .get(`/api/inferredstats/${resource.id}`)
+        .then((res) => res.data);
+      const dataset = await axios
+        .get(`/api/dataset/?resource_id=${resource.id}`)
+        .then((res) => res.data);
+      const openedResource = {
+        resource,
+        dataset,
+        resourceStats,
+      };
+      this.$parent.$parent.$parent.openResource(openedResource, true);
+    },
+    joinTable: async function (joinable) {
+      this.$parent.hideRelatedTables();
+      this.$parent.$parent.joinTable(joinable, this.resourceId);
     },
   },
   props: {
     resourceId: String,
-    sourceResourceStats: Object,
+    showJoinButton: { type: Boolean, default: false },
   },
 };
 </script>

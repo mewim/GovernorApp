@@ -12,9 +12,20 @@
       <b-list-group-item v-for="(unionable, i) in unionableTables" :key="i">
         <div class="d-flex w-100 justify-content-between">
           <span>{{ unionable.name }}</span>
-          <b-button size="sm" variant="primary" @click="openTable(unionable)"
-            >Open</b-button
-          >
+          <span>
+            <b-button size="sm" variant="primary" @click="openTable(unionable)"
+              >Open</b-button
+            >
+            <span v-if="showUnionButton">
+              &nbsp;
+              <b-button
+                size="sm"
+                variant="primary"
+                @click="unionTable(unionable)"
+                >Union</b-button
+              >
+            </span>
+          </span>
         </div>
         <small>From: {{ datasetHash[unionable.id].title }} </small>
       </b-list-group-item>
@@ -95,12 +106,19 @@ export default {
         dataset,
         resourceStats,
       };
-      console.log(dataset, resource);
       this.$parent.$parent.$parent.openResource(openedResource, true);
+    },
+    unionTable: async function (unionable) {
+      this.$parent.hideRelatedTables();
+      this.$parent.$parent.unionTable(unionable);
     },
   },
   props: {
     resourceId: String,
+    showUnionButton: {
+      type: Boolean,
+      default: false,
+    },
   },
 };
 </script>

@@ -11,9 +11,13 @@
     <div>
       <h5>Actions</h5>
       <b-button size="sm" @click="addToWorkingTable()"
-        >Add to Working Table</b-button
+        >Set as Working Table</b-button
       >
       &nbsp;
+      <!-- <b-button size="sm" @click="joinWithWorkingTable()"
+        >Join with Working Table</b-button
+      >
+      <p></p> -->
       <b-button size="sm" @click="toggleColor()"
         >Toggle Color By Table</b-button
       >
@@ -74,7 +78,6 @@
       <joinable-tables
         v-if="!joinedTable.resource"
         :resourceId="resource.id"
-        :sourceResourceStats="resourceStats"
       />
       <hr />
       <unionable-tables

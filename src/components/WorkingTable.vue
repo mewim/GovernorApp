@@ -289,6 +289,29 @@ export default {
       await this.loadingPromise;
       this.loadingPromise = null;
     },
+    unionTable(unionable) {
+      this.histories.push({
+        baseTable: unionable,
+        filters: [],
+        joinedTable: {
+          resource: null,
+          sourceIndex: null,
+          targetIndex: null,
+          resourceStats: null,
+          selectedFields: [],
+        },
+      });
+    },
+    joinTable(joinable, sourceId) {
+      for (let i = 0; i < this.histories.length; ++i) {
+        const h = this.histories[i];
+        if (h.baseTable.id === sourceId) {
+          h.joinedTable.resource = joinable.target_resource;
+          h.joinedTable.targetIndex = joinable.target_index;
+          break;
+        }
+      }
+    },
   },
   mounted() {
     this.loadingInstance = VeLoading({

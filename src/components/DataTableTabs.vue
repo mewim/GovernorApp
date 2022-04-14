@@ -73,8 +73,7 @@
         :ref="`table-${item.resource.id}`"
       />
     </div>
-    <div>
-    </div>
+    <div></div>
   </div>
 </template>
 
@@ -145,7 +144,10 @@ export default {
       r.isJoinedTable = isJoinedTable;
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
-      this.isSearchActive = !jumpImmediately;
+      if(jumpImmediately){
+        this.isSearchActive = false;
+        this.isWorkingTableActive = false;
+      }
     },
     closeResource: function (id) {
       for (let i = 0; i < this.openedResources.length; ++i) {
