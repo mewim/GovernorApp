@@ -13,6 +13,10 @@
       <b-button size="sm" @click="addToWorkingTable()"
         >Add to Working Table</b-button
       >
+      &nbsp;
+      <b-button size="sm" @click="toggleColor()"
+        >Toggle Color By Table</b-button
+      >
     </div>
     <hr />
     <div>
@@ -45,6 +49,14 @@
             <template v-else>
               <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
             </template>
+          </template>
+
+          <template #cell(name)="row">
+            <div
+              class="inline-color-block"
+              :style="{ 'background-color': row.item.color }"
+            ></div>
+            <span>&nbsp; {{ row.item.name }}</span>
           </template>
 
           <template #cell(stats)="row">
@@ -118,6 +130,7 @@ export default {
           type: r.type,
           stats: r.stats,
           index: i,
+          color: this.resource.color,
         });
       });
       if (!this.joinedTable.resourceStats) {
@@ -134,6 +147,7 @@ export default {
           stats: r.stats,
           index: i,
           isJoinedTable: true,
+          color: this.joinedTable.resource.color,
         });
       });
       return result;
@@ -227,6 +241,9 @@ export default {
     addToWorkingTable: function () {
       this.$parent.addToWorkingTable();
     },
+    toggleColor: function () {
+      this.$parent.toggleColor();
+    },
   },
 };
 </script>
@@ -267,6 +284,11 @@ div.schema-fields-table-container {
 }
 .schema-table-span {
   width: 10px;
+  display: inline-block;
+}
+.inline-color-block {
+  height: 12px;
+  width: 12px;
   display: inline-block;
 }
 </style>

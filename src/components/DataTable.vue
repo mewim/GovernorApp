@@ -48,6 +48,7 @@ export default {
       virtualScrollOption: {
         enable: true,
       },
+      isColorEnabled: false,
       visibleColumns: [],
       tableData: [],
       keywords: [],
@@ -98,12 +99,7 @@ export default {
           if (this.loadingPromise) {
             await this.loadingPromise;
           } else {
-            // Hack to trigger rerender when the view is changed
-            this.$nextTick(() => {
-              const backup = this.tableData.slice();
-              this.tableData.splice(0);
-              backup.forEach((b) => this.tableData.push(b));
-            });
+            this.forceRerender();
           }
         }
       },
@@ -139,25 +135,51 @@ export default {
           },
         });
       });
-      if (!this.joinedTable.resourceStats) {
-        return results;
-      }
-      this.joinedTable.resourceStats.schema.fields.forEach((f, i) => {
-        const key = `${SECOND_TABLE_NAME}-${i}`;
-        results.push({
-          field: key,
-          key: key,
-          title: f.name,
-          width: 300,
-          ellipsis: {
-            showTitle: true,
-          },
+      if (this.joinedTable.resourceStats) {
+        this.joinedTable.resourceStats.schema.fields.forEach((f, i) => {
+          const key = `${SECOND_TABLE_NAME}-${i}`;
+          results.push({
+            field: key,
+            key: key,
+            title: f.name,
+            isJoinedTable: true,
+            width: 300,
+            ellipsis: {
+              showTitle: true,
+            },
+          });
         });
+      }
+
+      results.forEach((r) => {
+        r.renderBodyCell = ({ row, column }, h) => {
+          const style = {};
+          if (this.isColorEnabled) {
+            const color = column.isJoinedTable
+              ? this.joinedTable.resource.color
+              : this.resource.color;
+            style.color = color;
+          }
+          const text = row[column.field];
+          return h("span", { style }, text);
+        };
       });
       return results;
     },
   },
   methods: {
+    forceRerender() {
+      this.$nextTick(() => {
+        // Hack to trigger rerender when the view is changed
+        const backup = this.tableData.slice();
+        this.tableData.splice(0);
+        backup.forEach((b) => this.tableData.push(b));
+      });
+    },
+    toggleColor() {
+      this.isColorEnabled = !this.isColorEnabled;
+      this.forceRerender();
+    },
     async joinTable(joinable) {
       this.joinedTable.resource = joinable.target_resource;
       this.joinedTable.sourceIndex = joinable.source_index;
