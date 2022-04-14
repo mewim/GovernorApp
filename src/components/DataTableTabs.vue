@@ -74,7 +74,6 @@
       />
     </div>
     <div>
-    <csv-dump />
     </div>
   </div>
 </template>

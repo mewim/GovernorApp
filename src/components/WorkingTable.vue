@@ -271,7 +271,7 @@ export default {
         (h) => h.baseTable.id !== t.baseTable.id
       );
       if (this.histories.length === 0) {
-        await this.resetWorkingTable();
+        await this.resetTable();
       } else {
         await this.loadDataForCurrentPage();
       }
@@ -279,6 +279,15 @@ export default {
     toggleColor() {
       this.isColorEnabled = !this.isColorEnabled;
       this.forceRerender();
+    },
+    async dumpCsv() {
+      this.loadingPromise = DuckDB.dumpCsv(
+        this.tableId,
+        this.visibleColumns.map((c) => c.title),
+        this.visibleColumns.map((c) => `W_${c.key}`)
+      );
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
   },
   mounted() {

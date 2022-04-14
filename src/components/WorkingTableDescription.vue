@@ -22,8 +22,7 @@
         </small>
         <br />
         <small v-if="h.joinedTable.resource"
-          >Joined with:
-          &nbsp;
+          >Joined with: &nbsp;
           <div
             class="inline-color-block small"
             :style="{ 'background-color': h.joinedTable.resource.color }"
@@ -40,6 +39,8 @@
       <b-button size="sm" @click="toggleColor()"
         >Toggle Color By Table</b-button
       >
+      &nbsp;
+      <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
     </div>
     <hr />
     <h5>Columns</h5>
@@ -127,6 +128,9 @@ export default {
     },
     toggleColor: function () {
       this.$parent.toggleColor();
+    },
+    dumpCsv: function () {
+      this.$parent.dumpCsv();
     },
   },
 };

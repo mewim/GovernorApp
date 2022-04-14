@@ -379,6 +379,7 @@ class DuckDB {
   }
 
   async dumpCsv(tableId, header, columnIndexes = null, chunkSize = 10000) {
+    console.log(tableId, header, columnIndexes, chunkSize);
     let handle, writable;
     try {
       const options = {
@@ -405,11 +406,15 @@ class DuckDB {
     for (let i = 0; i < totalCount / chunkSize; ++i) {
       const chunk = await this.getFullTable(tableId, i + 1, chunkSize);
       const rows = chunk.toArray().map((r) => {
-        const parsedRows = Object.values(r.toJSON());
+        const jsonRow = r.toJSON();
         if (columnIndexes) {
-          return parsedRows.filter((_, i) => columnIndexes.includes(i));
+          const row = {};
+          for (const index of columnIndexes) {
+            row[index] = jsonRow[index];
+          }
+          return Object.values(row);
         }
-        return parsedRows;
+        return Object.values(jsonRow);
       });
       await writable.write(papaparse.unparse(rows));
       await writable.write("\n");
