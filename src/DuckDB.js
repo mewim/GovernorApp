@@ -1,4 +1,5 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
+import papaparse from "papaparse";
 const SQLEscape = require("sql-escape");
 const VIEW_PREFIX = "view_";
 const FIRST_TABLE_NAME = "T1";
@@ -358,6 +359,16 @@ class DuckDB {
     };
   }
 
+  async getTotalCount(tablId) {
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const query = `SELECT COUNT(*) FROM "${tablId}"`;
+    const result = await conn.query(query);
+    const totalCount = result.toArray()[0][0][0];
+    await conn.close();
+    return totalCount;
+  }
+
   async resetWorkingTable() {
     const db = await this.getDb();
     const conn = await db.connect();
@@ -365,6 +376,45 @@ class DuckDB {
     const query = `DROP TABLE IF EXISTS "${tableName}"`;
     await conn.query(query);
     await conn.close();
+  }
+
+  async dumpCsv(tableId, header, columnIndexes = null, chunkSize = 10000) {
+    let handle, writable;
+    try {
+      const options = {
+        types: [
+          {
+            description: "CSV File",
+            accept: {
+              "text/csv": [".csv"],
+            },
+          },
+        ],
+      };
+      handle = await window.showSaveFilePicker(options);
+      writable = await handle.createWritable();
+    } catch (err) {
+      console.debug("User cancelled operation or there is an error:", err);
+    }
+    if (!handle || !writable) {
+      return;
+    }
+    await writable.write(papaparse.unparse([header]));
+    await writable.write("\n");
+    const totalCount = await this.getTotalCount(tableId);
+    for (let i = 0; i < totalCount / chunkSize; ++i) {
+      const chunk = await this.getFullTable(tableId, i + 1, chunkSize);
+      const rows = chunk.toArray().map((r) => {
+        const parsedRows = Object.values(r.toJSON());
+        if (columnIndexes) {
+          return parsedRows.filter((_, i) => columnIndexes.includes(i));
+        }
+        return parsedRows;
+      });
+      await writable.write(papaparse.unparse(rows));
+      await writable.write("\n");
+    }
+    writable.close();
   }
 }
 

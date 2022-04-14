@@ -17,6 +17,8 @@
       <b-button size="sm" @click="toggleColor()"
         >Toggle Color By Table</b-button
       >
+      &nbsp;
+      <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
     </div>
     <hr />
     <div>
@@ -243,6 +245,9 @@ export default {
     },
     toggleColor: function () {
       this.$parent.toggleColor();
+    },
+    dumpCsv: function () {
+      this.$parent.dumpCsv();
     },
   },
 };

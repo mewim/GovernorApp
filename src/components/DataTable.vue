@@ -349,6 +349,15 @@ export default {
         alert("Union failed");
       }
     },
+
+    async dumpCsv() {
+      this.loadingPromise = DuckDB.dumpCsv(
+        this.viewId ? this.viewId : this.tableId,
+        this.visibleColumns.map((c) => c.title)
+      );
+      await this.loadingPromise;
+      this.loadingPromise = null;
+    },
   },
   mounted() {
     this.loadingInstance = VeLoading({

@@ -73,6 +73,9 @@
         :ref="`table-${item.resource.id}`"
       />
     </div>
+    <div>
+    <csv-dump />
+    </div>
   </div>
 </template>
 
