@@ -357,6 +357,15 @@ class DuckDB {
       tableName,
     };
   }
+
+  async resetWorkingTable() {
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const tableName = WORKING_TABLE_NAME;
+    const query = `DROP TABLE IF EXISTS "${tableName}"`;
+    await conn.query(query);
+    await conn.close();
+  }
 }
 
 const instance = new DuckDB();

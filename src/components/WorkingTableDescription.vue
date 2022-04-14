@@ -5,19 +5,42 @@
     <b-list-group>
       <b-list-group-item v-for="(h, i) in histories" :key="i">
         <div class="d-flex w-100 justify-content-between">
-          <span>{{ h.baseTable.name }}</span>
+          <span>
+            <div
+              class="inline-color-block"
+              :style="{ 'background-color': h.baseTable.color }"
+            ></div>
+            &nbsp;
+            {{ h.baseTable.name }}</span
+          >
           <b-button size="sm" variant="danger" @click="removeTable(h)"
             >Remove</b-button
           >
         </div>
-        <small>Filters: {{ h.filters.join(", ") }} </small>
+        <small
+          >Filters: {{ h.filters.length > 0 ? h.filters.join(", ") : "(None)" }}
+        </small>
         <br />
         <small v-if="h.joinedTable.resource"
-          >Joined with: {{ h.joinedTable.resource.name }}
+          >Joined with:
+          &nbsp;
+          <div
+            class="inline-color-block small"
+            :style="{ 'background-color': h.joinedTable.resource.color }"
+          ></div>
+          &nbsp;{{ h.joinedTable.resource.name }}
         </small>
       </b-list-group-item>
     </b-list-group>
-
+    <hr />
+    <div>
+      <h5>Actions</h5>
+      <b-button size="sm" @click="resetTable()">Reset Working Table</b-button>
+      &nbsp;
+      <b-button size="sm" @click="toggleColor()"
+        >Toggle Color By Table</b-button
+      >
+    </div>
     <hr />
     <h5>Columns</h5>
     <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
@@ -99,6 +122,12 @@ export default {
     removeTable: function (h) {
       this.$parent.removeTable(h);
     },
+    resetTable: function () {
+      this.$parent.resetTable();
+    },
+    toggleColor: function () {
+      this.$parent.toggleColor();
+    },
   },
 };
 </script>
@@ -109,5 +138,14 @@ export default {
   flex-basis: 25%;
   padding: 10px;
   overflow-y: scroll;
+}
+.inline-color-block {
+  height: 12px;
+  width: 12px;
+  display: inline-block;
+  &.small {
+    height: 10px;
+    width: 10px;
+  }
 }
 </style>

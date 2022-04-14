@@ -52,8 +52,8 @@ export default {
       virtualScrollOption: {
         enable: true,
       },
-      uniqueRowNumbers: [],
       columns: [],
+      isColorEnabled: false,
       tableId: null,
       tableData: [],
       inferredstats: null,
@@ -76,11 +76,7 @@ export default {
             await this.loadingPromise;
           } else {
             // Hack to trigger rerender when the view is changed
-            this.$nextTick(() => {
-              const backup = this.tableData.slice();
-              this.tableData.splice(0);
-              backup.forEach((b) => this.tableData.push(b));
-            });
+            this.forceRerender();
           }
         }
       },
@@ -114,6 +110,14 @@ export default {
       this.pageIndex = 1;
       this.pageSize = pageSize;
       this.loadingPromise = this.loadDataForCurrentPage();
+    },
+    forceRerender() {
+      this.$nextTick(() => {
+        // Hack to trigger rerender when the view is changed
+        const backup = this.tableData.slice();
+        this.tableData.splice(0);
+        backup.forEach((b) => this.tableData.push(b));
+      });
     },
     async loadDataForCurrentPage() {
       this.tableData.splice(0);
@@ -162,6 +166,22 @@ export default {
           ellipsis: { showTitle: true },
           title: c.title,
           width: 300,
+          renderBodyCell: ({ row, column }, h) => {
+            const style = {};
+            const tableId = row.TID;
+            const table = this.histories.filter(
+              (hist) => hist.baseTable.id === tableId
+            )[0];
+            const originalColumn = table.columns[parseInt(column.key)];
+            if (this.isColorEnabled) {
+              const color = originalColumn.isJoinedTable
+                ? table.joinedTable.resource.color
+                : table.baseTable.color;
+              style.color = color;
+            }
+            const text = row[column.field];
+            return h("span", { style }, text);
+          },
         });
       });
       table.columns.forEach((_, i) => {
@@ -220,6 +240,18 @@ export default {
       await this.loadingPromise;
       return { success: true };
     },
+    async resetTable() {
+      this.pageIndex = 1;
+      this.totalCount = 0;
+      this.columns.splice(0);
+      this.tableId = null;
+      this.tableData.splice(0);
+      this.inferredstats = null;
+      (this.loadingPromise = null), this.selectedColumns.splice(0);
+      this.histories.splice(0);
+      this.dataviewRefreshDelay = null;
+      await DuckDB.resetWorkingTable();
+    },
     addSelectedColumn(item) {
       this.selectedColumns.push(String(item));
     },
@@ -238,7 +270,15 @@ export default {
       this.histories = this.histories.filter(
         (h) => h.baseTable.id !== t.baseTable.id
       );
-      await this.loadDataForCurrentPage();
+      if (this.histories.length === 0) {
+        await this.resetWorkingTable();
+      } else {
+        await this.loadDataForCurrentPage();
+      }
+    },
+    toggleColor() {
+      this.isColorEnabled = !this.isColorEnabled;
+      this.forceRerender();
     },
   },
   mounted() {
