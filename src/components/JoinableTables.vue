@@ -42,6 +42,7 @@
 
 <script>
 import axios from "axios";
+import randomcolor from "randomcolor";
 
 export default {
   name: "JoinableTables",
@@ -69,7 +70,10 @@ export default {
       const url = `api/keyjoinscores/${this.resourceId}`;
       const data = await axios.get(url).then((res) => res.data);
 
-      data.resources.forEach((r) => (this.resourcesHash[r.id] = r));
+      data.resources.forEach((r) => {
+        r.color = randomcolor();
+        this.resourcesHash[r.id] = r;
+      });
       data.results.forEach((d) => {
         d.targets.forEach((t) => {
           this.joinableTables.push({

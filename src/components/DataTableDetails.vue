@@ -1,8 +1,20 @@
 <template>
   <div v-if="!!dataset">
     <div class="title-container">
-      <h5>Table: {{ resource.name }}</h5>
-      <h5 v-if="!!joinedResource">Joined Table: {{ joinedResource.name }}</h5>
+      <h5>
+        <div
+          class="inline-color-block"
+          :style="{ 'background-color': resource.color }"
+        ></div>
+        Table: {{ resource.name }}
+      </h5>
+      <h5 v-if="!!joinedResource">
+        <div
+          class="inline-color-block"
+          :style="{ 'background-color': joinedResource.color }"
+        ></div>
+        Joined Table: {{ joinedResource.name }}
+      </h5>
       <a href="#" @click="isTableDetailsVisible = !isTableDetailsVisible"
         >[{{ isTableDetailsVisible ? "Hide" : "Show" }} Dataset Details]</a
       >
@@ -52,3 +64,11 @@ export default {
   },
 };
 </script>
+
+<style lang="scss" scoped>
+.inline-color-block {
+  height: 12px;
+  width: 12px;
+  display: inline-block;
+}
+</style>

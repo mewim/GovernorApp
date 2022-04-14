@@ -20,13 +20,6 @@
             v-on:click="searchButtonClicked(true)"
             >Search Metadata</b-button
           >
-
-          <b-button
-            variant="success"
-            class="search-button"
-            v-on:click="openRandom()"
-            >Open By ID</b-button
-          >
         </div>
       </div>
     </div>
@@ -160,6 +153,7 @@
 
 <script>
 import axios from "axios";
+import randomcolor from "randomcolor";
 import { VeLoading } from "vue-easytable";
 
 export default {
@@ -224,6 +218,7 @@ export default {
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios.get(url, { params }).then((res) => res.data);
       results.forEach((r) => {
+        r.resources.forEach(res => res.color = randomcolor());
         r.display_notes = "";
         this.results.push(r);
         this.isNotesDisplayed.push(false);
