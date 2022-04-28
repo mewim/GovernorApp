@@ -62,8 +62,9 @@ export default {
     };
   },
   watch: {
-    resourceId: {
+    resourceIds: {
       immediate: true,
+      deep: true,
       handler: function () {
         this.reloadData();
       },
@@ -85,7 +86,7 @@ export default {
       this.isLoading = true;
       this.unionableTables.splice(0);
       this.datasetHash = {};
-      const url = `api/unionable/${this.resourceId}`;
+      const url = `api/unionable/${this.resourceIds.join(",")}`;
       const data = await axios.get(url).then((res) => res.data);
       data.forEach((d) => {
         d.resources.forEach((r) => {
@@ -108,13 +109,22 @@ export default {
       };
       this.$parent.$parent.$parent.openResource(openedResource, true);
     },
-    unionTable: async function (unionable) {
-      this.$parent.hideRelatedTables();
-      this.$parent.$parent.unionTable(unionable);
+    unionTable: async function (resource) {
+      const dataset = this.datasetHash[resource.id];
+      const resourceStats = await axios
+        .get(`/api/inferredstats/${resource.id}`)
+        .then((res) => res.data);
+      const unionable = {
+        dataset: dataset,
+        table: resource,
+        visibleColumns: [],
+        resourceStats,
+      };
+      this.$parent.$parent.addData(unionable);
     },
   },
   props: {
-    resourceId: String,
+    resourceIds: Array,
     showUnionButton: {
       type: Boolean,
       default: false,

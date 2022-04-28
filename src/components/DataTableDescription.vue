@@ -11,13 +11,9 @@
     <div>
       <h5>Actions</h5>
       <b-button size="sm" @click="addToWorkingTable()"
-        >Set as Working Table</b-button
+        >Add to Working Table</b-button
       >
       &nbsp;
-      <!-- <b-button size="sm" @click="joinWithWorkingTable()"
-        >Join with Working Table</b-button
-      >
-      <p></p> -->
       <b-button size="sm" @click="toggleColor()"
         >Toggle Color By Table</b-button
       >
@@ -26,7 +22,11 @@
     </div>
     <hr />
     <div>
-      <table-filters :keywords="keywords" />
+      <table-filters
+        :keywords="keywords"
+        @filter-keywords-removed="removeKeyword"
+        @filter-keywords-added="addNewKeyword"
+      />
     </div>
     <hr />
     <div>
@@ -74,17 +74,6 @@
       </div>
     </div>
     <hr />
-    <div>
-      <joinable-tables
-        v-if="!joinedTable.resource"
-        :resourceId="resource.id"
-      />
-      <hr />
-      <unionable-tables
-        v-if="!joinedTable.resource"
-        :resourceId="resource.id"
-      />
-    </div>
     <div>
       <b-modal
         ref="columnStatsModal"
@@ -256,6 +245,12 @@ export default {
     },
     dumpCsv: function () {
       this.$parent.dumpCsv();
+    },
+    removeKeyword: function (i) {
+      this.$parent.removeKeyword(i);
+    },
+    addNewKeyword: function (keyword) {
+      this.$parent.addNewKeyword(keyword);
     },
   },
 };

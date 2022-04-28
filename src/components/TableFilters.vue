@@ -68,8 +68,6 @@
 </template>
 
 <script>
-// import axios from "axios";
-// import { VeLoading } from "vue-easytable";
 export default {
   name: "TableFilters",
   data() {
@@ -85,13 +83,13 @@ export default {
   computed: {},
   methods: {
     removeKeyword(i) {
-      this.$parent.$parent.removeKeyword(i);
+      this.$emit("filter-keywords-removed", i);
     },
     showAddModal() {
       this.isAddingNewFilter = true;
     },
     addNewKeyword() {
-      this.$parent.$parent.addNewKeyword(this.newKeyWordText);
+      this.$emit("filter-keywords-added", this.newKeyWordText)
       this.cancelNewKeyword();
     },
     cancelNewKeyword() {

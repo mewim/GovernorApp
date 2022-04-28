@@ -34,7 +34,6 @@
         class="search-result-cards-container"
         v-if="searchSuccess && results.length > 0"
       >
-        <b-card-group>
           <b-card v-for="(r, i) in results" :key="i">
             <template #header>
               <b>{{ r.title }}</b>
@@ -114,7 +113,6 @@
               </div>
             </div>
           </b-card>
-        </b-card-group>
       </div>
     </div>
     <b-modal

@@ -282,6 +282,51 @@ class DuckDB {
     };
   }
 
+  async getFullTableWithFilter(uuid, keywords) {
+    if (!this.loadedTables.has(uuid)) {
+      await this.loadParquet(uuid);
+    }
+    const db = await this.getDb();
+    const conn = await db.connect();
+    const columnCountsResult = await conn.query(
+      `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}')`
+    );
+    const columnCounts = columnCountsResult.toArray()[0][0][0];
+    const allColumns = [];
+    for (let i = 0; i < columnCounts; ++i) {
+      allColumns.push(i);
+    }
+    const allColumnsText = allColumns.map((c) => `"${c}"`);
+    const whereClause = keywords
+      ? keywords
+          .map((currKeywords) => {
+            const keywordsSplit = currKeywords.split(" ");
+            if (keywordsSplit.length > 1) {
+              const currentConditions = currKeywords
+                .split(" ")
+                .map((k) => `('${SQLEscape(k)}' IN (${allColumnsText}))`);
+              const currentAndConditions = `(${currentConditions.join(
+                " AND "
+              )})`;
+              return `(${currentAndConditions} OR ('${SQLEscape(
+                currKeywords
+              )}' IN (${allColumnsText})))`;
+            } else {
+              return `('${SQLEscape(currKeywords)}' IN (${allColumnsText}))`;
+            }
+          })
+          .join(" OR ")
+      : "";
+
+    const query = `SELECT * FROM "${uuid}" ${
+      whereClause ? `WHERE ${whereClause}` : ""
+    }`;
+    console.debug(query);
+    const results = await conn.query(query);
+    await conn.close();
+    return results;
+  }
+
   async getTableByRowNumbers(uuid, rowNumbers, pageIndex, pageSize) {
     const db = await this.getDb();
     const conn = await db.connect();

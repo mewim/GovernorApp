@@ -1,6 +1,25 @@
 <template>
   <div class="working-table-description-container">
     <div v-show="!relatedTablesMetadata">
+      <div>
+        <table-filters
+          :keywords="keywords"
+          @filter-keywords-removed="removeKeyword"
+          @filter-keywords-added="addNewKeyword"
+        />
+      </div>
+      <hr />
+      <div>
+        <h5>Actions</h5>
+        <b-button size="sm" @click="resetTable()">Reset Working Table</b-button>
+        &nbsp;
+        <b-button size="sm" @click="toggleColor()"
+          >Toggle Color By Table</b-button
+        >
+        &nbsp;
+        <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
+      </div>
+      <hr />
       <h5>History</h5>
       <b-list-group>
         <b-list-group-item v-for="(h, i) in histories" :key="i">
@@ -8,10 +27,10 @@
             <span>
               <div
                 class="inline-color-block"
-                :style="{ 'background-color': h.baseTable.color }"
+                :style="{ 'background-color': h.table.color }"
               ></div>
               &nbsp;
-              {{ h.baseTable.name }}</span
+              {{ h.table.name }}</span
             >
             <span>
               <b-button
@@ -26,11 +45,7 @@
               >
             </span>
           </div>
-          <small
-            >Filters:
-            {{ h.filters.length > 0 ? h.filters.join(", ") : "(None)" }}
-          </small>
-          <br />
+          <!-- <br />
           <small v-if="h.joinedTable.resource"
             >Joined with: &nbsp;
             <div
@@ -38,20 +53,9 @@
               :style="{ 'background-color': h.joinedTable.resource.color }"
             ></div>
             &nbsp;{{ h.joinedTable.resource.name }}
-          </small>
+          </small> -->
         </b-list-group-item>
       </b-list-group>
-      <hr />
-      <div>
-        <h5>Actions</h5>
-        <b-button size="sm" @click="resetTable()">Reset Working Table</b-button>
-        &nbsp;
-        <b-button size="sm" @click="toggleColor()"
-          >Toggle Color By Table</b-button
-        >
-        &nbsp;
-        <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
-      </div>
       <hr />
       <h5>Columns</h5>
       <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
@@ -80,6 +84,11 @@
           </template>
         </b-table>
       </div>
+      <hr />
+      <unionable-tables
+        :resourceIds="allTableIds"
+        :showUnionButton="true"
+      />
     </div>
     <div v-if="!!relatedTablesMetadata">
       <b-button size="sm" @click="relatedTablesMetadata = null">
@@ -91,18 +100,13 @@
         Related Tables for:
         <div
           class="inline-color-block"
-          :style="{ 'background-color': relatedTablesMetadata.baseTable.color }"
+          :style="{ 'background-color': relatedTablesMetadata.table.color }"
         ></div>
-        {{ relatedTablesMetadata.baseTable.name }}
+        {{ relatedTablesMetadata.table.name }}
       </h5>
-      <hr />
-      <unionable-tables
-        :resourceId="relatedTablesMetadata.baseTable.id"
-        :showUnionButton="true"
-      />
-      <hr />
+
       <joinable-tables
-        :resourceId="relatedTablesMetadata.baseTable.id"
+        :resourceId="relatedTablesMetadata.table.id"
         :showJoinButton="true"
       />
     </div>
@@ -117,6 +121,7 @@ export default {
     histories: Array,
     columns: Array,
     selectedColumns: Array,
+    keywords: Array,
   },
   data: function () {
     return {
@@ -130,7 +135,11 @@ export default {
     };
   },
   mounted: function () {},
-  computed: {},
+  computed: {
+    allTableIds: function () {
+      return this.histories.map((h) => h.table.id);
+    },
+  },
 
   watch: {
     selectedColumns: {
@@ -149,15 +158,24 @@ export default {
   methods: {
     syncSelectedColumns: function () {
       this.$refs.schemaFieldsTable.clearSelected();
-      this.selectedColumns.forEach((c) => {
-        this.$refs.schemaFieldsTable.selectRow(parseInt(c));
+      const columnSet = new Set(this.selectedColumns);
+      const rowsToSelect = this.columns
+        .map((c, i) => {
+          return {
+            key: c.key,
+            index: i,
+          };
+        })
+        .filter((c) => columnSet.has(c.key));
+      rowsToSelect.forEach((r) => {
+        this.$refs.schemaFieldsTable.selectRow(r.index);
       });
     },
-    schemaFieldsTableRowClicked: function (_, idx) {
+    schemaFieldsTableRowClicked: function (row, idx) {
       if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
-        this.$parent.removeSelectedColumn(idx);
+        this.$parent.removeSelectedColumn(row.field);
       } else {
-        this.$parent.addSelectedColumn(idx);
+        this.$parent.addSelectedColumn(row.field);
       }
     },
     showRelatedTables: function (h) {
@@ -177,6 +195,12 @@ export default {
     },
     dumpCsv: function () {
       this.$parent.dumpCsv();
+    },
+    removeKeyword: function (keyword) {
+      this.$parent.removeKeyword(keyword);
+    },
+    addNewKeyword: function (keyword) {
+      this.$parent.addNewKeyword(keyword);
     },
   },
 };

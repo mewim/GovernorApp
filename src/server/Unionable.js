@@ -5,16 +5,18 @@ const mongoUtil = require("./MongoUtil");
 const COLLECTION = "sameschemagroups";
 const METADATA_COLLECTION = "metadata";
 
-router.get("/:uuid", async (req, res) => {
+router.get("/:uuids", async (req, res) => {
   const db = await mongoUtil.getDb();
+  const uuidArray = req.params.uuids.split(",");
+  const uuidSet = new Set(uuidArray);
 
   const found = await db
     .collection(COLLECTION)
-    .findOne({ uuids: req.params.uuid });
+    .findOne({ uuids: { $in: uuidArray } });
   if (!found) {
     return res.send([]);
   }
-  const targetIds = found.uuids.filter((u) => u !== req.params.uuid);
+  const targetIds = found.uuids.filter((u) => !uuidSet.has(u));
   const targetIdsSet = new Set(targetIds);
   const matchedResources = (
     await db

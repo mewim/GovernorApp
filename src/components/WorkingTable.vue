@@ -4,12 +4,13 @@
       :histories="histories"
       :selectedColumns="selectedColumns"
       :columns="columns"
-      v-if="!!tableId"
+      :keywords="keywords"
+      v-if="histories.length > 0"
     />
     <div
       class="working-table-inner-container"
       ref="tableContainer"
-      v-show="!!tableId"
+      v-show="histories.length > 0"
     >
       <div class="table-pagination">
         <ve-pagination
@@ -22,7 +23,7 @@
         />
       </div>
       <ve-table
-        v-if="!!tableId && tableData.length > 0"
+        v-if="tableData.length > 0"
         :max-height="height"
         :virtual-scroll-option="virtualScrollOption"
         :cell-style-option="cellStyleOption"
@@ -32,9 +33,9 @@
         ref="table"
       />
     </div>
-    <div class="working-table-empty" v-if="!tableId">
+    <div class="working-table-empty" v-if="histories.length === 0">
       The working table is currently empty. You can add rows to it by opening a
-      file and click on "Add to Working Table from the right panel."
+      file and click on "Add to Working Table" from the right panel.
     </div>
   </div>
 </template>
@@ -54,13 +55,14 @@ export default {
       },
       columns: [],
       isColorEnabled: false,
-      tableId: null,
       tableData: [],
+      allData: [],
       inferredstats: null,
       loadingPromise: null,
       selectedColumns: [],
       cellStyleOption: {},
       histories: [],
+      keywords: [],
       dataviewRefreshDelay: null,
     };
   },
@@ -119,199 +121,113 @@ export default {
         backup.forEach((b) => this.tableData.push(b));
       });
     },
-    async loadDataForCurrentPage() {
-      this.tableData.splice(0);
-      const tableId = this.tableId;
-      if (!tableId) {
+    loadDataForCurrentPage() {
+      this.tableData = this.allData.slice(
+        (this.pageIndex - 1) * this.pageSize,
+        this.pageIndex * this.pageSize
+      );
+    },
+    async loadInitialTable() {},
+    async addData(metadata) {
+      this.$parent.toggleWorkingTable();
+      if (this.histories.find((h) => h.table.id === metadata.table.id)) {
         return;
       }
-      console.time(`DuckDB Query ${tableId}`);
-      const arrowTable = await DuckDB.getFullTable(
-        tableId,
-        this.pageIndex,
-        this.pageSize
-      );
-      console.timeEnd(`DuckDB Query ${tableId}`);
-      console.time(`Post-process ${tableId}`);
-      arrowTable.toArray().forEach((r, i) => {
-        const rowDict = { rowKey: String(i) };
-        const rowObject = r.toJSON();
-        Object.keys(rowObject).forEach((k) => {
-          const key = k.split("_")[1];
-          if (key) {
-            rowDict[key] = rowObject[k];
-          } else {
-            rowDict[k] = rowObject[k];
+      this.histories.push(metadata);
+      this.$nextTick(async () => {
+        this.loadingPromise = this.reloadData();
+        await this.loadingPromise;
+        this.loadingPromise = null;
+      });
+    },
+    async reloadData() {
+      this.allData = [];
+      this.columns = [];
+      const columns = {};
+      const columnsSet = new Set(this.columns.map((c) => c.key));
+      this.selectedColumns = this.selectedColumns.filter((c) => {
+        return columnsSet.has(c);
+      });
+      const selectedColumnsSet = new Set();
+      for (let metadata of this.histories) {
+        console.time(`DuckDB table copy ${metadata.table.id}`);
+        const tableData = (
+          await DuckDB.getFullTableWithFilter(metadata.table.id, this.keywords)
+        ).toArray();
+        console.timeEnd(`DuckDB table copy ${metadata.table.id}`);
+        console.time(`Post-process ${metadata.table.id}`);
+        metadata.resourceStats.schema.fields.forEach((f) => {
+          if (!columns[f.name]) {
+            columns[f.name] = [];
           }
+          columns[f.name].push(metadata.table.id);
         });
-        this.tableData.push(rowDict);
-      });
-      console.timeEnd(`Post-process ${tableId}`);
-      this.loadingPromise = null;
-    },
-    async loadInitialTable(table) {
-      console.time("Working table creation");
-      this.tableId = "Loading";
-      const { totalCount, tableName } = await DuckDB.createWorkingTable(
-        table.viewId,
-        table.baseTable.id
-      );
-      console.timeEnd("Working table creation");
-      this.totalCount = totalCount;
-      this.tableId = tableName;
-      table.columns.forEach((c, i) => {
+        metadata.visibleColumns.forEach((c) => {
+          selectedColumnsSet.add(c);
+        });
+        for (let i = 0; i < tableData.length; ++i) {
+          const row = tableData[i].toJSON();
+          const rowDict = { rowKey: String(i) };
+          metadata.resourceStats.schema.fields.forEach((f, j) => {
+            rowDict[f.name] = row[j];
+          });
+          this.allData.push(rowDict);
+        }
+        console.timeEnd(`Post-process ${metadata.table.id}`);
+      }
+      for (let columnName in columns) {
         this.columns.push({
-          field: String(i),
-          key: String(i),
-          ellipsis: { showTitle: true },
-          title: c.title,
+          field: columnName,
+          key: columnName,
+          title: columnName,
+          tables: columns[columnName],
           width: 300,
-          renderBodyCell: ({ row, column }, h) => {
-            const style = {};
-            const tableId = row.TID;
-            const table = this.histories.filter(
-              (hist) => hist.baseTable.id === tableId
-            )[0];
-            const originalColumn = table.columns[parseInt(column.key)];
-            if (this.isColorEnabled) {
-              const color = originalColumn.isJoinedTable
-                ? table.joinedTable.resource.color
-                : table.baseTable.color;
-              style.color = color;
-            }
-            const text = row[column.field];
-            return h("span", { style }, text);
-          },
-        });
-      });
-      table.columns.forEach((_, i) => {
-        this.selectedColumns.push(String(i));
-      });
-      this.histories.push(table);
-      await this.loadDataForCurrentPage();
-    },
-    async tryAutoUnion(table) {
-      const targetColumns = {};
-      const unionColumns = [];
-      table.columns.forEach((c) => (targetColumns[c.title] = c));
-      for (let i = 0; i < this.columns.length; ++i) {
-        const c = this.columns[i];
-        if (!targetColumns[c.title]) {
-          return false;
-        }
-        unionColumns.push({
-          sourceKey: c.key,
-          targetKey: targetColumns[c.title].key,
+          ellipsis: true,
         });
       }
-      this.$nextTick(() => {
-        this.$parent.toggleWorkingTable();
+      this.totalCount = this.allData.length;
+      selectedColumnsSet.forEach((c) => {
+        this.selectedColumns.push(c);
       });
-      this.loadingPromise = DuckDB.autoUnionWorkingTable(
-        table.viewId,
-        table.baseTable.id,
-        unionColumns
-      );
-      const { totalCount, tableName } = await this.loadingPromise;
-      this.totalCount = totalCount;
-      this.tableId = tableName;
-      this.histories.push(table);
-      await this.loadDataForCurrentPage();
-      return true;
+      this.loadDataForCurrentPage();
     },
-    async addData(table) {
-      if (!this.tableId) {
-        this.$nextTick(() => {
-          this.$parent.toggleWorkingTable();
-        });
-        this.loadingPromise = this.loadInitialTable(table);
-      } else {
-        const matchedTables = this.histories.filter(
-          (f) => f.baseTable.id === table.baseTable.id
-        );
-        if (matchedTables.length > 0) {
-          return { success: false };
-        }
-        const autoUnionResult = await this.tryAutoUnion(table);
-        if (!autoUnionResult) {
-          alert("Cannot auto union");
-        }
-      }
+    async addNewKeyword(newKeyWordText) {
+      this.keywords.push(newKeyWordText);
+      this.loadingPromise = this.reloadData();
       await this.loadingPromise;
-      return { success: true };
+    },
+    async removeKeyword(i) {
+      this.keywords.splice(i, 1);
+      this.loadingPromise = this.reloadData();
+      await this.loadingPromise;
     },
     async resetTable() {
       this.pageIndex = 1;
       this.totalCount = 0;
       this.columns.splice(0);
-      this.tableId = null;
       this.tableData.splice(0);
       this.inferredstats = null;
       (this.loadingPromise = null), this.selectedColumns.splice(0);
       this.histories.splice(0);
       this.dataviewRefreshDelay = null;
-      await DuckDB.resetWorkingTable();
     },
     addSelectedColumn(item) {
-      this.selectedColumns.push(String(item));
+      this.selectedColumns.push(item);
     },
     removeSelectedColumn(item) {
-      this.selectedColumns.splice(
-        this.selectedColumns.indexOf(String(item)),
-        1
-      );
+      this.selectedColumns.splice(this.selectedColumns.indexOf(item), 1);
     },
     async removeTable(t) {
-      const { totalCount, tableName } = await DuckDB.removeFromWorkingTable(
-        t.baseTable.id
-      );
-      this.totalCount = totalCount;
-      this.tableName = tableName;
-      this.histories = this.histories.filter(
-        (h) => h.baseTable.id !== t.baseTable.id
-      );
-      if (this.histories.length === 0) {
-        await this.resetTable();
-      } else {
-        await this.loadDataForCurrentPage();
-      }
+      this.histories.splice(this.histories.indexOf(t), 1);
+      this.loadingPromise = this.reloadData();
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
     toggleColor() {
       this.isColorEnabled = !this.isColorEnabled;
       this.forceRerender();
     },
-    async dumpCsv() {
-      this.loadingPromise = DuckDB.dumpCsv(
-        this.tableId,
-        this.visibleColumns.map((c) => c.title),
-        this.visibleColumns.map((c) => `W_${c.key}`)
-      );
-      await this.loadingPromise;
-      this.loadingPromise = null;
-    },
-    unionTable(unionable) {
-      this.histories.push({
-        baseTable: unionable,
-        filters: [],
-        joinedTable: {
-          resource: null,
-          sourceIndex: null,
-          targetIndex: null,
-          resourceStats: null,
-          selectedFields: [],
-        },
-      });
-    },
-    joinTable(joinable, sourceId) {
-      for (let i = 0; i < this.histories.length; ++i) {
-        const h = this.histories[i];
-        if (h.baseTable.id === sourceId) {
-          h.joinedTable.resource = joinable.target_resource;
-          h.joinedTable.targetIndex = joinable.target_index;
-          break;
-        }
-      }
-    },
+    async dumpCsv() {},
   },
   mounted() {
     this.loadingInstance = VeLoading({

@@ -337,17 +337,12 @@ export default {
       this.refreshDataView();
     },
     async addToWorkingTable() {
-      const result = await this.$parent.$refs.workingTable.addData({
-        baseTable: this.resource,
+      this.$parent.$refs.workingTable.addData({
+        table: this.resource,
         dataset: this.dataset,
-        joinedTable: this.joinedTable,
-        columns: this.visibleColumns,
-        viewId: this.viewId,
-        filters: this.keywords,
+        visibleColumns: this.visibleColumns.map((c) => c.title),
+        resourceStats: this.resourceStats,
       });
-      if (!result) {
-        alert("Union failed");
-      }
     },
 
     async dumpCsv() {
