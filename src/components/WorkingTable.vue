@@ -140,6 +140,36 @@ export default {
         this.loadingPromise = null;
       });
     },
+    async getJoinedTable(tableId, key, resourceStats) {
+      console.time(`DuckDB table copy ${tableId}`);
+      await DuckDB.loadParquet(tableId);
+      const tableData = (await DuckDB.getFullTable(tableId)).toArray();
+      console.timeEnd(`DuckDB table copy ${tableId}`);
+
+      console.time(`Hash table data ${tableId}`);
+      const hashedTableData = [];
+      for (let i = 0; i < tableData.length; ++i) {
+        const row = tableData[i].toJSON();
+        const rowDict = {};
+        resourceStats.schema.fields.forEach((f, j) => {
+          rowDict[f.name] = row[j];
+        });
+        if (!hashedTableData[rowDict[key]]) {
+          hashedTableData[rowDict[key]] = {};
+        }
+        for (let k in rowDict) {
+          if (k === key) {
+            continue;
+          }
+          if (!hashedTableData[rowDict[key]][k]) {
+            hashedTableData[rowDict[key]][k] = [];
+          }
+          hashedTableData[rowDict[key]][k].push(rowDict[k]);
+        }
+      }
+      console.timeEnd(`Hash table data ${tableId}`);
+      return hashedTableData;
+    },
     async reloadData() {
       this.allData = [];
       this.columns = [];
@@ -162,6 +192,14 @@ export default {
         metadata.visibleColumns.forEach((c) => {
           selectedColumnsSet.add(c);
         });
+        for (let tableId in metadata.joinedTables) {
+          const tableHash = await this.getJoinedTable(
+            tableId,
+            metadata.joinedTables[tableId].targetKey,
+            metadata.joinedTables[tableId].targetResourceStats
+          );
+          console.log(tableHash);
+        }
         for (let i = 0; i < tableData.length; ++i) {
           const row = tableData[i].toJSON();
           const rowDict = { rowKey: `${metadata.table.id}_${i}` };
@@ -172,6 +210,7 @@ export default {
         }
         console.timeEnd(`Post-process ${metadata.table.id}`);
       }
+
       for (let columnName in columns) {
         this.columns.push({
           field: columnName,
@@ -227,6 +266,31 @@ export default {
     toggleColor() {
       this.isColorEnabled = !this.isColorEnabled;
       this.forceRerender();
+    },
+    async addColumn(sourceResourceId, joinable, column) {
+      const history = this.histories.find(
+        (h) => h.table.id === sourceResourceId
+      );
+      if (!history) {
+        return;
+      }
+      if (!history.joinedTables) {
+        history.joinedTables = {};
+      }
+      const targetId = joinable.target_resource.id;
+      if (!history.joinedTables[targetId]) {
+        history.joinedTables[targetId] = {
+          sourceKey: this.columns[joinable.source_index].key,
+          targetKey: joinable.target_field_name,
+          targetResourceStats: joinable.target_resourcestats,
+          targerResource: joinable.target_resource,
+          columns: new Set(),
+        };
+      }
+      history.joinedTables[targetId].columns.add(column.name);
+      this.loadingPromise = this.reloadData();
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
     async dumpCsv() {},
   },

@@ -32,9 +32,9 @@
           Table: {{ joinable.target_resource.name }}
         </b>
         <span>
-          <!-- <b-button size="sm" variant="secondary" @click="openTable(joinable)"
+          <b-button size="sm" variant="secondary" @click="openTable(joinable)"
             >Open</b-button
-          > -->
+          >
         </span>
       </div>
 
@@ -145,7 +145,7 @@ export default {
       this.$parent.$parent.$parent.openResource(openedResource, true);
     },
     addColumn: async function (joinable, column) {
-      console.log(joinable, column);
+      this.$parent.$parent.addColumn(this.resourceId, joinable, column);
     },
     filterColumns: function (joinable) {
       return joinable.target_resourcestats.schema.fields.filter(
