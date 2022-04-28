@@ -101,7 +101,7 @@
         ></div>
         {{ relatedTablesMetadata.table.name }}
       </h5>
-      <br />
+      <hr />
       <joinable-tables
         :resourceId="relatedTablesMetadata.table.id"
         :sourceResourceStats="relatedTablesMetadata.resourceStats"

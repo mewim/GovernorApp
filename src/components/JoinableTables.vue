@@ -31,11 +31,10 @@
           ></div>
           Table: {{ joinable.target_resource.name }}
         </b>
-
         <span>
-          <b-button size="sm" variant="primary" @click="openTable(joinable)"
+          <!-- <b-button size="sm" variant="secondary" @click="openTable(joinable)"
             >Open</b-button
-          >
+          > -->
         </span>
       </div>
 
@@ -51,7 +50,7 @@
                 <b-button
                   size="sm"
                   variant="primary"
-                  @click="joinTable(joinable)"
+                  @click="addColumn(joinable, column)"
                   >Add Column
                 </b-button>
               </span>
@@ -59,6 +58,8 @@
           </div>
         </b-list-group-item>
       </b-list-group>
+
+      <br />
     </div>
   </div>
 </template>
@@ -71,7 +72,7 @@ export default {
   name: "JoinableTables",
   props: {
     resourceId: String,
-    sourceResourceStats: String,
+    sourceResourceStats: Object,
     showJoinButton: { type: Boolean, default: false },
   },
   data: function () {
@@ -143,9 +144,8 @@ export default {
       };
       this.$parent.$parent.$parent.openResource(openedResource, true);
     },
-    joinTable: async function (joinable) {
-      this.$parent.hideRelatedTables();
-      this.$parent.$parent.joinTable(joinable, this.resourceId);
+    addColumn: async function (joinable, column) {
+      console.log(joinable, column);
     },
     filterColumns: function (joinable) {
       return joinable.target_resourcestats.schema.fields.filter(
@@ -160,6 +160,6 @@ export default {
 
 <style lang="scss" scoped>
 .joinable-table-header-container {
-  margin-bottom: 4px;
+  margin-bottom: 10px;
 }
 </style>
