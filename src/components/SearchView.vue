@@ -151,8 +151,8 @@
 
 <script>
 import axios from "axios";
-import randomcolor from "randomcolor";
 import { VeLoading } from "vue-easytable";
+import TableColorManger from "../TableColorManager";
 
 export default {
   name: "Search",
@@ -216,7 +216,7 @@ export default {
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios.get(url, { params }).then((res) => res.data);
       results.forEach((r) => {
-        r.resources.forEach(res => res.color = randomcolor());
+        r.resources.forEach(res => res.color = TableColorManger.getColor(res.id));
         r.display_notes = "";
         this.results.push(r);
         this.isNotesDisplayed.push(false);

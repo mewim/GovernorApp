@@ -32,17 +32,17 @@
               &nbsp;
               {{ h.table.name }}</span
             >
-            <span>
+            <span class="history-buttons-span">
               <b-button
                 size="sm"
                 variant="primary"
                 @click="showRelatedTables(h)"
-                >Show Related Tables</b-button
+                >Foreign Columns</b-button
               >
               &nbsp;
               <b-button size="sm" variant="danger" @click="removeTable(h)"
-                >Remove</b-button
-              >
+                ><b-icon icon="trash"></b-icon
+              ></b-button>
             </span>
           </div>
           <!-- <br />
@@ -85,10 +85,7 @@
         </b-table>
       </div>
       <hr />
-      <unionable-tables
-        :resourceIds="allTableIds"
-        :showUnionButton="true"
-      />
+      <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
     </div>
     <div v-if="!!relatedTablesMetadata">
       <b-button size="sm" @click="relatedTablesMetadata = null">
@@ -97,16 +94,17 @@
       </b-button>
       <p></p>
       <h5>
-        Related Tables for:
+        Columns from Other Tables for:
         <div
           class="inline-color-block"
           :style="{ 'background-color': relatedTablesMetadata.table.color }"
         ></div>
         {{ relatedTablesMetadata.table.name }}
       </h5>
-
+      <br />
       <joinable-tables
         :resourceId="relatedTablesMetadata.table.id"
+        :sourceResourceStats="relatedTablesMetadata.resourceStats"
         :showJoinButton="true"
       />
     </div>
@@ -220,6 +218,15 @@ export default {
   &.small {
     height: 10px;
     width: 10px;
+  }
+}
+.history-buttons-span {
+  min-width: 175px;
+  margin-left: 4px;
+}
+.btn.btn-danger {
+  svg {
+    fill: var(--bs-white);
   }
 }
 </style>

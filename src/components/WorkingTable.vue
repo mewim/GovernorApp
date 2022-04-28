@@ -144,10 +144,7 @@ export default {
       this.allData = [];
       this.columns = [];
       const columns = {};
-      const columnsSet = new Set(this.columns.map((c) => c.key));
-      this.selectedColumns = this.selectedColumns.filter((c) => {
-        return columnsSet.has(c);
-      });
+
       const selectedColumnsSet = new Set();
       for (let metadata of this.histories) {
         console.time(`DuckDB table copy ${metadata.table.id}`);
@@ -167,7 +164,7 @@ export default {
         });
         for (let i = 0; i < tableData.length; ++i) {
           const row = tableData[i].toJSON();
-          const rowDict = { rowKey: String(i) };
+          const rowDict = { rowKey: `${metadata.table.id}_${i}` };
           metadata.resourceStats.schema.fields.forEach((f, j) => {
             rowDict[f.name] = row[j];
           });
@@ -186,6 +183,10 @@ export default {
         });
       }
       this.totalCount = this.allData.length;
+      const columnsSet = new Set(this.columns.map((c) => c.key));
+      this.selectedColumns = this.selectedColumns.filter((c) => {
+        return columnsSet.has(c);
+      });
       selectedColumnsSet.forEach((c) => {
         this.selectedColumns.push(c);
       });

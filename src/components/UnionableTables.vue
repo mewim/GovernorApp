@@ -49,7 +49,7 @@
 
 <script>
 import axios from "axios";
-import randomcolor from "randomcolor";
+import TableColorManger from "../TableColorManager";
 
 export default {
   name: "UnionableTables",
@@ -90,7 +90,7 @@ export default {
       const data = await axios.get(url).then((res) => res.data);
       data.forEach((d) => {
         d.resources.forEach((r) => {
-          r.color = randomcolor();
+          r.color = TableColorManger.getColor(r.id);
           this.datasetHash[r.id] = d;
         });
       });

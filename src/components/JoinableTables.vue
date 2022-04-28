@@ -1,65 +1,85 @@
 <template>
   <div>
-    <h5>Joinable Tables</h5>
-
-    <div v-show="this.joinableTables.length !== 0">
-      <a href="#" @click="isVisible = !isVisible"
-        >[{{ isVisible ? "Hide" : "Show" }}]</a
-      >
-      <p></p>
-    </div>
-    <b-list-group v-show="this.joinableTables.length === 0 || isVisible">
-      <b-list-group-item v-for="(joinable, i) in joinableTables" :key="i">
-        <div class="d-flex w-100 justify-content-between">
-          <span>{{ joinable.target_resource.name }}</span>
-          <span>
-            <b-button size="sm" variant="primary" @click="openTable(joinable)"
-              >Open</b-button
-            >
-            <span v-if="showJoinButton">
-              &nbsp;
-              <b-button size="sm" variant="primary" @click="joinTable(joinable)"
-                >Join</b-button
-              >
-            </span>
-          </span>
-        </div>
-        <small
-          >Column: {{ joinable.target_field_name }} ({{
-            joinable.score.toFixed(2)
-          }})</small
-        >
-      </b-list-group-item>
-
+    <b-list-group v-show="this.joinableTables.length === 0 || isLoading">
       <b-list-group-item
         v-if="joinableTables.length === 0 && !isLoading"
         class="d-flex justify-content-between align-items-center"
       >
-        No joinable table has been found for this table.
+        No foreign column has been found for this table.
       </b-list-group-item>
-
       <b-list-group-item
         v-if="isLoading"
         class="d-flex justify-content-between align-items-center"
       >
-        Loading joinable tables...
+        Loading...
       </b-list-group-item>
     </b-list-group>
+
+    <div v-for="(joinable, i) in joinableTables" :key="i">
+      <div
+        class="
+          d-flex
+          w-100
+          justify-content-between
+          joinable-table-header-container
+        "
+      >
+        <b>
+          <div
+            class="inline-color-block"
+            :style="{ 'background-color': joinable.target_resource.color }"
+          ></div>
+          Table: {{ joinable.target_resource.name }}
+        </b>
+
+        <span>
+          <b-button size="sm" variant="primary" @click="openTable(joinable)"
+            >Open</b-button
+          >
+        </span>
+      </div>
+
+      <b-list-group>
+        <b-list-group-item
+          v-for="(column, i) in filterColumns(joinable)"
+          :key="i"
+        >
+          <div class="d-flex w-100 justify-content-between">
+            <span>{{ column.name }}</span>
+            <span>
+              <span>
+                <b-button
+                  size="sm"
+                  variant="primary"
+                  @click="joinTable(joinable)"
+                  >Add Column
+                </b-button>
+              </span>
+            </span>
+          </div>
+        </b-list-group-item>
+      </b-list-group>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from "axios";
-import randomcolor from "randomcolor";
+import TableColorManger from "../TableColorManager";
 
 export default {
   name: "JoinableTables",
+  props: {
+    resourceId: String,
+    sourceResourceStats: String,
+    showJoinButton: { type: Boolean, default: false },
+  },
   data: function () {
     return {
       resourcesHash: {},
+      resourceStatsHash: {},
       joinableTables: [],
       isLoading: false,
-      isVisible: false,
     };
   },
   watch: {
@@ -70,22 +90,35 @@ export default {
       },
     },
   },
+  computed: {
+    sourceColumnSet() {
+      return new Set(
+        this.sourceResourceStats.schema.fields.map((field) => field.name)
+      );
+    },
+  },
   methods: {
     reloadData: async function () {
       this.isLoading = true;
       this.resourcesHash = {};
+      this.resourceStatsHash = {};
+
       this.joinableTables.splice(0);
-      const url = `api/keyjoinscores/${this.resourceId}`;
+      const url = `api/joinable/${this.resourceId}`;
       const data = await axios.get(url).then((res) => res.data);
 
       data.resources.forEach((r) => {
-        r.color = randomcolor();
+        r.color = TableColorManger.getColor(r.id);
         this.resourcesHash[r.id] = r;
+      });
+      data.resourceStats.forEach((d) => {
+        this.resourceStatsHash[d.uuid] = d;
       });
       data.results.forEach((d) => {
         d.targets.forEach((t) => {
           this.joinableTables.push({
             target_resource: this.resourcesHash[t.uuid],
+            target_resourcestats: this.resourceStatsHash[t.uuid],
             target_index: t.index,
             score: t.score,
             target_field_name: t.schema.field_name,
@@ -114,10 +147,19 @@ export default {
       this.$parent.hideRelatedTables();
       this.$parent.$parent.joinTable(joinable, this.resourceId);
     },
-  },
-  props: {
-    resourceId: String,
-    showJoinButton: { type: Boolean, default: false },
+    filterColumns: function (joinable) {
+      return joinable.target_resourcestats.schema.fields.filter(
+        (c) =>
+          c.name !== joinable.target_field_name &&
+          !this.sourceColumnSet.has(c.name)
+      );
+    },
   },
 };
 </script>
+
+<style lang="scss" scoped>
+.joinable-table-header-container {
+  margin-bottom: 4px;
+}
+</style>
