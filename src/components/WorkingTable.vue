@@ -43,6 +43,7 @@
 <script>
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
+import TableColorManger from "../TableColorManager";
 
 export default {
   data() {
@@ -192,13 +193,20 @@ export default {
         metadata.visibleColumns.forEach((c) => {
           selectedColumnsSet.add(c);
         });
+        const foreignTables = {};
         for (let tableId in metadata.joinedTables) {
           const tableHash = await this.getJoinedTable(
             tableId,
             metadata.joinedTables[tableId].targetKey,
             metadata.joinedTables[tableId].targetResourceStats
           );
-          console.log(tableHash);
+          foreignTables[tableId] = tableHash;
+          metadata.joinedTables[tableId].columns.forEach((c) => {
+            if (!columns[c]) {
+              columns[c] = [];
+            }
+            columns[c].push(tableId);
+          });
         }
         for (let i = 0; i < tableData.length; ++i) {
           const row = tableData[i].toJSON();
@@ -206,6 +214,18 @@ export default {
           metadata.resourceStats.schema.fields.forEach((f, j) => {
             rowDict[f.name] = row[j];
           });
+          for (let tableId in metadata.joinedTables) {
+            const foreignTable = foreignTables[tableId];
+            const currentJoinedTable = metadata.joinedTables[tableId];
+            const lookup = rowDict[currentJoinedTable.sourceKey];
+            const foreignRow = foreignTable[lookup];
+            if (!foreignRow) {
+              continue;
+            }
+            currentJoinedTable.columns.forEach((c) => {
+              rowDict[c] = foreignRow[c];
+            });
+          }
           this.allData.push(rowDict);
         }
         console.timeEnd(`Post-process ${metadata.table.id}`);
@@ -219,6 +239,20 @@ export default {
           tables: columns[columnName],
           width: 300,
           ellipsis: true,
+          renderBodyCell: ({ row, column }, h) => {
+            const style = {};
+            const tableId = row.rowKey.split("_")[0];
+            let color = TableColorManger.getColor(tableId);
+            const content = row[column.field];
+            let text = content;
+            if (typeof content !== "string") {
+              text = content.join("; ");
+            }
+            if (this.isColorEnabled) {
+              style.color = color;
+            }
+            return h("span", { style }, text);
+          },
         });
       }
       this.totalCount = this.allData.length;
@@ -291,6 +325,7 @@ export default {
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
+      this.selectedColumns.push(column.name);
     },
     async dumpCsv() {},
   },

@@ -45,15 +45,6 @@
               ></b-button>
             </span>
           </div>
-          <!-- <br />
-          <small v-if="h.joinedTable.resource"
-            >Joined with: &nbsp;
-            <div
-              class="inline-color-block small"
-              :style="{ 'background-color': h.joinedTable.resource.color }"
-            ></div>
-            &nbsp;{{ h.joinedTable.resource.name }}
-          </small> -->
         </b-list-group-item>
       </b-list-group>
       <hr />
