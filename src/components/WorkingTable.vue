@@ -7,12 +7,8 @@
       :keywords="keywords"
       v-if="histories.length > 0"
     />
-    <div
-      class="working-table-inner-container"
-      ref="tableContainer"
-      v-show="histories.length > 0"
-    >
-      <div class="table-pagination">
+    <div class="working-table-inner-container" ref="tableContainer">
+      <div class="table-pagination" v-show="tableData.length > 0">
         <ve-pagination
           :total="totalCount"
           :page-size-option="[10, 15, 25, 50, 100, 200, 500, 1000]"
@@ -32,10 +28,10 @@
         row-key-field-name="rowKey"
         ref="table"
       />
-    </div>
-    <div class="working-table-empty" v-if="histories.length === 0">
-      The working table is currently empty. You can add rows to it by opening a
-      file and click on "Add to Working Table" from the right panel.
+      <div class="working-table-empty" v-if="histories.length === 0">
+        The working table is currently empty. You can add rows to it by opening
+        a file and click on "Add to Working Table" from the right panel.
+      </div>
     </div>
   </div>
 </template>
@@ -44,6 +40,7 @@
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 import TableColorManger from "../TableColorManager";
+const CHUNK_SIZE = 1000;
 
 export default {
   data() {
@@ -86,6 +83,7 @@ export default {
     },
     loadingPromise: {
       handler: function (newValue) {
+        console.log(newValue, this.loadingInstance);
         if (!this.loadingInstance) {
           return;
         }
@@ -142,36 +140,54 @@ export default {
       });
     },
     async getJoinedTable(tableId, key, resourceStats) {
-      console.time(`DuckDB table copy ${tableId}`);
+      console.time(`DuckDB table load ${tableId}`);
       await DuckDB.loadParquet(tableId);
+      console.timeEnd(`DuckDB table load ${tableId}`);
+
+      console.time(`DuckDB table copy ${tableId}`);
       const tableData = (await DuckDB.getFullTable(tableId)).toArray();
       console.timeEnd(`DuckDB table copy ${tableId}`);
-
       console.time(`Hash table data ${tableId}`);
       const hashedTableData = [];
-      for (let i = 0; i < tableData.length; ++i) {
-        const row = tableData[i].toJSON();
-        const rowDict = {};
-        resourceStats.schema.fields.forEach((f, j) => {
-          rowDict[f.name] = row[j];
+      for (
+        let chunkCounter = 0;
+        chunkCounter < tableData.length / CHUNK_SIZE;
+        ++chunkCounter
+      ) {
+        const chunk = tableData.slice(
+          chunkCounter * CHUNK_SIZE,
+          (chunkCounter + 1) * CHUNK_SIZE
+        );
+        await new Promise((resolve) => {
+          window.setTimeout(() => {
+            for (let i = 0; i < chunk.length; ++i) {
+              const row = tableData[i].toJSON();
+              const rowDict = {};
+              resourceStats.schema.fields.forEach((f, j) => {
+                rowDict[f.name] = row[j];
+              });
+              if (!hashedTableData[rowDict[key]]) {
+                hashedTableData[rowDict[key]] = {};
+              }
+              for (let k in rowDict) {
+                if (k === key) {
+                  continue;
+                }
+                if (!hashedTableData[rowDict[key]][k]) {
+                  hashedTableData[rowDict[key]][k] = [];
+                }
+                hashedTableData[rowDict[key]][k].push(rowDict[k]);
+              }
+            }
+            resolve();
+          });
         });
-        if (!hashedTableData[rowDict[key]]) {
-          hashedTableData[rowDict[key]] = {};
-        }
-        for (let k in rowDict) {
-          if (k === key) {
-            continue;
-          }
-          if (!hashedTableData[rowDict[key]][k]) {
-            hashedTableData[rowDict[key]][k] = [];
-          }
-          hashedTableData[rowDict[key]][k].push(rowDict[k]);
-        }
       }
       console.timeEnd(`Hash table data ${tableId}`);
       return hashedTableData;
     },
     async reloadData() {
+      console.time("Full reload");
       this.allData = [];
       this.columns = [];
       const columns = {};
@@ -208,25 +224,40 @@ export default {
             columns[c].push(tableId);
           });
         }
-        for (let i = 0; i < tableData.length; ++i) {
-          const row = tableData[i].toJSON();
-          const rowDict = { rowKey: `${metadata.table.id}_${i}` };
-          metadata.resourceStats.schema.fields.forEach((f, j) => {
-            rowDict[f.name] = row[j];
-          });
-          for (let tableId in metadata.joinedTables) {
-            const foreignTable = foreignTables[tableId];
-            const currentJoinedTable = metadata.joinedTables[tableId];
-            const lookup = rowDict[currentJoinedTable.sourceKey];
-            const foreignRow = foreignTable[lookup];
-            if (!foreignRow) {
-              continue;
-            }
-            currentJoinedTable.columns.forEach((c) => {
-              rowDict[c] = foreignRow[c];
+        for (
+          let chunkCounter = 0;
+          chunkCounter < tableData.length / CHUNK_SIZE;
+          ++chunkCounter
+        ) {
+          await new Promise((resolve) => {
+            window.setTimeout(() => {
+              for (
+                let i = chunkCounter * CHUNK_SIZE;
+                i < (chunkCounter + 1) * CHUNK_SIZE && i < tableData.length;
+                ++i
+              ) {
+                const row = tableData[i].toJSON();
+                const rowDict = { rowKey: `${metadata.table.id}_${i}` };
+                metadata.resourceStats.schema.fields.forEach((f, j) => {
+                  rowDict[f.name] = row[j];
+                });
+                for (let tableId in metadata.joinedTables) {
+                  const foreignTable = foreignTables[tableId];
+                  const currentJoinedTable = metadata.joinedTables[tableId];
+                  const lookup = rowDict[currentJoinedTable.sourceKey];
+                  const foreignRow = foreignTable[lookup];
+                  if (!foreignRow) {
+                    continue;
+                  }
+                  currentJoinedTable.columns.forEach((c) => {
+                    rowDict[c] = { tableId, values: foreignRow[c] };
+                  });
+                }
+                this.allData.push(rowDict);
+              }
+              resolve();
             });
-          }
-          this.allData.push(rowDict);
+          });
         }
         console.timeEnd(`Post-process ${metadata.table.id}`);
       }
@@ -237,19 +268,22 @@ export default {
           key: columnName,
           title: columnName,
           tables: columns[columnName],
-          width: 300,
-          ellipsis: true,
+          width: 500,
+          ellipsis: false,
           renderBodyCell: ({ row, column }, h) => {
             const style = {};
             const tableId = row.rowKey.split("_")[0];
-            let color = TableColorManger.getColor(tableId);
             const content = row[column.field];
             let text = content;
-            if (typeof content !== "string") {
-              text = content.join("; ");
+            if (!content) {
+              text = "NULL";
+            } else if (typeof content !== "string") {
+              text = content.values.join("; ");
             }
-            if (this.isColorEnabled) {
-              style.color = color;
+            if (this.isColorEnabled && content) {
+              style.color = TableColorManger.getColor(
+                typeof content === "string" ? tableId : content.tableId
+              );
             }
             return h("span", { style }, text);
           },
@@ -264,6 +298,7 @@ export default {
         this.selectedColumns.push(c);
       });
       this.loadDataForCurrentPage();
+      console.timeEnd("Full reload");
     },
     async addNewKeyword(newKeyWordText) {
       this.keywords.push(newKeyWordText);
