@@ -269,16 +269,14 @@ export default {
           title: columnName,
           tables: columns[columnName],
           width: 500,
-          ellipsis: false,
+          ellipsis: true,
           renderBodyCell: ({ row, column }, h) => {
             const style = {};
             const tableId = row.rowKey.split("_")[0];
             const content = row[column.field];
             let text = content;
-            if (!content) {
-              text = "NULL";
-            } else if (typeof content !== "string") {
-              text = content.values.join("; ");
+            if (typeof content !== "string") {
+              text = content ? content.values.join("; ") : "NULL";
             }
             if (this.isColorEnabled && content) {
               style.color = TableColorManger.getColor(
