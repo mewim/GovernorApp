@@ -41,6 +41,17 @@ router.get("/:uuid", async (req, res) => {
   if (!sourceInferredstats) {
     return res.sendStatus(404);
   }
+  const sourceResource = (
+    await db
+      .collection(METADATA_COLLECTION)
+      .aggregate([
+        { $match: { "resources.id": queryId } },
+        { $unwind: "$resources" },
+        { $match: { "resources.id": queryId } },
+        { $project: { _id: false, resource: "$resources" } },
+      ])
+      .toArray()
+  )[0].resource;
 
   const metricsVariableName = `${queryMetric}_score`;
   const $match = {
@@ -160,16 +171,32 @@ router.get("/:uuid", async (req, res) => {
   });
 
   const resourceIds = [...uuidSet];
-  let resources = await db
-    .collection(METADATA_COLLECTION)
-    .aggregate([
-      { $match: { "resources.id": { $in: resourceIds } } },
-      { $unwind: "$resources" },
-      { $match: { "resources.id": { $in: resourceIds } } },
-      { $project: { _id: false, resource: "$resources" } },
-    ])
-    .toArray();
-  resources = resources.map((r) => r.resource);
+  const resources = (
+    await db
+      .collection(METADATA_COLLECTION)
+      .aggregate([
+        { $match: { "resources.id": { $in: resourceIds } } },
+        { $unwind: "$resources" },
+        { $match: { "resources.id": { $in: resourceIds } } },
+        { $project: { _id: false, resource: "$resources" } },
+      ])
+      .toArray()
+  )
+    .map((r) => r.resource)
+    .filter((r) => {
+      // Filter out pairs of different languages.
+      const targetLanguage = r.language;
+      const sourceLanguage = sourceResource.language;
+      // Get intersection of languages
+      const intersection = sourceLanguage.filter((l) =>
+        targetLanguage.includes(l)
+      );
+      return intersection.length > 0;
+    });
+  const resourceIdSet = new Set(resources.map((r) => r.id));
+  found.forEach((f) => {
+    f.targets = f.targets.filter((t) => resourceIdSet.has(t.uuid));
+  });
 
   return res.send({
     results: found,
