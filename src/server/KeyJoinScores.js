@@ -137,7 +137,6 @@ router.get("/:uuid", async (req, res) => {
   const sourceSchemaString = JSON.stringify(
     sourceInferredstats.schema.fields.map((f) => f.name.toLowerCase()).sort()
   );
-  console.log(sourceSchemaString);
   const targetStatsHash = {};
   (
     await db
@@ -150,7 +149,6 @@ router.get("/:uuid", async (req, res) => {
     const targetSchemaString = JSON.stringify(
       t.schema.fields.map((f) => f.name.toLowerCase()).sort()
     );
-    console.log(targetSchemaString, targetSchemaString === sourceSchemaString);
     if (targetSchemaString === sourceSchemaString) {
       uuidSet.delete(t.uuid);
       return;
