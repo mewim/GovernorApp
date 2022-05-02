@@ -105,7 +105,7 @@ export default {
       this.resourceStatsHash = {};
 
       this.joinableTables.splice(0);
-      const url = `api/joinable/${this.resourceId}`;
+      const url = `api/keyjoinscores/${this.resourceId}`;
       const data = await axios.get(url).then((res) => res.data);
 
       data.resources.forEach((r) => {
