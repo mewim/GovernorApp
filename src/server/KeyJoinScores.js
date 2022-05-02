@@ -4,6 +4,7 @@ const mongoUtil = require("./MongoUtil");
 
 const COLLECTION = "keyjoinscores";
 const METADATA_COLLECTION = "metadata";
+const INFERREDSTATS_COLLECTION = "inferredstats";
 
 const VALID_METRICS = new Set([
   "jaccard",
@@ -19,8 +20,8 @@ router.get("/:uuid", async (req, res) => {
   const queryIndex = Number.parseInt(req.query.index);
   const queryScore = req.query.min_score
     ? Number.parseFloat(req.query.min_score)
-    : 0.6;
-  const queryMetric = req.query.metrics ? req.query.metrics : "jaccard";
+    : 0.7;
+  const queryMetric = req.query.metrics ? req.query.metrics : "containment_min";
 
   if (!queryId) {
     return res.sendStatus(400);
@@ -34,6 +35,13 @@ router.get("/:uuid", async (req, res) => {
   if (Number.isNaN(queryScore) || queryScore < 0.0 || queryScore > 1.0) {
     return res.sendStatus(400);
   }
+  const sourceInferredstats = await db
+    .collection(INFERREDSTATS_COLLECTION)
+    .findOne({ uuid: queryId });
+  if (!sourceInferredstats) {
+    return res.sendStatus(404);
+  }
+
   const metricsVariableName = `${queryMetric}_score`;
   const $match = {
     query_uuid: queryId,
@@ -124,6 +132,35 @@ router.get("/:uuid", async (req, res) => {
       uuidSet.add(t.uuid);
     });
   });
+
+  // Filter out tables with same schema
+  const sourceSchemaString = JSON.stringify(
+    sourceInferredstats.schema.fields.map((f) => f.name.toLowerCase()).sort()
+  );
+  console.log(sourceSchemaString);
+  const targetStatsHash = {};
+  (
+    await db
+      .collection(INFERREDSTATS_COLLECTION)
+      .find({
+        uuid: { $in: [...uuidSet] },
+      })
+      .toArray()
+  ).forEach((t) => {
+    const targetSchemaString = JSON.stringify(
+      t.schema.fields.map((f) => f.name.toLowerCase()).sort()
+    );
+    console.log(targetSchemaString, targetSchemaString === sourceSchemaString);
+    if (targetSchemaString === sourceSchemaString) {
+      uuidSet.delete(t.uuid);
+      return;
+    }
+    targetStatsHash[t.uuid] = t;
+  });
+  found.forEach((f) => {
+    f.targets = f.targets.filter((t) => t.uuid in targetStatsHash);
+  });
+
   const resourceIds = [...uuidSet];
   let resources = await db
     .collection(METADATA_COLLECTION)
@@ -135,7 +172,12 @@ router.get("/:uuid", async (req, res) => {
     ])
     .toArray();
   resources = resources.map((r) => r.resource);
-  return res.send({ results: found, resources });
+
+  return res.send({
+    results: found,
+    resources,
+    resourceStats: Object.values(targetStatsHash),
+  });
 });
 
 module.exports = router;
