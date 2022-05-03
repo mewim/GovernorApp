@@ -20,7 +20,7 @@
         <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
       </div>
       <hr />
-      <h5>History</h5>
+      <h5>Components</h5>
       <b-list-group>
         <b-list-group-item v-for="(h, i) in histories" :key="i">
           <div class="d-flex w-100 justify-content-between">
@@ -79,7 +79,7 @@
       <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
     </div>
     <div v-if="!!relatedTablesMetadata">
-      <b-button size="sm" @click="relatedTablesMetadata = null">
+      <b-button size="sm" @click="hideRelatedTables()">
         <b-icon icon="chevron-left"></b-icon>
         Back
       </b-button>
@@ -168,10 +168,14 @@ export default {
       }
     },
     showRelatedTables: function (h) {
+      this.$parent.focusOnTable(h.table.id);
       this.relatedTablesMetadata = h;
     },
     hideRelatedTables: function () {
       this.relatedTablesMetadata = null;
+      window.setTimeout(() => {
+        this.$parent.unfocusOnTable();
+      });
     },
     removeTable: function (h) {
       this.$parent.removeTable(h);

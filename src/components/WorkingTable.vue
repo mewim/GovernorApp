@@ -24,7 +24,7 @@
         :virtual-scroll-option="virtualScrollOption"
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
-        :columns="visibleColumns"
+        :columns="focusedTableId ? focusedColumns : visibleColumns"
         row-key-field-name="rowKey"
         ref="table"
       />
@@ -53,15 +53,17 @@ export default {
       },
       columns: [],
       isColorEnabled: false,
-      tableData: [],
       allData: [],
+      focusedData: [],
+      focusedColumns: [],
+      tableData: [],
       inferredstats: null,
       loadingPromise: null,
       selectedColumns: [],
       cellStyleOption: {},
       histories: [],
       keywords: [],
-      dataviewRefreshDelay: null,
+      focusedTableId: null,
     };
   },
   props: {
@@ -83,7 +85,6 @@ export default {
     },
     loadingPromise: {
       handler: function (newValue) {
-        console.log(newValue, this.loadingInstance);
         if (!this.loadingInstance) {
           return;
         }
@@ -121,7 +122,8 @@ export default {
       });
     },
     loadDataForCurrentPage() {
-      this.tableData = this.allData.slice(
+      const dataSource = this.focusedTableId ? this.focusedData : this.allData;
+      this.tableData = dataSource.slice(
         (this.pageIndex - 1) * this.pageSize,
         this.pageIndex * this.pageSize
       );
@@ -185,6 +187,55 @@ export default {
       }
       console.timeEnd(`Hash table data ${tableId}`);
       return hashedTableData;
+    },
+    async loadFocusedTable() {
+      if (!this.focusedTableId) {
+        return;
+      }
+      this.focusedData.splice(0);
+      this.focusedColumns.splice(0);
+      this.pageIndex = 1;
+      const columnSet = new Set();
+      for (
+        let chunkCounter = 0;
+        chunkCounter < this.allData.length / CHUNK_SIZE;
+        ++chunkCounter
+      ) {
+        await new Promise((resolve) => {
+          window.setTimeout(() => {
+            this.allData
+              .slice(chunkCounter * CHUNK_SIZE, (chunkCounter + 1) * CHUNK_SIZE)
+              .filter((d) => {
+                const tableId = d.rowKey.split("_")[0];
+                return tableId === this.focusedTableId;
+              })
+              .forEach((d) => {
+                this.focusedData.push(d);
+                Object.keys(d).forEach((k) => columnSet.add(k));
+              });
+            resolve();
+          });
+        });
+      }
+      console.log(columnSet);
+      this.focusedColumns = this.columns.filter((c) => {
+        return this.selectedColumns.indexOf(c.key) >= 0 && columnSet.has(c.key);
+      });
+      this.totalCount = this.focusedData.length;
+    },
+    async focusOnTable(tableId) {
+      this.focusedTableId = tableId;
+      this.loadingPromise = this.loadFocusedTable();
+      await this.loadingPromise;
+      this.loadingPromise = null;
+      this.loadDataForCurrentPage();
+    },
+    unfocusOnTable() {
+      this.focusedTableId = null;
+      this.focusedData.splice(0);
+      this.focusedColumns.splice(0);
+      this.totalCount = this.allData.length;
+      this.loadDataForCurrentPage();
     },
     async reloadData() {
       console.time("Full reload");
@@ -295,6 +346,7 @@ export default {
       selectedColumnsSet.forEach((c) => {
         this.selectedColumns.push(c);
       });
+      await this.loadFocusedTable();
       this.loadDataForCurrentPage();
       console.timeEnd("Full reload");
     },
@@ -302,21 +354,27 @@ export default {
       this.keywords.push(newKeyWordText);
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
+      this.loadingPromise = null;
     },
     async removeKeyword(i) {
       this.keywords.splice(i, 1);
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
+      this.loadingPromise = null;
     },
     async resetTable() {
       this.pageIndex = 1;
       this.totalCount = 0;
       this.columns.splice(0);
+      this.allData.splice(0);
       this.tableData.splice(0);
       this.inferredstats = null;
       (this.loadingPromise = null), this.selectedColumns.splice(0);
       this.histories.splice(0);
-      this.dataviewRefreshDelay = null;
+      this.focusedTableId = null;
+      this.focusedData.splice(0);
+      this.focusedColumns.splice(0);
+      this.keywords.splice(0);
     },
     addSelectedColumn(item) {
       this.selectedColumns.push(item);
@@ -325,6 +383,9 @@ export default {
       this.selectedColumns.splice(this.selectedColumns.indexOf(item), 1);
     },
     async removeTable(t) {
+      if (t.table.id === this.focusedTableId) {
+        this.focusedTableId = null;
+      }
       this.histories.splice(this.histories.indexOf(t), 1);
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
@@ -355,10 +416,10 @@ export default {
         };
       }
       history.joinedTables[targetId].columns.add(column.name);
+      this.selectedColumns.push(column.name);
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
-      this.selectedColumns.push(column.name);
     },
     async dumpCsv() {},
   },
