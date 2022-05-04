@@ -279,12 +279,18 @@ export default {
         }
       }
       const isNumericalSorting = columnTypes.every(
-        (t) => t.type === "integer" || t.type === "number"
+        (t) => t === "integer" || t === "number"
       );
       this.sortedAllData = [...this.allData].sort((a, b) => {
         const order = this.sortConfig.order === "asc" ? 1 : -1;
-        const aValue = a[this.sortConfig.key];
-        const bValue = b[this.sortConfig.key];
+        let aValue = a[this.sortConfig.key] ? a[this.sortConfig.key] : "";
+        let bValue = b[this.sortConfig.key] ? b[this.sortConfig.key] : "";
+        if (typeof aValue !== "string") {
+          aValue = aValue.values ? aValue.values.join("; ") : "";
+        }
+        if (typeof bValue !== "string") {
+          bValue = bValue.values ? bValue.values.join("; ") : "";
+        }
         return isNumericalSorting
           ? order * (Number(aValue) - Number(bValue))
           : order * aValue.localeCompare(bValue);
@@ -501,8 +507,15 @@ export default {
       this.loadingPromise = new Promise((resolve) => {
         window.setTimeout(() => {
           this.sortTableData();
-          this.loadDataForCurrentPage();
-          resolve();
+          if (this.focusedTableId) {
+            this.loadFocusedTable().then(() => {
+              this.loadDataForCurrentPage();
+              resolve();
+            });
+          } else {
+            this.loadDataForCurrentPage();
+            resolve();
+          }
         });
       });
       await this.loadingPromise;

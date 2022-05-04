@@ -45,6 +45,18 @@
               ></b-button>
             </span>
           </div>
+          <div v-if="h.joinedTables">
+            <div v-for="(j, k) in h.joinedTables" :key="k">
+            <small >
+              <div
+                class="inline-color-block"
+                :style="{ 'background-color': j.targerResource.color }"
+              ></div>
+              &nbsp;
+              Joined Table: {{ j.targerResource.name }}
+            </small>
+            </div>
+          </div>
         </b-list-group-item>
       </b-list-group>
       <hr />
