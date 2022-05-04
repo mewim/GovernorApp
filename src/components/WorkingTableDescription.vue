@@ -95,6 +95,7 @@
       <hr />
       <joinable-tables
         :resourceId="relatedTablesMetadata.table.id"
+        :history="relatedTablesMetadata"
         :sourceResourceStats="relatedTablesMetadata.resourceStats"
         :showJoinButton="true"
       />

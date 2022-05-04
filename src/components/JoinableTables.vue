@@ -37,7 +37,7 @@
           >
         </span>
       </div>
-
+      <p>Matched on Column: {{ getJoinedColumnName(joinable) }}</p>
       <b-list-group>
         <b-list-group-item
           v-for="(column, i) in filterColumns(joinable)"
@@ -72,6 +72,7 @@ export default {
   name: "JoinableTables",
   props: {
     resourceId: String,
+    history: Object,
     sourceResourceStats: Object,
     showJoinButton: { type: Boolean, default: false },
   },
@@ -153,6 +154,10 @@ export default {
           c.name !== joinable.target_field_name &&
           !this.sourceColumnSet.has(c.name)
       );
+    },
+    getJoinedColumnName: function (joinable) {
+      return joinable.target_resourcestats.schema.fields[joinable.target_index]
+        .name;
     },
   },
 };

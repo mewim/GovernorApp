@@ -25,6 +25,7 @@
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
         :columns="focusedTableId ? focusedColumns : visibleColumns"
+        :sort-option="sortOption"
         row-key-field-name="rowKey"
         ref="table"
       />
@@ -57,6 +58,7 @@ export default {
       focusedData: [],
       focusedColumns: [],
       tableData: [],
+      sortedAllData: null,
       inferredstats: null,
       loadingPromise: null,
       selectedColumns: [],
@@ -64,6 +66,15 @@ export default {
       histories: [],
       keywords: [],
       focusedTableId: null,
+      sortOption: {
+        sortChange: (params) => {
+          this.sortChange(params);
+        },
+      },
+      sortConfig: {
+        key: null,
+        order: null,
+      },
     };
   },
   props: {
@@ -122,7 +133,11 @@ export default {
       });
     },
     loadDataForCurrentPage() {
-      const dataSource = this.focusedTableId ? this.focusedData : this.allData;
+      const dataSource = this.focusedTableId
+        ? this.focusedData
+        : this.sortedAllData
+        ? this.sortedAllData
+        : this.allData;
       this.tableData = dataSource.slice(
         (this.pageIndex - 1) * this.pageSize,
         this.pageIndex * this.pageSize
@@ -196,14 +211,15 @@ export default {
       this.focusedColumns.splice(0);
       this.pageIndex = 1;
       const columnSet = new Set();
+      const dataSource = this.sortedAllData ? this.sortedAllData : this.allData;
       for (
         let chunkCounter = 0;
-        chunkCounter < this.allData.length / CHUNK_SIZE;
+        chunkCounter < dataSource.length / CHUNK_SIZE;
         ++chunkCounter
       ) {
         await new Promise((resolve) => {
           window.setTimeout(() => {
-            this.allData
+            dataSource
               .slice(chunkCounter * CHUNK_SIZE, (chunkCounter + 1) * CHUNK_SIZE)
               .filter((d) => {
                 const tableId = d.rowKey.split("_")[0];
@@ -217,7 +233,6 @@ export default {
           });
         });
       }
-      console.log(columnSet);
       this.focusedColumns = this.columns.filter((c) => {
         return this.selectedColumns.indexOf(c.key) >= 0 && columnSet.has(c.key);
       });
@@ -236,6 +251,44 @@ export default {
       this.focusedColumns.splice(0);
       this.totalCount = this.allData.length;
       this.loadDataForCurrentPage();
+    },
+    sortTableData() {
+      if (!this.sortConfig.key) {
+        this.sortedAllData = null;
+        return;
+      }
+      const columnTypes = [];
+      for (let h of this.histories) {
+        // First, try to find column key in the base table
+        let colunm = h.resourceStats.schema.fields.find(
+          (f) => f.name === this.sortConfig.key
+        );
+        // If not found, try to find it in all joined tables
+        if (!colunm) {
+          for (let j in h.joinedTables) {
+            colunm = h.joinedTables[j].targetResourceStats.schema.fields.find(
+              (f) => f.name === this.sortConfig.key
+            );
+            if (colunm) {
+              break;
+            }
+          }
+        }
+        if (colunm) {
+          columnTypes.push(colunm.type);
+        }
+      }
+      const isNumericalSorting = columnTypes.every(
+        (t) => t.type === "integer" || t.type === "number"
+      );
+      this.sortedAllData = [...this.allData].sort((a, b) => {
+        const order = this.sortConfig.order === "asc" ? 1 : -1;
+        const aValue = a[this.sortConfig.key];
+        const bValue = b[this.sortConfig.key];
+        return isNumericalSorting
+          ? order * (Number(aValue) - Number(bValue))
+          : order * aValue.localeCompare(bValue);
+      });
     },
     async reloadData() {
       console.time("Full reload");
@@ -312,6 +365,10 @@ export default {
         }
         console.timeEnd(`Post-process ${metadata.table.id}`);
       }
+      if (!(this.sortConfig.key in columns)) {
+        this.sortConfig.key = null;
+        this.sortConfig.order = null;
+      }
 
       for (let columnName in columns) {
         this.columns.push({
@@ -321,6 +378,8 @@ export default {
           tables: columns[columnName],
           width: 500,
           ellipsis: true,
+          sortBy:
+            this.sortConfig.key === columnName ? this.sortConfig.order : "",
           renderBodyCell: ({ row, column }, h) => {
             const style = {};
             const tableId = row.rowKey.split("_")[0];
@@ -346,6 +405,7 @@ export default {
       selectedColumnsSet.forEach((c) => {
         this.selectedColumns.push(c);
       });
+      this.sortTableData();
       await this.loadFocusedTable();
       this.loadDataForCurrentPage();
       console.timeEnd("Full reload");
@@ -418,6 +478,33 @@ export default {
       history.joinedTables[targetId].columns.add(column.name);
       this.selectedColumns.push(column.name);
       this.loadingPromise = this.reloadData();
+      await this.loadingPromise;
+      this.loadingPromise = null;
+    },
+    async sortChange(params) {
+      let isSortByColumn = false;
+      for (let k in params) {
+        if (params[k]) {
+          this.sortConfig.key = k;
+          this.sortConfig.order = params[k];
+          isSortByColumn = true;
+          break;
+        }
+      }
+      if (!isSortByColumn) {
+        this.sortConfig.key = null;
+        this.sortConfig.order = null;
+      }
+      this.columns.forEach((c) => {
+        c.sortBy = this.sortConfig.key === c.key ? this.sortConfig.order : "";
+      });
+      this.loadingPromise = new Promise((resolve) => {
+        window.setTimeout(() => {
+          this.sortTableData();
+          this.loadDataForCurrentPage();
+          resolve();
+        });
+      });
       await this.loadingPromise;
       this.loadingPromise = null;
     },
