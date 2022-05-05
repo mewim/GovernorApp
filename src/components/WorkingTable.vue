@@ -461,27 +461,30 @@ export default {
       this.isColorEnabled = !this.isColorEnabled;
       this.forceRerender();
     },
-    async addColumn(sourceResourceId, joinable, column) {
-      const history = this.histories.find(
-        (h) => h.table.id === sourceResourceId
-      );
-      if (!history) {
-        return;
+    async addColumn(joinables, column) {
+      for (let joinable of joinables) {
+        const sourceResourceId = joinable.source_resource.id;
+        const history = this.histories.find(
+          (h) => h.table.id === sourceResourceId
+        );
+        if (!history) {
+          return;
+        }
+        if (!history.joinedTables) {
+          history.joinedTables = {};
+        }
+        const targetId = joinable.target_resource.id;
+        if (!history.joinedTables[targetId]) {
+          history.joinedTables[targetId] = {
+            sourceKey: this.columns[joinable.source_index].key,
+            targetKey: joinable.target_field_name,
+            targetResourceStats: joinable.target_resourcestats,
+            targerResource: joinable.target_resource,
+            columns: new Set(),
+          };
+        }
+        history.joinedTables[targetId].columns.add(column.name);
       }
-      if (!history.joinedTables) {
-        history.joinedTables = {};
-      }
-      const targetId = joinable.target_resource.id;
-      if (!history.joinedTables[targetId]) {
-        history.joinedTables[targetId] = {
-          sourceKey: this.columns[joinable.source_index].key,
-          targetKey: joinable.target_field_name,
-          targetResourceStats: joinable.target_resourcestats,
-          targerResource: joinable.target_resource,
-          columns: new Set(),
-        };
-      }
-      history.joinedTables[targetId].columns.add(column.name);
       this.selectedColumns.push(column.name);
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;

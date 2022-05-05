@@ -2,11 +2,19 @@
   <div>
     <b-list-group v-show="this.joinableTables.length === 0 || isLoading">
       <b-list-group-item
-        v-if="joinableTables.length === 0 && !isLoading"
+        v-if="!primaryColumn"
         class="d-flex justify-content-between align-items-center"
       >
-        No foreign column has been found for this table. Please try to select
-        other column as primary.
+        Please select a column as primary to find related columns from other
+        tables.
+      </b-list-group-item>
+
+      <b-list-group-item
+        v-if="joinableTables.length === 0 && !isLoading && primaryColumn"
+        class="d-flex justify-content-between align-items-center"
+      >
+        No foreign column has been found. Please try to select another column as
+        primary.
       </b-list-group-item>
       <b-list-group-item
         v-if="isLoading"
@@ -16,7 +24,7 @@
       </b-list-group-item>
     </b-list-group>
     <b-list-group>
-      <b-list-group-item v-for="(joinable, i) in joinableTables" :key="i">
+      <b-list-group-item v-for="(resource, k) in resourcesHash" :key="k">
         <div
           class="
             d-flex
@@ -28,26 +36,26 @@
           <b>
             <div
               class="inline-color-block"
-              :style="{ 'background-color': joinable.target_resource.color }"
+              :style="{ 'background-color': resource.color }"
             ></div>
-            Table: {{ joinable.target_resource.name }}
+            Table: {{ resource.name }}
           </b>
           <span>
             <b-button
               size="sm"
               variant="secondary"
-              @click="joinable.isVisiable = !joinable.isVisiable"
-              >{{ joinable.isVisiable ? "Hide" : "Columns" }}</b-button
+              @click="resource.isColumnsVisiable = !resource.isColumnsVisiable"
+              >{{ resource.isColumnsVisiable ? "Hide" : "Columns" }}</b-button
             >
             &nbsp;
-            <b-button size="sm" variant="secondary" @click="openTable(joinable)"
+            <b-button size="sm" variant="secondary" @click="openTable(resource)"
               >Open</b-button
             >
           </span>
         </div>
-        <b-list-group v-show="joinable.isVisiable">
+        <b-list-group v-show="resource.isColumnsVisiable">
           <b-list-group-item
-            v-for="(column, i) in filterColumns(joinable)"
+            v-for="(column, i) in filterColumns(resource)"
             :key="i"
           >
             <div class="d-flex w-100 justify-content-between">
@@ -57,7 +65,7 @@
                   <b-button
                     size="sm"
                     variant="primary"
-                    @click="addColumn(joinable, column)"
+                    @click="showJoinConfigModal(resource, column)"
                     >Add Column
                   </b-button>
                 </span>
@@ -68,6 +76,80 @@
       </b-list-group-item>
     </b-list-group>
     <br />
+    <b-modal size="xl" ref="joinConfigModal" hide-header centered>
+      <p>The column will be added to the following component tables:</p>
+
+      <b-list-group-item
+        v-for="(joinable, i) in joinConfigModalComponentTables"
+        :key="i"
+      >
+        <div class="d-flex w-100 justify-content-between">
+          <b>
+            <div
+              class="inline-color-block"
+              :style="{ 'background-color': joinable.source_resource.color }"
+            ></div>
+            Table: {{ joinable.source_resource.name }}
+          </b>
+          <span>
+            <b-form-checkbox
+              v-model="joinable.selected"
+              value="selected"
+              unchecked-value=""
+            >
+            </b-form-checkbox>
+          </span>
+        </div>
+      </b-list-group-item>
+
+      <template #modal-footer>
+        <div class="w-100">
+          <span>
+            <span>
+              <b-button
+                size="sm"
+                variant="success"
+                v-show="
+                  joinConfigModalSelectedComponentTables.length <
+                  joinConfigModalComponentTables.length
+                "
+                @click="toggleJoinConfigModalSelections(true)"
+              >
+                Select All
+              </b-button>
+            </span>
+            <span>
+              <b-button
+                size="sm"
+                variant="success"
+                v-show="joinConfigModalSelectedComponentTables.length > 0"
+                @click="toggleJoinConfigModalSelections(false)"
+              >
+                Unselect All
+              </b-button>
+            </span>
+          </span>
+
+          <span class="float-right">
+            <span>
+              <b-button size="sm" @click="closeJoinConfigModal()">
+                Close
+              </b-button>
+            </span>
+            <span>
+              <b-button
+                size="sm"
+                variant="primary"
+                v-show="joinConfigModalSelectedComponentTables.length > 0"
+                @click="addColumn()"
+              >
+                OK
+              </b-button>
+            </span>
+          </span>
+        </div>
+      </template>
+    </b-modal>
   </div>
 </template>
 
@@ -92,6 +174,8 @@ export default {
       resourcesHash: {},
       resourceStatsHash: {},
       joinableTables: [],
+      joinConfigModalComponentTables: [],
+      joinedColumn: null,
       isLoading: false,
       loadingPromise: null,
     };
@@ -121,15 +205,10 @@ export default {
     },
   },
   computed: {
-    sourceColumnSetHash() {
-      const hash = [];
-      for (let h of this.histories) {
-        const resourceStats = h.resourceStats;
-        hash[resourceStats.uuid] = new Set(
-          resourceStats.schema.fields.map((field) => field.name)
-        );
-      }
-      return hash;
+    joinConfigModalSelectedComponentTables() {
+      return this.joinConfigModalComponentTables.filter(
+        (joinable) => joinable.selected === "selected"
+      );
     },
   },
   methods: {
@@ -149,7 +228,7 @@ export default {
             }
           }
         }
-        if (isNaN(primaryColumnIndex)) {
+        if (isNaN(parseInt(primaryColumnIndex))) {
           continue;
         }
         const url = `api/keyjoinscores/${h.table.id}?index=${primaryColumnIndex}`;
@@ -158,6 +237,7 @@ export default {
         data.resources.forEach((r) => {
           r.color = TableColorManger.getColor(r.id);
           this.resourcesHash[r.id] = r;
+          this.resourcesHash[r.id].isColumnsVisiable = false;
         });
         data.resourceStats.forEach((d) => {
           this.resourceStatsHash[d.uuid] = d;
@@ -172,15 +252,13 @@ export default {
               target_field_name: t.schema.field_name,
               source_index: d.index,
               source_resource: h.table,
-              isVisiable: false,
             });
           });
         });
       }
       this.isLoading = false;
     },
-    openTable: async function (joinable) {
-      const resource = joinable.target_resource;
+    openTable: async function (resource) {
       const resourceStats = await axios
         .get(`/api/inferredstats/${resource.id}`)
         .then((res) => res.data);
@@ -194,23 +272,62 @@ export default {
       };
       this.$parent.$parent.$parent.openResource(openedResource, true);
     },
-    addColumn: async function (joinable, column) {
+    showJoinConfigModal: function (targetResource, column) {
+      this.joinedColumn = column;
+      this.joinConfigModalComponentTables.splice(0);
+      this.findJoinables(targetResource.id).forEach((j) => {
+        const jCopy = Object.assign({}, j);
+        jCopy.selected = "selected";
+        this.joinConfigModalComponentTables.push(jCopy);
+      });
+      this.$refs.joinConfigModal.show();
+    },
+
+    closeJoinConfigModal: function () {
+      this.joinedColumn = null;
+      this.joinConfigModalComponentTables.splice(0);
+      this.$refs.joinConfigModal.hide();
+    },
+    addColumn: function () {
+      const column = this.joinedColumn;
+      const joinables = this.joinConfigModalSelectedComponentTables;
+      this.closeJoinConfigModal();
       this.$parent.$parent.addColumn(
-        joinable.source_resource.id,
-        joinable,
+        joinables,
         column
       );
     },
-    filterColumns: function (joinable) {
-      return joinable.target_resourcestats.schema.fields.filter(
-        (c) =>
-          c.name !== joinable.target_field_name &&
-          !this.sourceColumnSetHash[joinable.source_resource.id].has(c.name)
+    findJoinables: function (resourceId) {
+      return this.joinableTables.filter((joinable) => {
+        return joinable.target_resource.id === resourceId;
+      });
+    },
+    filterColumns: function (resource) {
+      const joinables = this.findJoinables(resource.id);
+      const targerFieldNameSet = new Set(
+        joinables.map((j) => j.target_field_name)
       );
+      const targetResourceStats = this.resourceStatsHash[resource.id];
+      const sourceColumnSet = new Set();
+      for (let h of this.histories) {
+        h.resourceStats.schema.fields.forEach((f) => {
+          sourceColumnSet.add(f.name);
+        });
+      }
+      const results = targetResourceStats.schema.fields.filter((c) => {
+        return !targerFieldNameSet.has(c.name) && !sourceColumnSet.has(c.name);
+      });
+      return results;
     },
     getJoinedColumnName: function (joinable) {
       return joinable.target_resourcestats.schema.fields[joinable.target_index]
         .name;
+    },
+    toggleJoinConfigModalSelections: function (isSelected) {
+      const selected = isSelected ? "selected" : "";
+      this.joinConfigModalComponentTables.forEach((j) => {
+        j.selected = selected;
+      });
     },
   },
 };
@@ -219,5 +336,8 @@ export default {
 <style lang="scss" scoped>
 .joinable-table-header-container {
   margin-bottom: 10px;
+}
+.float-right {
+  float: right;
 }
 </style>
