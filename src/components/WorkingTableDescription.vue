@@ -1,6 +1,6 @@
 <template>
   <div class="working-table-description-container">
-    <div v-show="!relatedTablesMetadata">
+    <div>
       <div>
         <table-filters
           :keywords="keywords"
@@ -33,13 +33,6 @@
               {{ h.table.name }}</span
             >
             <span class="history-buttons-span">
-              <b-button
-                size="sm"
-                variant="primary"
-                @click="showRelatedTables(h)"
-                >Foreign Columns</b-button
-              >
-              &nbsp;
               <b-button size="sm" variant="danger" @click="removeTable(h)"
                 ><b-icon icon="trash"></b-icon
               ></b-button>
@@ -47,14 +40,13 @@
           </div>
           <div v-if="h.joinedTables">
             <div v-for="(j, k) in h.joinedTables" :key="k">
-            <small >
-              <div
-                class="inline-color-block"
-                :style="{ 'background-color': j.targerResource.color }"
-              ></div>
-              &nbsp;
-              Joined Table: {{ j.targerResource.name }}
-            </small>
+              <small>
+                <div
+                  class="inline-color-block"
+                  :style="{ 'background-color': j.targerResource.color }"
+                ></div>
+                &nbsp; Joined Table: {{ j.targerResource.name }}
+              </small>
             </div>
           </div>
         </b-list-group-item>
@@ -85,33 +77,32 @@
               <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
             </template>
           </template>
+
+          <template #cell(primary)="row">
+            <b-button
+              variant="primary"
+              size="sm"
+              @click="setPrimary(row)"
+              v-if="row.item.key !== primaryColumn"
+            >
+              Set
+            </b-button>
+            <span v-else><b-icon-star-fill></b-icon-star-fill></span>
+          </template>
         </b-table>
+        <hr />
+        <div style="margin-left:8px;margin-right:8px;">
+          <h6>From Other Tables</h6>
+          <joinable-tables
+            :histories="histories"
+            :primaryColumn="primaryColumn"
+          />
+        </div>
       </div>
-      <hr />
-      <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
     </div>
-    <div v-if="!!relatedTablesMetadata">
-      <b-button size="sm" @click="hideRelatedTables()">
-        <b-icon icon="chevron-left"></b-icon>
-        Back
-      </b-button>
-      <p></p>
-      <h5>
-        Columns from Other Tables for:
-        <div
-          class="inline-color-block"
-          :style="{ 'background-color': relatedTablesMetadata.table.color }"
-        ></div>
-        {{ relatedTablesMetadata.table.name }}
-      </h5>
-      <hr />
-      <joinable-tables
-        :resourceId="relatedTablesMetadata.table.id"
-        :history="relatedTablesMetadata"
-        :sourceResourceStats="relatedTablesMetadata.resourceStats"
-        :showJoinButton="true"
-      />
-    </div>
+
+    <hr />
+    <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
   </div>
 </template>
 
@@ -129,11 +120,17 @@ export default {
     return {
       isHistoriesShown: true,
       isColumnDetailsVisible: false,
+      primaryColumn: null,
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "title", label: "Column" },
+        {
+          key: "primary",
+          label: "Primary?",
+          tdClass: "text-center",
+          thClass: "text-center",
+        },
       ],
-      relatedTablesMetadata: null,
     };
   },
   mounted: function () {},
@@ -182,10 +179,8 @@ export default {
     },
     showRelatedTables: function (h) {
       this.$parent.focusOnTable(h.table.id);
-      this.relatedTablesMetadata = h;
     },
     hideRelatedTables: function () {
-      this.relatedTablesMetadata = null;
       window.setTimeout(() => {
         this.$parent.unfocusOnTable();
       });
@@ -208,6 +203,9 @@ export default {
     addNewKeyword: function (keyword) {
       this.$parent.addNewKeyword(keyword);
     },
+    setPrimary: function (row) {
+      this.primaryColumn = row.item.key;
+    },
   },
 };
 </script>
@@ -229,7 +227,7 @@ export default {
   }
 }
 .history-buttons-span {
-  min-width: 175px;
+  min-width: 40px;
   margin-left: 4px;
 }
 .btn.btn-danger {
