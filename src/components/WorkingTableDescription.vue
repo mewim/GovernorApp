@@ -52,6 +52,35 @@
         </b-list-group-item>
       </b-list-group>
       <hr />
+      <h5>History</h5>
+      <b-list-group>
+        <b-list-group-item v-for="(log, i) in logs" :key="i">
+          <div class="d-flex w-100 justify-content-between">
+            <span>
+              Add
+              {{
+                log.type === "union"
+                  ? "rows"
+                  : "column" + `"${log.column.name}"`
+              }}
+              from table:
+            </span>
+            <span class="history-buttons-span">
+              <b-button size="sm" variant="danger">Undo </b-button>
+            </span>
+          </div>
+
+          <small>
+            <div
+              class="inline-color-block"
+              :style="{ 'background-color': log.table.color }"
+            ></div>
+            &nbsp;
+            {{ log.table.name }}
+          </small>
+        </b-list-group-item>
+      </b-list-group>
+      <hr />
       <h5>Columns</h5>
       <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
         >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
@@ -91,7 +120,7 @@
           </template>
         </b-table>
         <hr />
-        <div style="margin-left:8px;margin-right:8px;">
+        <div style="margin-left: 8px; margin-right: 8px">
           <h6>From Other Tables</h6>
           <joinable-tables
             :histories="histories"
@@ -112,6 +141,7 @@ export default {
 
   props: {
     histories: Array,
+    logs: Array,
     columns: Array,
     selectedColumns: Array,
     keywords: Array,

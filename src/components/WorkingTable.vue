@@ -2,6 +2,7 @@
   <div class="working-table-outer-container">
     <working-table-description
       :histories="histories"
+      :logs="logs"
       :selectedColumns="selectedColumns"
       :columns="columns"
       :keywords="keywords"
@@ -64,6 +65,7 @@ export default {
       selectedColumns: [],
       cellStyleOption: {},
       histories: [],
+      logs: [],
       keywords: [],
       focusedTableId: null,
       sortOption: {
@@ -150,6 +152,11 @@ export default {
         return;
       }
       this.histories.push(metadata);
+      this.logs.push({
+        type: "union",
+        table: metadata.table,
+        time: new Date(),
+      });
       this.$nextTick(async () => {
         this.loadingPromise = this.reloadData();
         await this.loadingPromise;
@@ -489,6 +496,13 @@ export default {
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
+      this.logs.push({
+        type: "join",
+        column: column,
+        table: joinables[0].target_resource,
+        sources: joinables.map((j) => j.source_resource),
+        time: new Date(),
+      });
     },
     async sortChange(params) {
       let isSortByColumn = false;

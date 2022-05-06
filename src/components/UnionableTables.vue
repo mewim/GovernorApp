@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h5>Unionable Tables</h5>
+    <h5>Rows from Other Tables</h5>
 
     <div v-show="this.unionableTables.length !== 0">
       <a href="#" @click="isVisible = !isVisible"
@@ -41,7 +41,7 @@
         v-if="isLoading"
         class="d-flex justify-content-between align-items-center"
       >
-        Loading unionable tables...
+        Loading ...
       </b-list-group-item>
     </b-list-group>
   </div>
