@@ -11,6 +11,13 @@
           ></b-button>
 
           <b-button
+            variant="warning"
+            @click="toggleUseCasesDiscovery()"
+            class="toggle-table-button"
+            ><b-icon icon="eye-fill"></b-icon
+          ></b-button>
+
+          <b-button
             variant="primary"
             @click="toggleSearchView()"
             class="toggle-table-button"
@@ -50,12 +57,13 @@
         :isActive="isWorkingTableActive"
         ref="workingTable"
       />
-
+      <use-cases-discovery></use-cases-discovery>
       <data-table
         v-for="item in openedResources"
         v-show="
           !isSearchActive &&
           !isWorkingTableActive &&
+          !isUseCasesDiscoveryActive &&
           activeResourceId === item.resource.id
         "
         :key="item.resource.id"
@@ -68,6 +76,7 @@
         :isActive="
           !isSearchActive &&
           !isWorkingTableActive &&
+          !isUseCasesDiscoveryActive &&
           activeResourceId === item.resource.id
         "
         :ref="`table-${item.resource.id}`"
@@ -86,6 +95,7 @@ export default {
       tableAreaHeight: 0,
       isSearchActive: true,
       isWorkingTableActive: false,
+      isUseCasesDiscoveryActive: false,
       TABLE_AREA_OFFSET: 40,
     };
   },
@@ -107,6 +117,7 @@ export default {
     },
     toggleSearchView: function () {
       this.isWorkingTableActive = false;
+      this.isUseCasesDiscoveryActive = false;
       this.isSearchActive = true;
     },
     toggleWorkingTable: function () {
@@ -114,7 +125,13 @@ export default {
         this.updatePreviewAreaHeight();
       });
       this.isSearchActive = false;
+      this.isUseCasesDiscoveryActive = false;
       this.isWorkingTableActive = true;
+    },
+    toggleUseCasesDiscovery: function () {
+      this.isSearchActive = false;
+      this.isWorkingTableActive = false;
+      this.isUseCasesDiscoveryActive = true;
     },
     toggleResource: function (resourceId) {
       this.isSearchActive = false;
@@ -144,7 +161,7 @@ export default {
       r.isJoinedTable = isJoinedTable;
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
-      if(jumpImmediately){
+      if (jumpImmediately) {
         this.isSearchActive = false;
         this.isWorkingTableActive = false;
       }
@@ -234,6 +251,9 @@ export default {
   }
 }
 .btn.btn-info {
+  color: var(--bs-white);
+}
+.btn.btn-warning {
   color: var(--bs-white);
 }
 .data-table-tab-container {

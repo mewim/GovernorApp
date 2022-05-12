@@ -12,6 +12,7 @@ const unionable = require("./Unionable");
 const parquet = require("./Parquet");
 const keyjoinscores = require("./KeyJoinScores");
 const datadictionaries = require("./DataDictionaries");
+const usecasediscoveries = require("./UseCaseDiscoveries");
 
 router.use("/search", search);
 router.use("/inferredstats", inferredstats);
@@ -24,6 +25,7 @@ router.use("/joinable", joinable);
 router.use("/keyjoinscores", keyjoinscores);
 router.use("/datadictionaries", datadictionaries);
 router.use("/unionable", unionable);
+router.use("/usecasediscoveries", usecasediscoveries);
 
 router.use((_, res) => {
   return res.sendStatus(501);
