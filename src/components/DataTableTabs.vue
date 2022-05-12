@@ -57,7 +57,9 @@
         :isActive="isWorkingTableActive"
         ref="workingTable"
       />
-      <use-cases-discovery></use-cases-discovery>
+      <use-cases-discovery
+        v-show="isUseCasesDiscoveryActive"
+      ></use-cases-discovery>
       <data-table
         v-for="item in openedResources"
         v-show="

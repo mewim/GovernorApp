@@ -33,14 +33,16 @@
             joinable-table-header-container
           "
         >
-          <b>
-            <div
-              class="inline-color-block"
-              :style="{ 'background-color': resource.color }"
-            ></div>
-            Table: {{ resource.name }}
-          </b>
           <span>
+            <b>
+              <div
+                class="inline-color-block"
+                :style="{ 'background-color': resource.color }"
+              ></div>
+              Table: {{ resource.name }}
+            </b>
+          </span>
+          <span style="min-width:142px;">
             <b-button
               size="sm"
               variant="secondary"
@@ -292,10 +294,7 @@ export default {
       const column = this.joinedColumn;
       const joinables = this.joinConfigModalSelectedComponentTables;
       this.closeJoinConfigModal();
-      this.$parent.$parent.addColumn(
-        joinables,
-        column
-      );
+      this.$parent.$parent.addColumn(joinables, column);
     },
     findJoinables: function (resourceId) {
       return this.joinableTables.filter((joinable) => {
