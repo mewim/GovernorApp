@@ -11,6 +11,7 @@
           ></b-button>
 
           <b-button
+            v-if="DISCOVERY_MODE"
             variant="warning"
             @click="toggleUseCasesDiscovery()"
             class="toggle-table-button"
@@ -58,8 +59,11 @@
         ref="workingTable"
       />
       <use-cases-discovery
+        v-if="DISCOVERY_MODE"
         v-show="isUseCasesDiscoveryActive"
-      ></use-cases-discovery>
+        ref="useCasesDiscovery"
+      >
+      </use-cases-discovery>
       <data-table
         v-for="item in openedResources"
         v-show="
@@ -99,6 +103,7 @@ export default {
       isWorkingTableActive: false,
       isUseCasesDiscoveryActive: false,
       TABLE_AREA_OFFSET: 40,
+      DISCOVERY_MODE: true,
     };
   },
   props: {},
@@ -137,13 +142,15 @@ export default {
     },
     toggleResource: function (resourceId) {
       this.isSearchActive = false;
+      this.isUseCasesDiscoveryActive = false;
       this.isWorkingTableActive = false;
       this.activeResourceId = resourceId;
     },
     getTabClass: function (resourceId) {
       return resourceId === this.activeResourceId &&
         !this.isSearchActive &&
-        !this.isWorkingTableActive
+        !this.isWorkingTableActive &&
+        !this.isUseCasesDiscoveryActive
         ? "nav-link active"
         : "nav-link";
     },
@@ -166,6 +173,7 @@ export default {
       if (jumpImmediately) {
         this.isSearchActive = false;
         this.isWorkingTableActive = false;
+        this.isUseCasesDiscoveryActive = false;
       }
     },
     closeResource: function (id) {
@@ -199,6 +207,9 @@ export default {
       } catch (err) {
         this.tableAreaHeight = window.innerHeight;
       }
+    },
+    useCasesDiscoveryModeChanged: function (isUnion) {
+      this.$refs.useCasesDiscovery.useCasesDiscoveryModeChanged(isUnion);
     },
   },
 

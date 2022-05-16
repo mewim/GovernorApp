@@ -34,85 +34,85 @@
         class="search-result-cards-container"
         v-if="searchSuccess && results.length > 0"
       >
-          <b-card v-for="(r, i) in results" :key="i">
-            <template #header>
-              <b>{{ r.title }}</b>
-            </template>
-            <b-card-text
-              v-if="searchResultFields.matched_count && !searchMetadata"
+        <b-card v-for="(r, i) in results" :key="i">
+          <template #header>
+            <b>{{ r.title }}</b>
+          </template>
+          <b-card-text
+            v-if="searchResultFields.matched_count && !searchMetadata"
+          >
+            <b> Matched Count:</b> {{ r.matched_count }}
+          </b-card-text>
+          <b-card-text v-if="searchResultFields.subjects">
+            <b> Subjects:&nbsp;</b>
+            <span
+              class="badge rounded-pill bg-primary"
+              v-for="(s, j) in r.subject"
+              :key="j"
+              >{{ s.replaceAll("_", " ") }}</span
             >
-              <b> Matched Count:</b> {{ r.matched_count }}
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.subjects">
-              <b> Subjects:&nbsp;</b>
-              <span
-                class="badge rounded-pill bg-primary"
-                v-for="(s, j) in r.subject"
-                :key="j"
-                >{{ s.replaceAll("_", " ") }}</span
+          </b-card-text>
+          <b-card-text v-if="searchResultFields.portal_release_date">
+            <b> Release Date:</b>
+            {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
+          </b-card-text>
+          <b-card-text>
+            <b> Notes: </b>
+            <a
+              href="#"
+              @click="r.display_notes = r.display_notes ? '' : r.notes"
+            >
+              {{ r.display_notes ? "Hide" : "Show" }}
+            </a>
+            <p>{{ r.display_notes }}</p>
+          </b-card-text>
+          <div class="file-description-cards-outer-container">
+            <div class="file-description-cards-container">
+              <b-card
+                v-for="(res, i) in r.resources"
+                :key="i"
+                class="mb-2 file-description-card"
               >
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.portal_release_date">
-              <b> Release Date:</b>
-              {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
-            </b-card-text>
-            <b-card-text>
-              <b> Notes: </b>
-              <a
-                href="#"
-                @click="r.display_notes = r.display_notes ? '' : r.notes"
-              >
-                {{ r.display_notes ? "Hide" : "Show" }}
-              </a>
-              <p>{{ r.display_notes }}</p>
-            </b-card-text>
-            <div class="file-description-cards-outer-container">
-              <div class="file-description-cards-container">
-                <b-card
-                  v-for="(res, i) in r.resources"
-                  :key="i"
-                  class="mb-2 file-description-card"
+                <b-card-text
+                  class="file-description-card-title"
+                  :id="res.id + '-title'"
+                  ><a href="#" @click="fileSelected(r.id, res.id)">{{
+                    res.name
+                  }}</a></b-card-text
                 >
-                  <b-card-text
-                    class="file-description-card-title"
-                    :id="res.id + '-title'"
-                    ><a href="#" @click="fileSelected(r.id, res.id)">{{
-                      res.name
-                    }}</a></b-card-text
+                <b-tooltip
+                  placement="right"
+                  :target="res.id + '-title'"
+                  triggers="hover"
+                >
+                  Open file: <i>{{ res.name }}</i>
+                </b-tooltip>
+                <b-card-text
+                  class="file-description-card-description"
+                  v-if="searchResultFields.languages"
+                >
+                  <b> Language{{ res.language.length > 1 ? "s" : "" }}: </b>
+                  {{ res.language.join(", ") }}
+                </b-card-text>
+                <b-card-text
+                  class="file-description-card-description"
+                  v-if="searchResultFields.matched_count && !searchMetadata"
+                >
+                  <b>
+                    {{ res.matches.count }} match{{
+                      res.matches.count > 1 ? "es" : ""
+                    }}</b
                   >
-                  <b-tooltip
-                    placement="right"
-                    :target="res.id + '-title'"
-                    triggers="hover"
+                  on
+                  <span
+                    style="font-style: italic"
+                    >{{res.matches.columns.join(", "),}}</span
                   >
-                    Open file: <i>{{ res.name }}</i>
-                  </b-tooltip>
-                  <b-card-text
-                    class="file-description-card-description"
-                    v-if="searchResultFields.languages"
-                  >
-                    <b> Language{{ res.language.length > 1 ? "s" : "" }}: </b>
-                    {{ res.language.join(", ") }}
-                  </b-card-text>
-                  <b-card-text
-                    class="file-description-card-description"
-                    v-if="searchResultFields.matched_count && !searchMetadata"
-                  >
-                    <b>
-                      {{ res.matches.count }} match{{
-                        res.matches.count > 1 ? "es" : ""
-                      }}</b
-                    >
-                    on
-                    <span
-                      style="font-style: italic"
-                      >{{res.matches.columns.join(", "),}}</span
-                    >
-                  </b-card-text>
-                </b-card>
-              </div>
+                </b-card-text>
+              </b-card>
             </div>
-          </b-card>
+          </div>
+        </b-card>
       </div>
     </div>
     <b-modal
@@ -144,6 +144,14 @@
         <b-form-checkbox v-model="jumpImmediately">
           Jump to table immediately upon open
         </b-form-checkbox>
+
+        <b>Use Cases Discovery Mode</b>
+        <b-form-radio v-model="useCasesDiscoveryMode" value="union-join"
+          >Union + Join</b-form-radio
+        >
+        <b-form-radio v-model="useCasesDiscoveryMode" value="union"
+          >Union Only</b-form-radio
+        >
       </div>
     </b-modal>
   </div>
@@ -176,9 +184,14 @@ export default {
       searchSuccess: false,
       loadingInstance: null,
       searchMetadata: false,
+      useCasesDiscoveryMode: "union-join",
     };
   },
-  watch: {},
+  watch: {
+    useCasesDiscoveryMode(newValue) {
+      this.$parent.useCasesDiscoveryModeChanged(newValue === "union");
+    },
+  },
   computed: {},
   methods: {
     toggleSettings: function () {
@@ -216,7 +229,9 @@ export default {
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios.get(url, { params }).then((res) => res.data);
       results.forEach((r) => {
-        r.resources.forEach(res => res.color = TableColorManger.getColor(res.id));
+        r.resources.forEach(
+          (res) => (res.color = TableColorManger.getColor(res.id))
+        );
         r.display_notes = "";
         this.results.push(r);
         this.isNotesDisplayed.push(false);

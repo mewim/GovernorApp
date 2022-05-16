@@ -1,5 +1,5 @@
 <template>
-  <div class="outer-container">
+  <div class="outer-container" ref="outerContainer">
     <div class="pagination-container">
       <ve-pagination
         :total="totalCount"
@@ -10,88 +10,121 @@
         @on-page-size-change="pageSizeChange"
       />
     </div>
-    <div class="search-result-cards-container">
-      <b-card v-for="(plan, i) in plans" :key="i">
-        <p>
-          <b>Source Schema: </b> {{ getSchema(plan.union[0].join.query_uuid) }}
-        </p>
-        <hr />
-        <p>
-          <b>Target Schema: </b> {{ getSchema(plan.union[0].join.target_uuid) }}
-        </p>
-        <hr />
-        <p>
-          <b>Percentage of joinables within unionable group: </b>
-          {{ (plan.joinable_percentage * 100).toFixed(2) }}%
-        </p>
-        <hr />
-        <b>Union:</b>
-        <ul>
-          <li v-for="(joinPlan, j) in plan.union" :key="j">
-            <b>Join:</b>
-            <ul>
-              <li>
-                <p>
-                  <a
-                    :href="getResourceUrl(joinPlan.join.target_uuid)"
-                    target="_blank"
-                    >{{ getResourceName(joinPlan.join.query_uuid) }}</a
-                  >
-                  from
-                  <a
-                    :href="getDatasetUrl(joinPlan.join.query_uuid)"
-                    target="_blank"
-                    >{{ getDatasetName(joinPlan.join.query_uuid) }}</a
-                  >
-                </p>
-                <p>
-                  <b
-                    >Key:
-                    {{
-                      getKey(
-                        joinPlan.join.query_uuid,
-                        joinPlan.join.query_index
-                      )
-                    }}</b
-                  >
-                </p>
-              </li>
-              <li>
-                <p>
-                  <a
-                    :href="getResourceUrl(joinPlan.join.target_uuid)"
-                    target="_blank"
-                    >{{ getResourceName(joinPlan.join.target_uuid) }}</a
-                  >
-                  from
-                  <a
-                    :href="getDatasetUrl(joinPlan.join.target_uuid)"
-                    target="_blank"
-                    >{{ getDatasetName(joinPlan.join.target_uuid) }}</a
-                  >
-                </p>
-                <p>
-                  <b
-                    >Key:
-                    {{
-                      getKey(
-                        joinPlan.join.target_uuid,
-                        joinPlan.join.target_index
-                      )
-                    }}</b
-                  >
-                </p>
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </b-card>
+    <div class="search-result-cards-container" ref="resultContainer">
+      <div v-if="!isUnionMode">
+        <b-card v-for="(plan, i) in plans" :key="i">
+          <p>
+            <b>Source Schema: </b>
+            {{ getSchema(plan.union[0].join.query_uuid) }}
+          </p>
+          <hr />
+          <p>
+            <b>Target Schema: </b>
+            {{ getSchema(plan.union[0].join.target_uuid) }}
+          </p>
+          <hr />
+          <p>
+            <b>Percentage of joinables within unionable group: </b>
+            {{ (plan.joinable_percentage * 100).toFixed(2) }}%
+          </p>
+          <hr />
+          <b>Union:</b>
+          <ul>
+            <li v-for="(joinPlan, j) in plan.union" :key="j">
+              <b>Join:</b>
+              <ul>
+                <li>
+                  <p>
+                    <a
+                      href="#"
+                      @click="openResource(joinPlan.join.target_uuid)"
+                      >{{ getResourceName(joinPlan.join.query_uuid) }}</a
+                    >
+                    from
+                    <a
+                      :href="getDatasetUrl(joinPlan.join.query_uuid)"
+                      target="_blank"
+                      >{{ getDatasetName(joinPlan.join.query_uuid) }}</a
+                    >
+                  </p>
+                  <p>
+                    <b
+                      >Key:
+                      {{
+                        getKey(
+                          joinPlan.join.query_uuid,
+                          joinPlan.join.query_index
+                        )
+                      }}</b
+                    >
+                  </p>
+                </li>
+                <li>
+                  <p>
+                    <a
+                      href="#"
+                      @click="openResource(joinPlan.join.target_uuid)"
+                      >{{ getResourceName(joinPlan.join.target_uuid) }}</a
+                    >
+                    from
+                    <a
+                      :href="getDatasetUrl(joinPlan.join.target_uuid)"
+                      target="_blank"
+                      >{{ getDatasetName(joinPlan.join.target_uuid) }}</a
+                    >
+                  </p>
+                  <p>
+                    <b
+                      >Key:
+                      {{
+                        getKey(
+                          joinPlan.join.target_uuid,
+                          joinPlan.join.target_index
+                        )
+                      }}</b
+                    >
+                  </p>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </b-card>
+      </div>
+      <div v-else>
+        <b-card v-for="(plan, i) in plans" :key="i">
+          <p>
+            <b>Schema: </b>
+            {{ getSchema(plan.union[0]) }}
+          </p>
+          <hr />
+          <p>
+            <b>Count: </b>
+            {{ plan.union.length }}
+          </p>
+          <hr />
+          <b>Union:</b>
+          <ul>
+            <li v-for="(uuid, j) in plan.union" :key="j">
+              <p>
+                <a href="#" @click="openResource(uuid)">{{
+                  getResourceName(uuid)
+                }}</a>
+                from
+                <a :href="getDatasetUrl(uuid)" target="_blank">{{
+                  getDatasetName(uuid)
+                }}</a>
+              </p>
+            </li>
+          </ul>
+        </b-card>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import axios from "axios";
+import { VeLoading } from "vue-easytable";
 
 export default {
   name: "UseCaseDiscovery",
@@ -103,21 +136,27 @@ export default {
       plans: [],
       resourcesHash: {},
       inferredStatsHash: {},
+      isUnionMode: false,
+      loadingInstance: null,
     };
   },
   watch: {},
   computed: {},
   methods: {
     loadTotalCount: async function () {
-      return await axios
-        .get("/api/usecasediscoveries/count")
-        .then((response) => response.data.count);
+      const url = this.isUnionMode
+        ? "/api/unionable/count"
+        : "/api/usecasediscoveries/count";
+      return await axios.get(url).then((response) => response.data.count);
     },
     loadDataForPage: async function (pageIndex, pageSize) {
       const skip = (pageIndex - 1) * pageSize;
       const limit = pageSize;
+      const url = this.isUnionMode
+        ? "/api/unionable/usecases"
+        : "/api/usecasediscoveries";
       return await axios
-        .get("/api/usecasediscoveries", {
+        .get(url, {
           params: {
             skip,
             limit,
@@ -128,11 +167,16 @@ export default {
     pageNumberChange(pageIndex) {
       this.pageIndex = pageIndex;
       this.reloadData();
+      this.scrollToTop();
     },
     pageSizeChange(pageSize) {
       this.pageIndex = 1;
       this.pageSize = pageSize;
       this.reloadData();
+      this.scrollToTop();
+    },
+    scrollToTop() {
+      this.$refs.resultContainer.scrollTop = 0;
     },
     getSchema(uuid) {
       return this.inferredStatsHash[uuid].schema.fields
@@ -146,6 +190,9 @@ export default {
       return this.resourcesHash[uuid].dataset.title;
     },
     reloadData() {
+      if (this.loadingInstance) {
+        this.loadingInstance.show();
+      }
       this.loadTotalCount().then((count) => {
         this.totalCount = count;
       });
@@ -163,6 +210,7 @@ export default {
         this.resourcesHash = resourcesHash;
         this.inferredStatsHash = inferredStatsHash;
         this.plans = result.plans;
+        this.loadingInstance.close();
       });
     },
     getDatasetUrl(resourceId) {
@@ -171,15 +219,36 @@ export default {
         this.resourcesHash[resourceId].dataset.id
       );
     },
-    getResourceUrl(resourceId) {
-      return this.getDatasetUrl(resourceId) + "/resource/" + resourceId;
+    openResource(resourceId) {
+      const r = this.resourcesHash[resourceId];
+      const dataset = r.dataset;
+      const resource = r.resource;
+      const resourceStats = this.inferredStatsHash[resourceId];
+      this.$parent.openResource({ resource, dataset, resourceStats }, true);
     },
     getKey(resourceId, index) {
       return this.inferredStatsHash[resourceId].schema.fields[index].name;
     },
+    useCasesDiscoveryModeChanged: function (isUnionMode) {
+      this.isUnionMode = isUnionMode;
+      this.reloadData();
+    },
+    isActive: function () {
+      return this.$parent.isUseCasesDiscoveryActive;
+    },
   },
   mounted() {
+    this.loadingInstance = VeLoading({
+      target: this.$refs.outerContainer,
+      name: "wave",
+    });
     this.reloadData();
+  },
+  destroyed() {
+    if (this.loadingInstance) {
+      this.loadingInstance.destroy();
+      this.loadingInstance = null;
+    }
   },
 };
 </script>
