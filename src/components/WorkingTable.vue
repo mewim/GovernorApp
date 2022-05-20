@@ -185,7 +185,7 @@ export default {
         await new Promise((resolve) => {
           window.setTimeout(() => {
             for (let i = 0; i < chunk.length; ++i) {
-              const row = tableData[i].toJSON();
+              const row = chunk[i].toJSON();
               const rowDict = {};
               resourceStats.schema.fields.forEach((f, j) => {
                 rowDict[f.name] = row[j];
@@ -362,6 +362,7 @@ export default {
                   const foreignTable = foreignTables[tableId];
                   const currentJoinedTable = metadata.joinedTables[tableId];
                   const lookup = rowDict[currentJoinedTable.sourceKey];
+                  console.log(currentJoinedTable.sourceKey);
                   const foreignRow = foreignTable[lookup];
                   if (!foreignRow) {
                     continue;
@@ -483,7 +484,8 @@ export default {
         const targetId = joinable.target_resource.id;
         if (!history.joinedTables[targetId]) {
           history.joinedTables[targetId] = {
-            sourceKey: this.columns[joinable.source_index].key,
+            sourceKey:
+              history.resourceStats.schema.fields[joinable.source_index].name,
             targetKey: joinable.target_field_name,
             targetResourceStats: joinable.target_resourcestats,
             targerResource: joinable.target_resource,
