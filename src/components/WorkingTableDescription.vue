@@ -18,6 +18,9 @@
         >
         &nbsp;
         <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
+        &nbsp;
+
+        <b-button size="sm" @click="share()">Share</b-button>
       </div>
       <hr />
       <h5>Components</h5>
@@ -132,10 +135,20 @@
 
     <hr />
     <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
+
+    <b-modal
+      title="Shared Link Created"
+      ok-only
+      hide-header-close
+      ref="sharedLinkModal"
+    >
+      <p>{{ sharedLink }}</p>
+    </b-modal>
   </div>
 </template>
 
 <script>
+import axios from "axios";
 export default {
   name: "WorkingTableDescription",
 
@@ -161,6 +174,7 @@ export default {
           thClass: "text-center",
         },
       ],
+      sharedLink: "",
     };
   },
   mounted: function () {},
@@ -235,6 +249,21 @@ export default {
     },
     setPrimary: function (row) {
       this.primaryColumn = row.item.key;
+    },
+    async share() {
+      axios
+        .post("/api/sharedhistories/", {
+          histories: this.histories,
+          keywords: this.keywords,
+        })
+        .then((res) => {
+          const id = res.data._id;
+          this.sharedLink = `https://${window.location.host}/#shared/${id}`;
+          this.$refs.sharedLinkModal.show();
+        })
+        .catch((err) => {
+          console.log(err);
+        });
     },
   },
 };
