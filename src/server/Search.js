@@ -113,16 +113,16 @@ router.get("/metadata", async (req, res) => {
 
 router.get("/", async (req, res) => {
   const db = await mongoUtil.getDb();
-  const keyword = req.query.q;
+  const keyword = req.query.q.toLowerCase();
   if (!keyword) {
     return res.sendStatus(400);
   }
   const splittedKeywords = keyword.split(" ");
   const must = [];
   splittedKeywords.forEach((k) => {
-    must.push({ term: { tuple: k } });
+    must.push({ term: { values: k } });
   });
-
+  console.log(must)
   const found = await client.search({
     index: "tuples",
     body: {
@@ -132,7 +132,7 @@ router.get("/", async (req, res) => {
       query: {
         bool: {
           should: [
-            { match: { tuple: keyword } },
+            { match: { values: keyword } },
             {
               bool: {
                 must,
@@ -147,13 +147,16 @@ router.get("/", async (req, res) => {
   found.body.hits.hits.forEach((b) => {
     const uuid = adddashestouuid(b._source.file_id.split("-").join(""));
     const matchedFields = [];
-    for (let k in b._source.tuple) {
-      if (b._source.tuple[k] === keyword) {
+
+    for(let i = 0; i < b._source.values.length; ++i){
+      const k = b._source.fields[i];
+      const v = String(b._source.values[i]).toLowerCase();
+      if (v.includes(keyword)) {
         matchedFields.push(k);
         continue;
       }
       for (let kw of splittedKeywords) {
-        if (b._source.tuple[k] === kw) {
+        if (v.includes(kw)) {
           matchedFields.push(k);
           break;
         }

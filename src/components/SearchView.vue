@@ -3,7 +3,7 @@
     <div class="searchbar-container">
       <div class="input-group mb-3">
         <b-form-input
-          v-model="searchBarText"
+          v-model.lazy="searchBarText"
           v-on:keyup.enter="searchButtonClicked()"
           placeholder="Enter a keyword / UUID"
         ></b-form-input>
