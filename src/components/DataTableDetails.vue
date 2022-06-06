@@ -8,13 +8,6 @@
         ></div>
         Table: {{ resource.name }}
       </h5>
-      <h5 v-if="!!joinedResource">
-        <div
-          class="inline-color-block"
-          :style="{ 'background-color': joinedResource.color }"
-        ></div>
-        Joined Table: {{ joinedResource.name }}
-      </h5>
       <a href="#" @click="isTableDetailsVisible = !isTableDetailsVisible"
         >[{{ isTableDetailsVisible ? "Hide" : "Show" }} Dataset Details]</a
       >
@@ -60,7 +53,6 @@ export default {
   props: {
     dataset: Object,
     resource: Object,
-    joinedResource: Object,
   },
 };
 </script>

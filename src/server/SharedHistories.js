@@ -5,7 +5,7 @@ const mongoUtil = require("./MongoUtil");
 
 const COLLECTION = "sharedhistories";
 
-router.get("/_id", async (req, res) => {
+router.get("/:_id", async (req, res) => {
   const _id = req.params._id;
   const db = await mongoUtil.getDb();
   try {

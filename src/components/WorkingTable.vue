@@ -42,6 +42,7 @@
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 import TableColorManger from "../TableColorManager";
+import axios from "axios";
 const CHUNK_SIZE = 1000;
 
 export default {
@@ -541,12 +542,28 @@ export default {
       this.loadingPromise = null;
     },
     async dumpCsv() {},
+    async openSharedTable(id) {
+      const result = await axios
+        .get(`/api/sharedhistories/${id}`)
+        .then((res) => res.data);
+      this.histories = result.histories;
+      this.keywords = result.keywords;
+      await this.reloadData();
+    },
   },
-  mounted() {
+  async mounted() {
     this.loadingInstance = VeLoading({
       target: this.$refs.tableContainer,
       name: "wave",
     });
+    const sharedId = window.location.hash.split("/")[1];
+    if (!sharedId) {
+      return;
+    }
+    this.$parent.toggleWorkingTable();
+    this.loadingPromise = this.openSharedTable(sharedId);
+    await this.loadingPromise;
+    this.loadingPromise = null;
   },
   destroyed() {
     this.loadingInstance.destroy();

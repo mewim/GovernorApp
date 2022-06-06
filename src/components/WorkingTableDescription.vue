@@ -258,7 +258,7 @@ export default {
         })
         .then((res) => {
           const id = res.data._id;
-          this.sharedLink = `https://${window.location.host}/#shared/${id}`;
+          this.sharedLink = `${window.location.origin}/#shared/${id}`;
           this.$refs.sharedLinkModal.show();
         })
         .catch((err) => {

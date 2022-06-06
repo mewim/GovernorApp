@@ -4,7 +4,6 @@
       <data-table-details
         :dataset="dataset"
         :resource="resource"
-        :joinedResource="joinedTable.resource"
       />
     </div>
     <hr />
@@ -104,7 +103,6 @@ export default {
         { key: "type", label: "Type" },
         { key: "stats", label: "Stats" },
       ],
-      joinableResults: [],
       isColumnDetailsVisible: false,
     };
   },
@@ -132,50 +130,7 @@ export default {
           color: this.resource.color,
         });
       });
-      if (!this.joinedTable.resourceStats) {
-        return result;
-      }
-      this.joinedTable.resourceStats.schema.fields.forEach((r, i) => {
-        // DuckDB cannot retrive the joined column on the target table, so skip
-        if (i === this.joinedTable.targetIndex) {
-          return;
-        }
-        result.push({
-          name: r.name,
-          type: r.type,
-          stats: r.stats,
-          index: i,
-          isJoinedTable: true,
-          color: this.joinedTable.resource.color,
-        });
-      });
       return result;
-    },
-    joinableResultsTableData: function () {
-      return this.joinableResults.map((m) => {
-        let sourceColumnName, targetColumnName;
-        try {
-          sourceColumnName = m.source.column.inferred_schema.name;
-        } catch (err) {
-          // continue anyway
-          sourceColumnName = m.source.column.index;
-        }
-        try {
-          targetColumnName = m.target.column.inferred_schema.name;
-        } catch (err) {
-          // continue anyway
-          targetColumnName = m.target.column.index;
-        }
-
-        return {
-          target_id: m.target.uuid,
-          source_column: sourceColumnName,
-          target_table: m.target.name,
-          target_column: targetColumnName,
-          score: m.score.toFixed(2),
-          rawData: m,
-        };
-      });
     },
   },
   props: {
@@ -184,20 +139,10 @@ export default {
     resource: Object,
     keywords: Array,
     selectedFields: Array,
-    joinedTable: Object,
   },
   watch: {
     selectedFields: {
       immediate: true,
-      handler: function () {
-        try {
-          this.syncSelectedFields();
-        } catch (err) {
-          // Continue
-        }
-      },
-    },
-    "joinedTable.selectedFields": {
       handler: function () {
         try {
           this.syncSelectedFields();
@@ -213,15 +158,6 @@ export default {
       this.selectedFields.forEach((idx) => {
         this.$refs.schemaFieldsTable.selectRow(idx);
       });
-      this.joinedTable.selectedFields.forEach((idx) => {
-        this.$refs.schemaFieldsTable.selectRow(
-          // -1 offset for the joined column
-          idx + this.resourceStats.schema.fields.length - 1
-        );
-      });
-    },
-    joinTable: async function (metadata) {
-      this.$parent.joinTable(metadata);
     },
     showStats: function (row) {
       const fieldName = row.item.name;

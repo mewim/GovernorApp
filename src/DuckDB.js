@@ -237,7 +237,9 @@ class DuckDB {
     for (let i = 0; i < columnCounts; ++i) {
       allColumns.push(i);
     }
-    const allColumnsText = allColumns.map((c) => `"${c}"`);
+    if (!columnIndexes) {
+      columnIndexes = allColumns;
+    }
     columnIndexes.sort((a, b) => a - b);
     const selectClause = columnIndexes
       ? `${columnIndexes
@@ -247,20 +249,21 @@ class DuckDB {
     const whereClause = keywords
       ? keywords
           .map((currKeywords) => {
-            const keywordsSplit = currKeywords.split(" ");
-            if (keywordsSplit.length > 1) {
-              const currentConditions = currKeywords
-                .split(" ")
-                .map((k) => `('${SQLEscape(k)}' IN (${allColumnsText}))`);
-              const currentAndConditions = `(${currentConditions.join(
-                " AND "
-              )})`;
-              return `(${currentAndConditions} OR ('${SQLEscape(
-                currKeywords
-              )}' IN (${allColumnsText})))`;
-            } else {
-              return `('${SQLEscape(currKeywords)}' IN (${allColumnsText}))`;
+            const keywordsSplit = currKeywords.toLowerCase().split(" ");
+            const andConditions = [];
+            for (let k of keywordsSplit) {
+              const orConditions = [];
+              for (let f of allColumns) {
+                const currCondition = `CONTAINS(LOWER("${f}") ,'${SQLEscape(
+                  k
+                )}')`;
+                orConditions.push(currCondition);
+              }
+              const currentAndConditions = `(${orConditions.join(" OR ")})`;
+              andConditions.push(currentAndConditions);
             }
+            const currentAndConditions = `(${andConditions.join(" AND ")})`;
+            return `(${currentAndConditions})`;
           })
           .join(" OR ")
       : "";

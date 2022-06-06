@@ -6,7 +6,6 @@
       :resource="resource"
       :keywords="keywords"
       :selectedFields="selectedFields"
-      :joinedTable="joinedTable"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -37,7 +36,6 @@ import axios from "axios";
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 const FIRST_TABLE_NAME = "T1";
-const SECOND_TABLE_NAME = "T2";
 
 export default {
   data() {
@@ -58,13 +56,6 @@ export default {
       cellStyleOption: {},
       viewId: null,
       dataviewRefreshDelay: null,
-      joinedTable: {
-        resource: null,
-        sourceIndex: null,
-        targetIndex: null,
-        resourceStats: null,
-        selectedFields: [],
-      },
     };
   },
   props: {
@@ -130,34 +121,17 @@ export default {
           key: key,
           title: f.name,
           width: 300,
-          ellipsis: {
-            showTitle: true,
-          },
+          // ellipsis: {
+          //   showTitle: true,
+          // },
         });
       });
-      if (this.joinedTable.resourceStats) {
-        this.joinedTable.resourceStats.schema.fields.forEach((f, i) => {
-          const key = `${SECOND_TABLE_NAME}-${i}`;
-          results.push({
-            field: key,
-            key: key,
-            title: f.name,
-            isJoinedTable: true,
-            width: 300,
-            ellipsis: {
-              showTitle: true,
-            },
-          });
-        });
-      }
 
       results.forEach((r) => {
         r.renderBodyCell = ({ row, column }, h) => {
           const style = {};
           if (this.isColorEnabled) {
-            const color = column.isJoinedTable
-              ? this.joinedTable.resource.color
-              : this.resource.color;
+            const color = this.resource.color;
             style.color = color;
           }
           const text = row[column.field];
@@ -179,22 +153,6 @@ export default {
     toggleColor() {
       this.isColorEnabled = !this.isColorEnabled;
       this.forceRerender();
-    },
-    async joinTable(joinable) {
-      this.joinedTable.resource = joinable.target_resource;
-      this.joinedTable.sourceIndex = joinable.source_index;
-      this.joinedTable.targetIndex = joinable.target_index;
-      this.joinedTable.resourceStats = await axios
-        .get(`/api/inferredstats/${this.joinedTable.resource.id}`)
-        .then((res) => res.data);
-      console.time(`Load target table ${this.joinedTable.resource.id}`);
-      await DuckDB.loadParquet(this.joinedTable.resource.id);
-      console.timeEnd(`Load target table ${this.joinedTable.resource.id}`);
-
-      console.time(`Create joined view ${this.joinedTable.resource.id}`);
-      await this.createDataView();
-      console.timeEnd(`Create joined view ${this.joinedTable.resource.id}`);
-      await this.loadDataForCurrentPage();
     },
     addNewKeyword(newKeyWordText) {
       this.keywords.push(newKeyWordText);
@@ -244,42 +202,18 @@ export default {
       await this.loadingPromise;
     },
     async createDataView() {
-      if (this.joinedTable.resource) {
-        const joinViewResult = await DuckDB.createJoinedView(
-          this.tableId,
-          this.joinedTable.sourceIndex,
-          this.joinedTable.resource.id,
-          this.joinedTable.targetIndex,
-          this.keywords,
-          this.selectedFields,
-          this.joinedTable.selectedFields
-        );
-        this.viewId = joinViewResult.viewName;
-        this.totalCount = joinViewResult.totalCount;
-        this.pageIndex = 1;
-        this.filterColumns();
-      } else if (this.keywords.length > 0 || this.selectedFields.length > 0) {
-        const viewResult = await DuckDB.createDataTableView(
-          this.tableId,
-          this.keywords,
-          this.selectedFields
-        );
-        this.viewId = viewResult.viewName;
-        this.totalCount = viewResult.totalCount;
-        this.filterColumns();
-      } else {
-        this.viewId = "";
-      }
+      const viewResult = await DuckDB.createDataTableView(
+        this.tableId,
+        this.keywords
+      );
+      this.viewId = viewResult.viewName;
+      this.totalCount = viewResult.totalCount;
     },
     filterColumns() {
       this.visibleColumns = this.columns.filter((column) => {
         const split = column.key.split("-");
-        const isJoinedTable = split[0] === SECOND_TABLE_NAME;
         const i = parseInt(split[1]);
-        return (
-          (!isJoinedTable && this.selectedFields.indexOf(i) >= 0) ||
-          (isJoinedTable && this.joinedTable.selectedFields.indexOf(i) >= 0)
-        );
+        return this.selectedFields.indexOf(i) >= 0;
       });
     },
     refreshDataView() {
@@ -298,8 +232,11 @@ export default {
       }, 300);
     },
     async loadDataForCurrentPage() {
+      const keywords = this.keywords
+        .map((k) => k.toLowerCase().split(" "))
+        .flat();
       this.tableData.splice(0);
-      const tableId = this.viewId ? this.viewId : this.tableId;
+      const tableId = this.viewId;
       console.time(`DuckDB Query ${tableId}`);
       const arrowTable = await DuckDB.getFullTable(
         tableId,
@@ -308,33 +245,38 @@ export default {
       );
       console.timeEnd(`DuckDB Query ${tableId}`);
       console.time(`Post-process ${tableId}`);
+      const columnsToEnable = new Set();
       arrowTable.toArray().forEach((r, i) => {
         const rowDict = { rowKey: i };
         const rowObject = r.toJSON();
-        Object.keys(rowObject).forEach((k) => (rowDict[k] = rowObject[k]));
+        Object.keys(rowObject).forEach((k) => {
+          rowDict[k] = rowObject[k];
+          keywords.forEach((kw) => {
+            if (rowDict[k].toLowerCase().includes(kw)) {
+              columnsToEnable.add(k);
+            }
+          });
+        });
         this.tableData.push(rowDict);
       });
+      const selectedFields = new Set(this.selectedFields);
+      this.columns.forEach((c, i) => {
+        if (columnsToEnable.has(c.key)) {
+          selectedFields.add(i);
+        }
+      });
+      this.selectedFields = Array.from(selectedFields);
+      this.filterColumns();
       console.timeEnd(`Post-process ${tableId}`);
       this.loadingPromise = null;
     },
     addSelectedField(item) {
-      if (!item.isJoinedTable) {
-        this.selectedFields.push(item.index);
-      } else {
-        this.joinedTable.selectedFields.push(item.index);
-      }
-      this.refreshDataView();
+      this.selectedFields.push(item.index);
+      this.filterColumns();
     },
     removeSelectedField(item) {
-      if (!item.isJoinedTable) {
-        this.selectedFields.splice(this.selectedFields.indexOf(item.index), 1);
-      } else {
-        this.joinedTable.selectedFields.splice(
-          this.joinedTable.selectedFields.indexOf(item.index),
-          1
-        );
-      }
-      this.refreshDataView();
+      this.selectedFields.splice(this.selectedFields.indexOf(item.index), 1);
+      this.filterColumns();
     },
     async addToWorkingTable() {
       this.$parent.$refs.workingTable.addData({
