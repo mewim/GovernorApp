@@ -221,7 +221,7 @@ class DuckDB {
     };
   }
 
-  async createDataTableView(uuid, keywords, columnIndexes) {
+  async createDataTableView(uuid, keywords, columnIndexes, sortConfig = null) {
     if (!this.loadedTables.has(uuid)) {
       await this.loadParquet(uuid);
     }
@@ -246,6 +246,22 @@ class DuckDB {
           .map((c) => `"${c}" AS "${FIRST_TABLE_NAME}-${c}"`)
           .join(",")}`
       : "*";
+    let orderByClause;
+    if (sortConfig) {
+      if (sortConfig.isNumeric) {
+        orderByClause = `ORDER BY (CASE WHEN "${
+          sortConfig.key
+        }" SIMILAR TO '[+-]?([0-9]*[.])?[0-9]+' THEN "${
+          sortConfig.key
+        }"::FLOAT ELSE NULL END) ${
+          sortConfig.order === "asc" ? "ASC" : "DESC"
+        } NULLS LAST`;
+      } else {
+        orderByClause = `ORDER BY "${FIRST_TABLE_NAME}-${sortConfig.key}" ${
+          sortConfig.order === "asc" ? "ASC" : "DESC"
+        } NULLS LAST`;
+      }
+    }
     const whereClause = keywords
       ? keywords
           .map((currKeywords) => {
@@ -254,7 +270,9 @@ class DuckDB {
             for (let k of keywordsSplit) {
               const orConditions = [];
               for (let f of allColumns) {
-                const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(k)}')`;
+                const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(
+                  k
+                )}')`;
                 orConditions.push(currCondition);
               }
               const currentAndConditions = `(${orConditions.join(" OR ")})`;
@@ -268,7 +286,7 @@ class DuckDB {
 
     const query = `CREATE VIEW "${viewName}" AS SELECT ${selectClause} FROM "${uuid}" ${
       whereClause ? `WHERE ${whereClause}` : ""
-    }`;
+    } ${orderByClause ? orderByClause : ""}`;
     console.debug(query);
     await conn.query(query);
     await conn.close();

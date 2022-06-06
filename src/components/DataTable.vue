@@ -30,6 +30,7 @@
         :table-data="tableData"
         row-key-field-name="rowKey"
         :cell-style-option="cellStyleOption"
+        :sort-option="sortOption"
         ref="table"
       />
     </div>
@@ -61,7 +62,16 @@ export default {
       selectedFields: [],
       cellStyleOption: {},
       viewId: null,
-      dataviewRefreshDelay: null,
+      sortOption: {
+        sortChange: (params) => {
+          this.sortChange(params);
+        },
+      },
+      sortConfig: {
+        key: null,
+        order: null,
+        isNumeric: false,
+      },
     };
   },
   props: {
@@ -130,6 +140,8 @@ export default {
           // ellipsis: {
           //   showTitle: true,
           // },
+          sortBy:
+            parseInt(this.sortConfig.key) === i ? this.sortConfig.order : "",
         });
       });
 
@@ -211,7 +223,9 @@ export default {
     async createDataView() {
       const viewResult = await DuckDB.createDataTableView(
         this.tableId,
-        this.keywords
+        this.keywords,
+        null,
+        this.sortConfig.key && this.sortConfig.order ? this.sortConfig : null
       );
       this.viewId = viewResult;
       this.totalCount = 0;
@@ -223,23 +237,46 @@ export default {
         return this.selectedFields.indexOf(i) >= 0;
       });
     },
-    refreshDataView() {
+    async sortChange(params) {
+      let key, order;
+      for (let k in params) {
+        if (params[k]) {
+          key = k;
+          order = params[k];
+          break;
+        }
+      }
+      this.sortConfig = {
+        key: null,
+        order: null,
+        isNumeric: false,
+      };
+      this.columns.forEach((c, i) => {
+        if (key === c.key) {
+          this.sortConfig.key = String(i);
+          this.sortConfig.order = order;
+          this.sortConfig.isNumeric = new Set(["integer", "number"]).has(
+            this.resourceStats.schema.fields[i].type
+          );
+        }
+      });
+      this.refreshDataView();
+    },
+    async refreshDataView() {
       this.isLoading = true;
-      clearTimeout(this.dataviewRefreshDelay);
-      this.dataviewRefreshDelay = setTimeout(async () => {
-        if (this.loadingPromise) {
-          await this.loadingPromise;
-        }
-        this.loadingPromise = this.createDataView();
+      if (this.loadingPromise) {
         await this.loadingPromise;
-        if ((this.pageIndex - 1) * this.pageSize > this.totalCount) {
-          this.pageIndex = 1;
-        }
-        this.loadingPromise = this.loadDataForCurrentPage();
-        await this.loadingPromise;
-        await this.reloadCount();
-        this.isLoading = false;
-      }, 300);
+      }
+      this.loadingPromise = this.createDataView();
+      await this.loadingPromise;
+      if ((this.pageIndex - 1) * this.pageSize > this.totalCount) {
+        this.pageIndex = 1;
+      }
+      this.loadingPromise = this.loadDataForCurrentPage();
+      await this.loadingPromise;
+      this.isLoading = true;
+      await this.reloadCount();
+      this.isLoading = false;
     },
     async reloadCount() {
       if (this.tableData.length < this.pageSize) {
