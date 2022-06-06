@@ -52,7 +52,7 @@ export default {
         enable: true,
       },
       isColorEnabled: false,
-      isLoading:false,
+      isLoading: false,
       visibleColumns: [],
       tableData: [],
       keywords: [],
@@ -205,11 +205,7 @@ export default {
       await this.createDataView();
       this.loadingPromise = this.loadDataForCurrentPage();
       await this.loadingPromise;
-      if (this.tableData.length < this.pageSize) {
-        this.totalCount = this.tableData.length;
-      } else {
-        this.totalCount = await DuckDB.getTotalCount(this.viewId);
-      }
+      await this.reloadCount();
       this.isLoading = false;
     },
     async createDataView() {
@@ -228,6 +224,7 @@ export default {
       });
     },
     refreshDataView() {
+      this.isLoading = true;
       clearTimeout(this.dataviewRefreshDelay);
       this.dataviewRefreshDelay = setTimeout(async () => {
         if (this.loadingPromise) {
@@ -240,7 +237,16 @@ export default {
         }
         this.loadingPromise = this.loadDataForCurrentPage();
         await this.loadingPromise;
+        await this.reloadCount();
+        this.isLoading = false;
       }, 300);
+    },
+    async reloadCount() {
+      if (this.tableData.length < this.pageSize) {
+        this.totalCount = this.tableData.length;
+      } else {
+        this.totalCount = await DuckDB.getTotalCount(this.viewId);
+      }
     },
     async loadDataForCurrentPage() {
       const keywords = this.keywords
