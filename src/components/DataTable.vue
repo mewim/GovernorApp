@@ -9,7 +9,12 @@
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
+        <div v-if="isLoading">
+          <b-spinner small></b-spinner>
+          <span>Loading Pageination...</span>
+        </div>
         <ve-pagination
+          v-else
           :total="totalCount"
           :page-size-option="[10, 15, 25, 50, 100, 200, 500, 1000]"
           :page-index="pageIndex"
@@ -47,6 +52,7 @@ export default {
         enable: true,
       },
       isColorEnabled: false,
+      isLoading:false,
       visibleColumns: [],
       tableData: [],
       keywords: [],
@@ -194,20 +200,25 @@ export default {
         }
       });
       console.time("DuckDB Load");
-      const totalCount = await DuckDB.loadParquet(this.tableId);
+      await DuckDB.loadParquet(this.tableId);
       console.timeEnd("DuckDB Load");
-      this.totalCount = totalCount;
       await this.createDataView();
       this.loadingPromise = this.loadDataForCurrentPage();
       await this.loadingPromise;
+      if (this.tableData.length < this.pageSize) {
+        this.totalCount = this.tableData.length;
+      } else {
+        this.totalCount = await DuckDB.getTotalCount(this.viewId);
+      }
+      this.isLoading = false;
     },
     async createDataView() {
       const viewResult = await DuckDB.createDataTableView(
         this.tableId,
         this.keywords
       );
-      this.viewId = viewResult.viewName;
-      this.totalCount = viewResult.totalCount;
+      this.viewId = viewResult;
+      this.totalCount = 0;
     },
     filterColumns() {
       this.visibleColumns = this.columns.filter((column) => {

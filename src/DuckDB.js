@@ -254,9 +254,7 @@ class DuckDB {
             for (let k of keywordsSplit) {
               const orConditions = [];
               for (let f of allColumns) {
-                const currCondition = `CONTAINS(LOWER("${f}") ,'${SQLEscape(
-                  k
-                )}')`;
+                const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(k)}')`;
                 orConditions.push(currCondition);
               }
               const currentAndConditions = `(${orConditions.join(" OR ")})`;
@@ -273,16 +271,9 @@ class DuckDB {
     }`;
     console.debug(query);
     await conn.query(query);
-
-    const countQuery = `SELECT COUNT(*) FROM "${viewName}"`;
-    const countResult = await conn.query(countQuery);
-    const totalCount = countResult.toArray()[0][0][0];
     await conn.close();
     this.dataTableViews.add(viewName);
-    return {
-      totalCount,
-      viewName,
-    };
+    return viewName;
   }
 
   async getFullTableWithFilter(uuid, keywords) {
