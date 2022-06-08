@@ -3,8 +3,9 @@ import papaparse from "papaparse";
 const SQLEscape = require("sql-escape");
 const VIEW_PREFIX = "view_";
 const FIRST_TABLE_NAME = "T1";
-const SECOND_TABLE_NAME = "T2";
 const WORKING_TABLE_NAME = "__work";
+const ALIAS_PREFIX = "alias_";
+const COLUMN_PREFIX = "column_";
 
 class DuckDB {
   constructor() {
@@ -112,113 +113,6 @@ class DuckDB {
     const databaseResult = await conn.query(query);
     await conn.close();
     return databaseResult;
-  }
-
-  async createJoinedView(
-    source,
-    sourceJoinIndex,
-    target,
-    targetJoinIndex,
-    keywords,
-    sourceColumnIndexes,
-    targetColumnIndexes
-  ) {
-    const viewName = `${VIEW_PREFIX}${this.addJoinedTables(
-      source,
-      sourceJoinIndex,
-      target,
-      targetJoinIndex
-    )}`;
-    const db = await this.getDb();
-    const conn = await db.connect();
-    const sourceColumnCountsResult = await conn.query(
-      `SELECT COUNT(*) AS count FROM pragma_table_info('${source}')`
-    );
-    const sourceColumnCounts = sourceColumnCountsResult.toArray()[0][0][0];
-    const targetColumnCountsResult = await conn.query(
-      `SELECT COUNT(*) AS count FROM pragma_table_info('${target}')`
-    );
-    const targetColumnCounts = targetColumnCountsResult.toArray()[0][0][0];
-
-    const allColumns = [];
-    for (let i = 0; i < sourceColumnCounts; ++i) {
-      allColumns.push({ table: FIRST_TABLE_NAME, index: i });
-    }
-
-    for (let i = 0; i < targetColumnCounts; ++i) {
-      if (i === targetJoinIndex) {
-        continue;
-      }
-      allColumns.push({ table: SECOND_TABLE_NAME, index: i });
-    }
-    const allColumnsText = allColumns.map((c) => `${c.table}."${c.index}"`);
-
-    const matchedColumns = [];
-    if (sourceColumnIndexes) {
-      sourceColumnIndexes.sort((a, b) => a - b);
-      sourceColumnIndexes.forEach((s) => {
-        matchedColumns.push(
-          `${FIRST_TABLE_NAME}."${s}" AS "${FIRST_TABLE_NAME}-${s}"`
-        );
-      });
-    }
-
-    if (targetColumnIndexes) {
-      targetColumnIndexes.sort((a, b) => a - b);
-      targetColumnIndexes.forEach((s) => {
-        if (s !== sourceJoinIndex) {
-          matchedColumns.push(
-            `${SECOND_TABLE_NAME}."${s}" AS "${SECOND_TABLE_NAME}-${s}"`
-          );
-        }
-      });
-    }
-
-    const selectClause =
-      matchedColumns.length > 0 ? `${matchedColumns.join(",")}` : "*";
-
-    const whereClause = keywords
-      ? keywords
-          .map((currKeywords) => {
-            const keywordsSplit = currKeywords.split(" ");
-            if (keywordsSplit.length > 1) {
-              const currentConditions = currKeywords
-                .split(" ")
-                .map((k) => `('${SQLEscape(k)}' IN (${allColumnsText}))`);
-              const currentAndConditions = `(${currentConditions.join(
-                " AND "
-              )})`;
-              return `(${currentAndConditions} OR ('${SQLEscape(
-                currKeywords
-              )}' IN (${allColumnsText})))`;
-            } else {
-              return `('${SQLEscape(currKeywords)}' IN (${allColumnsText}))`;
-            }
-          })
-          .join(" OR ")
-      : "";
-
-    const query = `CREATE VIEW "${viewName}" AS 
-      (
-        WITH ${FIRST_TABLE_NAME} AS (SELECT * FROM "${source}"), 
-             ${SECOND_TABLE_NAME} AS (SELECT * FROM "${target}") 
-            SELECT ${selectClause} FROM ${FIRST_TABLE_NAME} JOIN ${SECOND_TABLE_NAME} ON 
-              ${FIRST_TABLE_NAME}."${sourceJoinIndex}"=${SECOND_TABLE_NAME}."${targetJoinIndex}" 
-            ${whereClause ? `WHERE ${whereClause}` : ""}
-      )`;
-
-    console.debug(query);
-    await conn.query(`DROP VIEW IF EXISTS "${VIEW_PREFIX}${source}"`);
-    await conn.query(`DROP VIEW IF EXISTS "${viewName}"`);
-    await conn.query(query);
-    const countQuery = `SELECT COUNT(*) FROM "${viewName}"`;
-    const countResult = await conn.query(countQuery);
-    const totalCount = countResult.toArray()[0][0][0];
-    await conn.close();
-    return {
-      totalCount,
-      viewName,
-    };
   }
 
   async createDataTableView(uuid, keywords, columnIndexes, sortConfig = null) {
@@ -339,81 +233,94 @@ class DuckDB {
     return results;
   }
 
-  async getTableByRowNumbers(uuid, rowNumbers, pageIndex, pageSize) {
-    const db = await this.getDb();
-    const conn = await db.connect();
-    const rowNumbersText = rowNumbers.map((r) => `'${r}'`).join(",");
-    let query = `
-      SELECT * FROM (SELECT *, ROW_NUMBER() OVER() AS row FROM "${uuid}") 
-      WHERE row in (${rowNumbersText}) 
-      ${this.createPaginationSubquery(pageIndex, pageSize)}`;
-    const databaseResult = await conn.query(query);
-    await conn.close();
-    return databaseResult;
-  }
-
-  async createWorkingTable(viewId, sourceTableId) {
-    const db = await this.getDb();
-    const conn = await db.connect();
-    const tableName = WORKING_TABLE_NAME;
-    await conn.query(`DROP VIEW IF EXISTS "${tableName}"`);
-    const columns = await conn.query(
-      `SELECT * FROM pragma_table_info('${viewId}')`
+  async createWorkingTable(histories) {
+    const { workingTableColumns, columnsMapping } =
+      this.createColumnMappingForHistoriesStrict(histories);
+    const withClause = this.createWithClauseForWorkingTable(columnsMapping);
+    const joinCaluses = histories.map((h) =>
+      this.createJoinCaluseForHistory(h, columnsMapping, workingTableColumns)
     );
-    let selectClause = columns
-      .toArray()
-      .map((c, i) => `"${c.name}" AS "W_${i}"`)
-      .join(", ");
-    selectClause += `, '${sourceTableId}' AS TID`;
-    const query = `CREATE TABLE ${tableName} AS SELECT ${selectClause} FROM "${viewId}"`;
-    console.debug(query);
-    await conn.query(query);
-    const countQuery = `SELECT COUNT(*) FROM "${tableName}"`;
-    const countResult = await conn.query(countQuery);
-    const totalCount = countResult.toArray()[0][0][0];
-    await conn.close();
-    return {
-      totalCount,
-      tableName,
-    };
-  }
 
-  async autoUnionWorkingTable(viewId, sourceTableId, unionColumns) {
+    const unionCaluse = `${withClause} SELECT * FROM (${joinCaluses
+      .map((j) => `(${j})`)
+      .join(" UNION ALL ")})`;
+    const fullQuery = `CREATE VIEW "${WORKING_TABLE_NAME}" AS (${unionCaluse})`;
+    await this.resetWorkingTable();
+    for (let id of Object.keys(columnsMapping)) {
+      await this.loadParquet(id);
+    }
     const db = await this.getDb();
     const conn = await db.connect();
-    const tableName = WORKING_TABLE_NAME;
-    let selectClause = unionColumns
-      .map((c) => `"${c.targetKey}" AS "W_${c.sourceKey}"`)
-      .join(", ");
-    selectClause += `, '${sourceTableId}' AS TID`;
-    const query = `INSERT INTO ${tableName} SELECT ${selectClause} FROM "${viewId}"`;
-    console.debug(query);
-    await conn.query(query);
-    const countQuery = `SELECT COUNT(*) FROM "${tableName}"`;
-    const countResult = await conn.query(countQuery);
-    const totalCount = countResult.toArray()[0][0][0];
+    console.debug(fullQuery);
+
+    await conn.query(fullQuery);
     await conn.close();
-    return {
-      totalCount,
-      tableName,
-    };
   }
 
-  async removeFromWorkingTable(sourceTableId) {
-    const db = await this.getDb();
-    const conn = await db.connect();
-    const tableName = WORKING_TABLE_NAME;
-    const query = `DELETE FROM ${tableName} WHERE TID = '${sourceTableId}'`;
-    console.debug(query);
-    await conn.query(query);
-    const countQuery = `SELECT COUNT(*) FROM "${tableName}"`;
-    const countResult = await conn.query(countQuery);
-    const totalCount = countResult.toArray()[0][0][0];
-    await conn.close();
-    return {
-      totalCount,
-      tableName,
-    };
+  createWorkingTableQuery(histories) {}
+
+  createJoinCaluseForHistory(history, columnsMapping, workingTableColumns) {
+    const sourceColumnMapping = columnsMapping[history.resourceStats.uuid];
+    const joinCaluses = [];
+    for (let uuid in history.joinedTables) {
+      const sourceKey = history.joinedTables[uuid].sourceKey;
+      const targetKey = history.joinedTables[uuid].targetKey;
+      const targetColumnMapping = columnsMapping[uuid];
+      const targetResourceStats =
+        history.joinedTables[uuid].targetResourceStats;
+      const sourceKeyIndex = history.resourceStats.schema.fields.findIndex(
+        (f) => f.name === sourceKey
+      );
+      const joinSourceName =
+        sourceColumnMapping.columnIndexToMapped[sourceKeyIndex];
+      const targetKeyIndex = targetResourceStats.schema.fields.findIndex(
+        (f) => f.name === targetKey
+      );
+      const joinTargetName =
+        targetColumnMapping.columnIndexToMapped[targetKeyIndex];
+      const currentJoinClause = `LEFT JOIN "${targetColumnMapping.alias}" ON "${sourceColumnMapping.alias}"."${joinSourceName}" = "${targetColumnMapping.alias}"."${joinTargetName}"`;
+      joinCaluses.push(currentJoinClause);
+    }
+    return `SELECT ${Object.keys(workingTableColumns)
+      .map((c) => `"${c}"`)
+      .join(", ")} FROM "${sourceColumnMapping.alias}"${
+      joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""
+    }`;
+  }
+
+  createWithClauseForWorkingTable(columnsMapping) {
+    const withClause = [];
+    for (let uuid in columnsMapping) {
+      const currentMapping = columnsMapping[uuid];
+      const alias = currentMapping.alias;
+      const projections = [];
+      for (let column in currentMapping.mappedToColumnIndex) {
+        let currentProjection;
+        if (currentMapping.isMain) {
+          currentProjection = `${
+            currentMapping.mappedToColumnIndex[column] !== null
+              ? `"${currentMapping.mappedToColumnIndex[column]}"`
+              : "NULL"
+          } AS "${column}"`;
+        } else {
+          currentProjection = `${
+            currentMapping.mappedToColumnIndex[column] ===
+            currentMapping.groupByIndex
+              ? `"${currentMapping.mappedToColumnIndex[column]}"`
+              : `STRING_AGG("${currentMapping.mappedToColumnIndex[column]}", '; ')`
+          } AS "${column}"`;
+        }
+        projections.push(currentProjection);
+      }
+      const projectionString = projections.join(", ");
+      const currentWithClause = `"${alias}" AS (SELECT ${projectionString} FROM "${uuid}"${
+        currentMapping.isMain
+          ? ""
+          : ` GROUP BY "${currentMapping.groupByIndex}"`
+      })`;
+      withClause.push(currentWithClause);
+    }
+    return `WITH ${withClause.join(", ")}`;
   }
 
   async getTotalCount(tablId) {
@@ -430,9 +337,171 @@ class DuckDB {
     const db = await this.getDb();
     const conn = await db.connect();
     const tableName = WORKING_TABLE_NAME;
-    const query = `DROP TABLE IF EXISTS "${tableName}"`;
+    const query = `DROP VIEW IF EXISTS "${tableName}"`;
     await conn.query(query);
     await conn.close();
+  }
+
+  createColumnMappingForHistoriesStrict(histories) {
+    // In strict mode, tables with any difference in schema as treated as different tables
+    // If there are multiple columns with same name in different tables, they are treated as different columns
+    const schemaToString = (schema) => {
+      return schema.fields.map((f) => f.name).join("***");
+    };
+    const resolveSchemas = (schemas) => {
+      if (schemas.length === 0) {
+        return [];
+      }
+      if (schemas.length === 1) {
+        return schemas[0];
+      }
+      const results = schemas[0].map((field) => {
+        return {
+          name: field.name,
+          format: field.format,
+          types: new Set(),
+        };
+      });
+      schemas.forEach((s) => {
+        s.forEach((field, i) => {
+          results[i].types.add(field.type);
+        });
+      });
+      results.forEach((f) => {
+        switch (f.types.size) {
+          case 1:
+            f.type = [...f.types][0];
+            break;
+          case 2:
+            if (f.types.has("integer") && f.types.has("number")) {
+              f.type = "number";
+            }
+            if (f.types.has("array") && f.types.has("object")) {
+              f.type = "object";
+            }
+            if (
+              (f.types.has("date") && f.types.has("time")) ||
+              (f.types.has("datetime") && f.types.has("time")) ||
+              (f.types.has("datetime") && f.types.has("date"))
+            ) {
+              f.type = "datetime";
+            }
+            break;
+          case 3:
+            if (
+              f.types.size === 3 &&
+              f.types.has("date") &&
+              f.types.has("time") &&
+              f.types.has("datetime")
+            ) {
+              f.type = "datetime";
+            }
+            break;
+          default:
+            f.type = "string";
+            break;
+        }
+        delete f.types;
+      });
+      return results;
+    };
+    const tableGroupsHash = {};
+    const columnsMapping = {};
+    let tableCouner = 0;
+    let schemaCounter = 0;
+    histories.forEach((h) => {
+      const schemaString = schemaToString(h.resourceStats.schema);
+      if (!tableGroupsHash[schemaString]) {
+        tableGroupsHash[schemaString] = {
+          tables: new Set(),
+          schemas: [],
+          columns: h.resourceStats.schema.fields.map(
+            (_, i) => `${COLUMN_PREFIX}${schemaCounter}_${i}`
+          ),
+        };
+        schemaCounter += 1;
+      }
+      if (!columnsMapping[h.resourceStats.uuid]) {
+        columnsMapping[h.resourceStats.uuid] = {
+          isMain: true,
+          columnIndexToMapped: [],
+          mappedToColumnIndex: {},
+          alias: `${ALIAS_PREFIX}${tableCouner++}`,
+        };
+      }
+      tableGroupsHash[schemaString].tables.add(h.resourceStats.uuid);
+      tableGroupsHash[schemaString].schemas.push(h.resourceStats.schema.fields);
+
+      for (let uuid in h.joinedTables) {
+        const schema = h.joinedTables[uuid].targetResourceStats.schema;
+        const targetKeyIndex = schema.fields.findIndex(
+          (f) => f.name === h.joinedTables[uuid].targetKey
+        );
+        h.joinedTables[uuid].targetKey;
+        const schemaString = schemaToString(schema);
+        if (!tableGroupsHash[schemaString]) {
+          tableGroupsHash[schemaString] = {
+            tables: new Set(),
+            schemas: [],
+            columns: schema.fields.map(
+              (_, i) => `${COLUMN_PREFIX}${schemaCounter}_${i}`
+            ),
+          };
+          schemaCounter += 1;
+        }
+        if (!columnsMapping[uuid]) {
+          columnsMapping[uuid] = {
+            isMain: false,
+            columnIndexToMapped: [],
+            mappedToColumnIndex: {},
+            alias: `${ALIAS_PREFIX}${tableCouner++}`,
+            groupByIndex: targetKeyIndex,
+          };
+        }
+        tableGroupsHash[schemaString].tables.add(uuid);
+        tableGroupsHash[schemaString].schemas.push(schema.fields);
+      }
+    });
+    const workingTableColumns = {};
+    const tableGroups = Object.values(tableGroupsHash);
+    tableGroups.forEach((tg) => {
+      tg.schema = resolveSchemas(tg.schemas);
+      delete tg.schemas;
+    });
+    tableGroups.forEach((tg) => {
+      tg.columns.forEach((c, i) => {
+        workingTableColumns[c] = tg.schema[i];
+      });
+      tg.tables.forEach((uuid) => {
+        const currColumnMapping = columnsMapping[uuid];
+        tg.columns.forEach((column, i) => {
+          currColumnMapping.columnIndexToMapped[i] = column;
+          currColumnMapping.mappedToColumnIndex[column] = i;
+        });
+      });
+    });
+
+    // Fill in nulls for missing columns
+    const allColumnNames = Object.keys(workingTableColumns);
+    histories.forEach((h) => {
+      const currColumns = new Set(
+        columnsMapping[h.resourceStats.uuid].columnIndexToMapped
+      );
+      for (let uuid in h.joinedTables) {
+        columnsMapping[uuid].columnIndexToMapped.forEach((c) =>
+          currColumns.add(c)
+        );
+      }
+      const missingColumns = allColumnNames.filter((c) => !currColumns.has(c));
+      missingColumns.forEach((c) => {
+        columnsMapping[h.resourceStats.uuid].mappedToColumnIndex[c] = null;
+      });
+    });
+    return {
+      workingTableColumns,
+      tableGroups,
+      columnsMapping,
+    };
   }
 
   async dumpCsv(tableId, header, columnIndexes = null, chunkSize = 10000) {

@@ -306,6 +306,7 @@ export default {
     },
     async reloadData() {
       console.time("Full reload");
+      DuckDB.createWorkingTable(this.histories);
       this.allData = [];
       this.columns = [];
       const columns = {};
@@ -363,7 +364,6 @@ export default {
                   const foreignTable = foreignTables[tableId];
                   const currentJoinedTable = metadata.joinedTables[tableId];
                   const lookup = rowDict[currentJoinedTable.sourceKey];
-                  console.log(currentJoinedTable.sourceKey);
                   const foreignRow = foreignTable[lookup];
                   if (!foreignRow) {
                     continue;
