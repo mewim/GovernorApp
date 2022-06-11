@@ -10,7 +10,8 @@ const COLUMN_PREFIX = "column_";
 class DuckDB {
   constructor() {
     this.db = null;
-    this.loadedTables = new Set();
+    this.loadedTables = {};
+    this.loadingTablePromises = {};
     this.dataTableViews = new Set();
     this.initializationPromise = this.init();
   }
@@ -63,36 +64,57 @@ class DuckDB {
 
   async getDb() {
     if (!this.db) {
-      await this.init();
+      if (!this.dbInitPromise) {
+        this.dbInitPromise = this.init();
+      }
+      await this.dbInitPromise;
+      delete this.dbInitPromise;
     }
     return this.db;
   }
 
   async unloadTable(uuid) {
-    if (!this.loadedTables.has(uuid)) {
+    if (!this.loadedTables[uuid]) {
       return;
     }
     const db = await this.getDb();
     const conn = await db.connect();
-    const countResult = await conn.query(`SELECT COUNT(*) FROM "${uuid}"`);
-    const totalCount = countResult.toArray()[0][0][0];
+    await conn.query(`DROP TABLE IF EXISTS "${uuid}"`);
+    delete this.loadedTables[uuid];
     await conn.close();
-    return totalCount;
   }
 
   async loadParquet(uuid) {
     const db = await this.getDb();
     const conn = await db.connect();
-    if (!this.loadedTables.has(uuid)) {
-      const url = new URL(`/api/parquet/${uuid}.parquet`, window.location).href;
-      await db.registerFileURL(`parquet_${uuid}`, url);
-      await conn.query(`CREATE TABLE "${uuid}" AS SELECT * FROM "${url}"`);
-      this.loadedTables.add(uuid);
+    if (!this.loadedTables[uuid]) {
+      if (this.loadingTablePromises[uuid]) {
+        await this.loadingTablePromises[uuid];
+      } else {
+        const url = new URL(`/api/parquet/${uuid}.parquet`, window.location)
+          .href;
+        this.loadingTablePromises[uuid] = db
+          .registerFileURL(`parquet_${uuid}`, url)
+          .then(() => {
+            return conn.query(
+              `CREATE TABLE "${uuid}" AS SELECT * FROM "${url}"`
+            );
+          })
+          .then(() => {
+            return conn.query(`SELECT COUNT(*) FROM "${uuid}"`);
+          })
+          .then((countResult) => {
+            const count = countResult.toArray()[0][0][0];
+            console.debug(`Loaded parquet file: ${uuid} with ${count} rows`);
+            this.loadedTables[uuid] = count;
+            return count;
+          });
+        await this.loadingTablePromises[uuid];
+        delete this.loadingTablePromises[uuid];
+      }
     }
-    const countResult = await conn.query(`SELECT COUNT(*) FROM "${uuid}"`);
-    const totalCount = countResult.toArray()[0][0][0];
     await conn.close();
-    return totalCount;
+    return this.loadedTables[uuid];
   }
 
   createPaginationSubquery(pageIndex, pageSize) {
@@ -116,7 +138,7 @@ class DuckDB {
   }
 
   async createDataTableView(uuid, keywords, columnIndexes, sortConfig = null) {
-    if (!this.loadedTables.has(uuid)) {
+    if (!this.loadedTables[uuid]) {
       await this.loadParquet(uuid);
     }
     const db = await this.getDb();
@@ -189,7 +211,7 @@ class DuckDB {
   }
 
   async getFullTableWithFilter(uuid, keywords) {
-    if (!this.loadedTables.has(uuid)) {
+    if (!this.loadedTables[uuid]) {
       await this.loadParquet(uuid);
     }
     const db = await this.getDb();
@@ -235,7 +257,8 @@ class DuckDB {
 
   async createWorkingTable(histories) {
     const { workingTableColumns, columnsMapping } =
-      this.createColumnMappingForHistoriesStrict(histories);
+      this.createColumnMappingForHistories(histories);
+    this.createColumnMappingForHistories(histories);
     const withClause = this.createWithClauseForWorkingTable(columnsMapping);
     const joinCaluses = histories.map((h) =>
       this.createJoinCaluseForHistory(h, columnsMapping, workingTableColumns)
@@ -246,9 +269,9 @@ class DuckDB {
       .join(" UNION ALL ")})`;
     const fullQuery = `CREATE VIEW "${WORKING_TABLE_NAME}" AS (${unionCaluse})`;
     await this.resetWorkingTable();
-    for (let id of Object.keys(columnsMapping)) {
-      await this.loadParquet(id);
-    }
+    await Promise.all(
+      Object.keys(columnsMapping).map((id) => this.loadParquet(id))
+    );
     const db = await this.getDb();
     const conn = await db.connect();
     console.debug(fullQuery);
@@ -257,11 +280,10 @@ class DuckDB {
     await conn.close();
   }
 
-  createWorkingTableQuery(histories) {}
-
   createJoinCaluseForHistory(history, columnsMapping, workingTableColumns) {
     const sourceColumnMapping = columnsMapping[history.resourceStats.uuid];
     const joinCaluses = [];
+    const joinTargetSet = new Set();
     for (let uuid in history.joinedTables) {
       const sourceKey = history.joinedTables[uuid].sourceKey;
       const targetKey = history.joinedTables[uuid].targetKey;
@@ -278,7 +300,8 @@ class DuckDB {
       );
       const joinTargetName =
         targetColumnMapping.columnIndexToMapped[targetKeyIndex];
-      const currentJoinClause = `LEFT JOIN "${targetColumnMapping.alias}" ON "${sourceColumnMapping.alias}"."${joinSourceName}" = "${targetColumnMapping.alias}"."${joinTargetName}"`;
+      joinTargetSet.add(joinTargetName);
+      const currentJoinClause = `LEFT OUTER JOIN "${targetColumnMapping.alias}" ON "${sourceColumnMapping.alias}"."${joinSourceName}" = "${targetColumnMapping.alias}"."${joinTargetName}"`;
       joinCaluses.push(currentJoinClause);
     }
     return `SELECT ${Object.keys(workingTableColumns)
@@ -341,76 +364,83 @@ class DuckDB {
     await conn.query(query);
     await conn.close();
   }
-
-  createColumnMappingForHistoriesStrict(histories) {
-    // In strict mode, tables with any difference in schema as treated as different tables
-    // If there are multiple columns with same name in different tables, they are treated as different columns
-    const schemaToString = (schema) => {
-      return schema.fields.map((f) => f.name).join("***");
-    };
-    const resolveSchemas = (schemas) => {
-      if (schemas.length === 0) {
-        return [];
-      }
-      if (schemas.length === 1) {
-        return schemas[0];
-      }
-      const results = schemas[0].map((field) => {
+  schemaToString(schema) {
+    return schema.fields.map((f) => f.name).join("***");
+  }
+  resolveSchemas(schemas) {
+    if (schemas.length === 0) {
+      return [];
+    }
+    if (schemas.length === 1) {
+      return schemas[0].map((field) => {
         return {
           name: field.name,
           format: field.format,
-          types: new Set(),
+          type: field.type,
         };
       });
-      schemas.forEach((s) => {
-        s.forEach((field, i) => {
-          results[i].types.add(field.type);
-        });
+    }
+    const results = schemas[0].map((field) => {
+      return {
+        name: field.name,
+        format: field.format,
+        types: new Set(),
+      };
+    });
+    schemas.forEach((s) => {
+      s.forEach((field, i) => {
+        results[i].types.add(field.type);
       });
-      results.forEach((f) => {
-        switch (f.types.size) {
-          case 1:
-            f.type = [...f.types][0];
-            break;
-          case 2:
-            if (f.types.has("integer") && f.types.has("number")) {
-              f.type = "number";
-            }
-            if (f.types.has("array") && f.types.has("object")) {
-              f.type = "object";
-            }
-            if (
-              (f.types.has("date") && f.types.has("time")) ||
-              (f.types.has("datetime") && f.types.has("time")) ||
-              (f.types.has("datetime") && f.types.has("date"))
-            ) {
-              f.type = "datetime";
-            }
-            break;
-          case 3:
-            if (
-              f.types.size === 3 &&
-              f.types.has("date") &&
-              f.types.has("time") &&
-              f.types.has("datetime")
-            ) {
-              f.type = "datetime";
-            }
-            break;
-          default:
-            f.type = "string";
-            break;
-        }
-        delete f.types;
-      });
-      return results;
-    };
+    });
+    results.forEach((f) => {
+      switch (f.types.size) {
+        case 1:
+          f.type = [...f.types][0];
+          break;
+        case 2:
+          if (f.types.has("integer") && f.types.has("number")) {
+            f.type = "number";
+          }
+          if (f.types.has("array") && f.types.has("object")) {
+            f.type = "object";
+          }
+          if (
+            (f.types.has("date") && f.types.has("time")) ||
+            (f.types.has("datetime") && f.types.has("time")) ||
+            (f.types.has("datetime") && f.types.has("date"))
+          ) {
+            f.type = "datetime";
+          }
+          break;
+        case 3:
+          if (
+            f.types.size === 3 &&
+            f.types.has("date") &&
+            f.types.has("time") &&
+            f.types.has("datetime")
+          ) {
+            f.type = "datetime";
+          }
+          break;
+        default:
+          f.type = "string";
+          break;
+      }
+      delete f.types;
+    });
+    return results;
+  }
+  createColumnMappingForHistoriesStrict(histories) {
+    // In strict mode, tables with any difference in schema as treated as different tables
+    // If there are multiple columns with same name in different tables, they are treated as different columns.
+    // However, it can causes a confusion on the UI if the two tables have different, but very similar schemas.
+
     const tableGroupsHash = {};
     const columnsMapping = {};
     let tableCouner = 0;
     let schemaCounter = 0;
     histories.forEach((h) => {
-      const schemaString = schemaToString(h.resourceStats.schema);
+      const schemaString = this.schemaToString(h.resourceStats.schema);
       if (!tableGroupsHash[schemaString]) {
         tableGroupsHash[schemaString] = {
           tables: new Set(),
@@ -437,8 +467,7 @@ class DuckDB {
         const targetKeyIndex = schema.fields.findIndex(
           (f) => f.name === h.joinedTables[uuid].targetKey
         );
-        h.joinedTables[uuid].targetKey;
-        const schemaString = schemaToString(schema);
+        const schemaString = this.schemaToString(schema);
         if (!tableGroupsHash[schemaString]) {
           tableGroupsHash[schemaString] = {
             tables: new Set(),
@@ -465,7 +494,7 @@ class DuckDB {
     const workingTableColumns = {};
     const tableGroups = Object.values(tableGroupsHash);
     tableGroups.forEach((tg) => {
-      tg.schema = resolveSchemas(tg.schemas);
+      tg.schema = this.resolveSchemas(tg.schemas);
       delete tg.schemas;
     });
     tableGroups.forEach((tg) => {
@@ -499,7 +528,136 @@ class DuckDB {
     });
     return {
       workingTableColumns,
-      tableGroups,
+      columnsMapping,
+    };
+  }
+
+  createColumnMappingForHistories(histories) {
+    // In standard mode, if there are multiple columns with the same name, we only use the first one. (Unless the column is used as join key).
+    // In this mode, the UI should show an error if the user tries to add a column with the same name to a component.
+    const workingTableNameToColumnMap = {};
+    const columnsMapping = {};
+    const uuidToFieldsMap = {};
+    let idx = 0,
+      tableCouner = 0;
+    histories.forEach((h) => {
+      h.resourceStats.schema.fields.forEach((f) => {
+        if (!workingTableNameToColumnMap[f.name]) {
+          workingTableNameToColumnMap[f.name] = [`${COLUMN_PREFIX}${idx++}`];
+        }
+      });
+      if (!uuidToFieldsMap[h.resourceStats.uuid]) {
+        uuidToFieldsMap[h.resourceStats.uuid] = h.resourceStats.schema.fields;
+      }
+      if (!columnsMapping[h.resourceStats.uuid]) {
+        columnsMapping[h.resourceStats.uuid] = {
+          isMain: true,
+          columnIndexToMapped: [],
+          mappedToColumnIndex: {},
+          alias: `${ALIAS_PREFIX}${tableCouner++}`,
+        };
+      }
+
+      for (let uuid in h.joinedTables) {
+        const schema = h.joinedTables[uuid].targetResourceStats.schema;
+        const targetKeyIndex = schema.fields.findIndex(
+          (f) => f.name === h.joinedTables[uuid].targetKey
+        );
+        schema.fields.forEach((f, i) => {
+          if (!workingTableNameToColumnMap[f.name]) {
+            workingTableNameToColumnMap[f.name] = [`${COLUMN_PREFIX}${idx++}`];
+          } else if (i === targetKeyIndex) {
+            workingTableNameToColumnMap[f.name].push(
+              `${COLUMN_PREFIX}${idx++}`
+            );
+          }
+        });
+        if (!columnsMapping[uuid]) {
+          columnsMapping[uuid] = {
+            isMain: false,
+            columnIndexToMapped: [],
+            mappedToColumnIndex: {},
+            alias: `${ALIAS_PREFIX}${tableCouner++}`,
+            groupByIndex: targetKeyIndex,
+          };
+        }
+        if (!uuidToFieldsMap[uuid]) {
+          uuidToFieldsMap[uuid] = schema.fields;
+        }
+      }
+    });
+    const workingTableColumnToNameMap = {};
+    for (let k in workingTableNameToColumnMap) {
+      for (let ci of workingTableNameToColumnMap[k]) {
+        workingTableColumnToNameMap[ci] = k;
+      }
+    }
+    histories.forEach((h) => {
+      const currWorkingTableNameToColumnMap = JSON.parse(
+        JSON.stringify(workingTableNameToColumnMap)
+      );
+      h.resourceStats.schema.fields.forEach((f, i) => {
+        const currentColumnMappedName =
+          currWorkingTableNameToColumnMap[f.name].shift();
+        columnsMapping[h.resourceStats.uuid].columnIndexToMapped[i] =
+          currentColumnMappedName ? currentColumnMappedName : null;
+      });
+      for (let uuid in h.joinedTables) {
+        const schema = h.joinedTables[uuid].targetResourceStats.schema;
+        schema.fields.forEach((f, j) => {
+          const currentColumnMappedName =
+            currWorkingTableNameToColumnMap[f.name].shift();
+          columnsMapping[uuid].columnIndexToMapped[j] = currentColumnMappedName
+            ? currentColumnMappedName
+            : null;
+        });
+      }
+    });
+    const columnNameToSchemaMap = {};
+    const workingTableColumns = {};
+    for (let uuid in columnsMapping) {
+      const currColumnMapping = columnsMapping[uuid];
+      const fields = uuidToFieldsMap[uuid];
+      currColumnMapping.columnIndexToMapped.forEach((c, i) => {
+        if (!c) {
+          return;
+        }
+        workingTableColumns[c] = undefined;
+        currColumnMapping.mappedToColumnIndex[c] = i;
+        if (!columnNameToSchemaMap[fields[i].name]) {
+          columnNameToSchemaMap[fields[i].name] = [];
+        }
+        columnNameToSchemaMap[fields[i].name].push([fields[i]]);
+      });
+    }
+    for (let cn in columnNameToSchemaMap) {
+      columnNameToSchemaMap[cn] = this.resolveSchemas(
+        columnNameToSchemaMap[cn]
+      )[0];
+    }
+    for (let c in workingTableColumns) {
+      workingTableColumns[c] =
+        columnNameToSchemaMap[workingTableColumnToNameMap[c]];
+    }
+
+    // Fill in nulls for missing columns
+    const allColumnNames = Object.keys(workingTableColumns);
+    histories.forEach((h) => {
+      const currColumns = new Set(
+        columnsMapping[h.resourceStats.uuid].columnIndexToMapped
+      );
+      for (let uuid in h.joinedTables) {
+        columnsMapping[uuid].columnIndexToMapped.forEach((c) =>
+          currColumns.add(c)
+        );
+      }
+      const missingColumns = allColumnNames.filter((c) => !currColumns.has(c));
+      missingColumns.forEach((c) => {
+        columnsMapping[h.resourceStats.uuid].mappedToColumnIndex[c] = null;
+      });
+    });
+    return {
+      workingTableColumns,
       columnsMapping,
     };
   }
