@@ -430,107 +430,6 @@ class DuckDB {
     });
     return results;
   }
-  createColumnMappingForHistoriesStrict(histories) {
-    // In strict mode, tables with any difference in schema as treated as different tables
-    // If there are multiple columns with same name in different tables, they are treated as different columns.
-    // However, it can causes a confusion on the UI if the two tables have different, but very similar schemas.
-
-    const tableGroupsHash = {};
-    const columnsMapping = {};
-    let tableCouner = 0;
-    let schemaCounter = 0;
-    histories.forEach((h) => {
-      const schemaString = this.schemaToString(h.resourceStats.schema);
-      if (!tableGroupsHash[schemaString]) {
-        tableGroupsHash[schemaString] = {
-          tables: new Set(),
-          schemas: [],
-          columns: h.resourceStats.schema.fields.map(
-            (_, i) => `${COLUMN_PREFIX}${schemaCounter}_${i}`
-          ),
-        };
-        schemaCounter += 1;
-      }
-      if (!columnsMapping[h.resourceStats.uuid]) {
-        columnsMapping[h.resourceStats.uuid] = {
-          isMain: true,
-          columnIndexToMapped: [],
-          mappedToColumnIndex: {},
-          alias: `${ALIAS_PREFIX}${tableCouner++}`,
-        };
-      }
-      tableGroupsHash[schemaString].tables.add(h.resourceStats.uuid);
-      tableGroupsHash[schemaString].schemas.push(h.resourceStats.schema.fields);
-
-      for (let uuid in h.joinedTables) {
-        const schema = h.joinedTables[uuid].targetResourceStats.schema;
-        const targetKeyIndex = schema.fields.findIndex(
-          (f) => f.name === h.joinedTables[uuid].targetKey
-        );
-        const schemaString = this.schemaToString(schema);
-        if (!tableGroupsHash[schemaString]) {
-          tableGroupsHash[schemaString] = {
-            tables: new Set(),
-            schemas: [],
-            columns: schema.fields.map(
-              (_, i) => `${COLUMN_PREFIX}${schemaCounter}_${i}`
-            ),
-          };
-          schemaCounter += 1;
-        }
-        if (!columnsMapping[uuid]) {
-          columnsMapping[uuid] = {
-            isMain: false,
-            columnIndexToMapped: [],
-            mappedToColumnIndex: {},
-            alias: `${ALIAS_PREFIX}${tableCouner++}`,
-            groupByIndex: targetKeyIndex,
-          };
-        }
-        tableGroupsHash[schemaString].tables.add(uuid);
-        tableGroupsHash[schemaString].schemas.push(schema.fields);
-      }
-    });
-    const workingTableColumns = {};
-    const tableGroups = Object.values(tableGroupsHash);
-    tableGroups.forEach((tg) => {
-      tg.schema = this.resolveSchemas(tg.schemas);
-      delete tg.schemas;
-    });
-    tableGroups.forEach((tg) => {
-      tg.columns.forEach((c, i) => {
-        workingTableColumns[c] = tg.schema[i];
-      });
-      tg.tables.forEach((uuid) => {
-        const currColumnMapping = columnsMapping[uuid];
-        tg.columns.forEach((column, i) => {
-          currColumnMapping.columnIndexToMapped[i] = column;
-          currColumnMapping.mappedToColumnIndex[column] = i;
-        });
-      });
-    });
-
-    // Fill in nulls for missing columns
-    const allColumnNames = Object.keys(workingTableColumns);
-    histories.forEach((h) => {
-      const currColumns = new Set(
-        columnsMapping[h.resourceStats.uuid].columnIndexToMapped
-      );
-      for (let uuid in h.joinedTables) {
-        columnsMapping[uuid].columnIndexToMapped.forEach((c) =>
-          currColumns.add(c)
-        );
-      }
-      const missingColumns = allColumnNames.filter((c) => !currColumns.has(c));
-      missingColumns.forEach((c) => {
-        columnsMapping[h.resourceStats.uuid].mappedToColumnIndex[c] = null;
-      });
-    });
-    return {
-      workingTableColumns,
-      columnsMapping,
-    };
-  }
 
   createColumnMappingForHistories(histories) {
     // In standard mode, if there are multiple columns with the same name, we only use the first one. (Unless the column is used as join key).
@@ -559,10 +458,10 @@ class DuckDB {
       }
 
       for (let uuid in h.joinedTables) {
-        const schema = h.joinedTables[uuid].targetResourceStats.schema;
-        const targetKeyIndex = schema.fields.findIndex(
+        const targetKeyIndex = h.joinedTables[uuid].targetResourceStats.schema.findIndex(
           (f) => f.name === h.joinedTables[uuid].targetKey
         );
+        const schema = h.joinedTables[uuid].targetResourceStats.schema;
         schema.fields.forEach((f, i) => {
           if (!workingTableNameToColumnMap[f.name]) {
             workingTableNameToColumnMap[f.name] = [`${COLUMN_PREFIX}${idx++}`];
