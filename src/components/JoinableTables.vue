@@ -15,7 +15,7 @@
       </b-list-group-item>
     </b-list-group>
     <b-list-group>
-      <b-list-group-item v-for="(resource, k) in resourcesHash" :key="k">
+      <b-list-group-item v-for="(r, k) in getFilteredResourcesHash()" :key="k">
         <div
           class="
             d-flex
@@ -28,29 +28,29 @@
             <b>
               <div
                 class="inline-color-block"
-                :style="{ 'background-color': resource.color }"
+                :style="{ 'background-color': r.resource.color }"
               ></div>
-              Table: {{ resource.name }}
+              Table: {{ r.resource.name }}
             </b>
           </span>
           <span style="min-width: 142px">
             <b-button
               size="sm"
               variant="secondary"
-              @click="resource.isColumnsVisiable = !resource.isColumnsVisiable"
-              >{{ resource.isColumnsVisiable ? "Hide" : "Columns" }}</b-button
+              @click="r.resource.isColumnsVisiable = !r.resource.isColumnsVisiable"
+              >{{ r.resource.isColumnsVisiable ? "Hide" : "Columns" }}</b-button
             >
             &nbsp;
-            <b-button size="sm" variant="secondary" @click="openTable(resource)"
+            <b-button size="sm" variant="secondary" @click="openTable(r.resource)"
               >Open</b-button
             >
           </span>
         </div>
-        <b-list-group v-show="resource.isColumnsVisiable">
-          <b-list-group-item
-            v-for="(column, i) in filterColumns(resource)"
-            :key="i"
-          >
+
+        <b-list-group
+          v-show="r.resource.isColumnsVisiable"
+        >
+          <b-list-group-item v-for="(column, i) in r.filteredColumns" :key="i">
             <div class="d-flex w-100 justify-content-between">
               <span>{{ column.name }}</span>
               <span>
@@ -58,7 +58,7 @@
                   <b-button
                     size="sm"
                     variant="primary"
-                    @click="showJoinConfigModal(resource, column)"
+                    @click="showJoinConfigModal(r.resource, column)"
                     >Add Column
                   </b-button>
                 </span>
@@ -261,7 +261,6 @@ export default {
       });
       this.$refs.joinConfigModal.show();
     },
-
     closeJoinConfigModal: function () {
       this.joinedColumn = null;
       this.joinConfigModalComponentTables.splice(0);
@@ -325,6 +324,17 @@ export default {
     getJoinedColumnName: function (joinable) {
       return joinable.target_resourcestats.schema.fields[joinable.target_index]
         .name;
+    },
+    getFilteredResourcesHash: function () {
+      const result = {};
+      for (let k in this.resourcesHash) {
+        const resource = this.resourcesHash[k];
+        const filteredColumns = this.filterColumns(resource);
+        if (filteredColumns.length > 0) {
+          result[k] = { resource, filteredColumns };
+        }
+      }
+      return result;
     },
     toggleJoinConfigModalSelections: function (isSelected) {
       const selected = isSelected ? "selected" : "";
