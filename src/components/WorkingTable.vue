@@ -348,7 +348,15 @@ export default {
       await this.loadingPromise;
       this.loadingPromise = null;
     },
-    async dumpCsv() {},
+    async dumpCsv() {
+      this.loadingPromise = DuckDB.dumpCsv(
+        this.viewId ? this.viewId : this.viewName,
+        this.visibleColumns.map((c) => c.title),
+        this.visibleColumns.map((c) => c.key)
+      );
+      await this.loadingPromise;
+      this.loadingPromise = null;
+    },
     async openSharedTable(id) {
       const result = await axios
         .get(`/api/sharedhistories/${id}`)

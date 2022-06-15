@@ -346,7 +346,8 @@ export default {
     async dumpCsv() {
       this.loadingPromise = DuckDB.dumpCsv(
         this.viewId ? this.viewId : this.tableId,
-        this.visibleColumns.map((c) => c.title)
+        this.visibleColumns.map((c) => c.title),
+        this.visibleColumns.map((c) => c.key)
       );
       await this.loadingPromise;
       this.loadingPromise = null;
