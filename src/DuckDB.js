@@ -7,6 +7,7 @@ const WORKING_TABLE_NAME = "__work";
 const ALIAS_PREFIX = "alias_";
 const COLUMN_PREFIX = "column_";
 const ROW_ID = "__row_id";
+const GC_ENABLED = true;
 
 class DuckDB {
   constructor() {
@@ -15,7 +16,8 @@ class DuckDB {
     this.loadingTablePromises = {};
     this.dataTableViews = new Set();
     this.initializationPromise = this.init();
-    this.referenceCounters = {};
+    this.referenceCounts = {};
+    this.workingTableComponents = new Set();
   }
 
   async init() {
@@ -55,7 +57,7 @@ class DuckDB {
     return this.db;
   }
 
-  async tryUnloadTable(uuid, conn = null) {
+  async unloadTable(uuid, conn = null) {
     if (!this.loadedTables[uuid]) {
       return;
     }
@@ -65,7 +67,7 @@ class DuckDB {
       conn = await db.connect();
     }
     try {
-      const query = `DROP TABLE IF EXISTS "${uuid}" RESTRICT`;
+      const query = `DROP TABLE IF EXISTS "${uuid}" CASCADE`;
       console.debug(query);
       await conn.query(query);
       delete this.loadedTables[uuid];
@@ -78,11 +80,18 @@ class DuckDB {
   }
 
   async collectGarbage() {
-    for (let uuid in this.referenceCounters) {
-      if (this.referenceCounters[uuid] === 0) {
-        await this.tryUnloadTable(uuid);
+    if (!GC_ENABLED) {
+      return;
+    }
+    const db = await this.getDb();
+    const conn = await db.connect();
+    for (let uuid in this.referenceCounts) {
+      if (this.referenceCounts[uuid] < 1) {
+        await this.unloadTable(uuid, conn);
+        delete this.referenceCounts[uuid];
       }
     }
+    await conn.close();
   }
 
   async loadParquet(uuid) {
@@ -144,12 +153,10 @@ class DuckDB {
     if (!this.loadedTables[uuid]) {
       await this.loadParquet(uuid);
     }
+    await this.dropDataView(uuid, false);
     const db = await this.getDb();
     const conn = await db.connect();
     const viewName = `${VIEW_PREFIX}${uuid}`;
-    const dropQuery = `DROP VIEW IF EXISTS "${viewName}"`;
-    console.debug(dropQuery);
-    await conn.query(dropQuery);
     const columnCountQuery = `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}') WHERE name != '${ROW_ID}'`;
     console.debug(columnCountQuery);
     const columnCountsResult = await conn.query(columnCountQuery);
@@ -212,6 +219,7 @@ class DuckDB {
     await conn.query(query);
     await conn.close();
     this.dataTableViews.add(viewName);
+    this.incrementReferenceCount(uuid);
     return viewName;
   }
 
@@ -276,16 +284,30 @@ class DuckDB {
     }`;
 
     const fullQuery = `CREATE VIEW "${WORKING_TABLE_NAME}" AS (${unionCaluse})`;
-    await this.resetWorkingTable();
+    // Do not trigger GC right now, because some tables may be reused.
+    await this.resetWorkingTable(false);
+    const workingTableComponents = new Set();
     await Promise.all(
       Object.keys(columnsMapping).map((id) => this.loadParquet(id))
     );
-
+    for (let h of histories) {
+      workingTableComponents.add(h.table.id);
+      if (h.joinedTables) {
+        for (let j in h.joinedTables) {
+          workingTableComponents.add(j);
+        }
+      }
+    }
     const db = await this.getDb();
     const conn = await db.connect();
     console.debug(fullQuery);
     await conn.query(fullQuery);
     await conn.close();
+    this.workingTableComponents = workingTableComponents;
+    workingTableComponents.forEach((uuid) => {
+      this.incrementReferenceCount(uuid);
+    });
+    await this.collectGarbage();
     return {
       viewName: WORKING_TABLE_NAME,
       columnsMapping,
@@ -299,7 +321,6 @@ class DuckDB {
     workingTableColumns,
     orderByRowId = false
   ) {
-    console.log(orderByRowId);
     const sourceColumnMapping = columnsMapping[history.resourceStats.uuid];
     const joinCaluses = [];
     const joinTargetSet = new Set();
@@ -377,12 +398,55 @@ class DuckDB {
     return totalCount;
   }
 
-  async resetWorkingTable() {
+  async resetWorkingTable(triggerGc = true) {
     const db = await this.getDb();
     const conn = await db.connect();
     const query = `DROP VIEW IF EXISTS "${WORKING_TABLE_NAME}"`;
+    for (let uuid of [...this.workingTableComponents]) {
+      await this.decrementReferenceCount(uuid, false);
+    }
+    this.workingTableComponents = new Set();
+
     await conn.query(query);
     await conn.close();
+    if (triggerGc) {
+      await this.collectGarbage();
+    }
+  }
+
+  async dropDataView(uuid, triggerGc = true) {
+    const viewName = `${VIEW_PREFIX}${uuid}`;
+    const dropQuery = `DROP VIEW "${viewName}"`;
+    console.debug(dropQuery);
+    const db = await this.getDb();
+    const conn = await db.connect();
+    try {
+      await conn.query(dropQuery);
+      await this.decrementReferenceCount(uuid, triggerGc);
+    } catch (e) {
+      console.debug(
+        `${viewName} does not exist, the reference count will not be decremented`
+      );
+    } finally {
+      await conn.close();
+    }
+  }
+
+  incrementReferenceCount(uuid) {
+    if (!this.referenceCounts[uuid]) {
+      this.referenceCounts[uuid] = 0;
+    }
+    this.referenceCounts[uuid] += 1;
+  }
+
+  async decrementReferenceCount(uuid, triggerGc = true) {
+    if (!this.referenceCounts[uuid] || this.referenceCounts[uuid] <= 0) {
+      return;
+    }
+    this.referenceCounts[uuid] -= 1;
+    if (triggerGc) {
+      await this.collectGarbage();
+    }
   }
 
   resolveSchemas(schemas) {
@@ -586,7 +650,6 @@ class DuckDB {
   }
 
   async dumpCsv(tableId, header, columnIndexes = null, chunkSize = 10000) {
-    console.log(columnIndexes);
     let handle, writable;
     try {
       const options = {

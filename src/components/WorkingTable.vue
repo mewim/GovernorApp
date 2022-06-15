@@ -71,7 +71,6 @@ export default {
       histories: [],
       logs: [],
       keywords: [],
-      focusedTableId: null,
       isPaginationLoading: false,
       sortOption: {
         sortChange: (params) => {
@@ -249,10 +248,21 @@ export default {
     async resetTable() {
       this.pageIndex = 1;
       this.totalCount = 0;
-      this.tableData.splice(0);
-      this.selectedColumns.splice(0);
-      this.histories.splice(0);
-      this.keywords.splice(0);
+      this.columns = [];
+      this.columnsMapping = {};
+      this.workingTableColumns = {};
+      this.viewName = null;
+      this.tableData = [];
+      this.selectedColumns = [];
+      this.histories = [];
+      this.logs = [];
+      this.keywords = [];
+      this.sortConfig = {
+        key: null,
+        order: null,
+        isNumeric: false,
+      };
+      await DuckDB.resetWorkingTable(true);
     },
     addSelectedColumn(item) {
       if (this.selectedColumns.indexOf(item) >= 0) {
@@ -264,9 +274,6 @@ export default {
       this.selectedColumns.splice(this.selectedColumns.indexOf(item), 1);
     },
     async removeTable(t) {
-      if (t.table.id === this.focusedTableId) {
-        this.focusedTableId = null;
-      }
       this.histories.splice(this.histories.indexOf(t), 1);
       this.pageIndex = 1;
       this.loadingPromise = this.reloadData();

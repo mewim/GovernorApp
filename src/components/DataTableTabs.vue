@@ -93,6 +93,7 @@
 </template>
 
 <script>
+import DuckDB from "../DuckDB";
 export default {
   data() {
     return {
@@ -192,6 +193,7 @@ export default {
             : null;
         }
         this.openedResources.splice(i, 1);
+        DuckDB.dropDataView(id, true);
         break;
       }
       if (this.openedResources.length === 0) {
