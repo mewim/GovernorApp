@@ -61,7 +61,10 @@
       <b-list-group v-show="isLogsVisible">
         <b-list-group-item v-for="(log, i) in logs" :key="i">
           <div class="d-flex w-100 justify-content-between">
-            <span style="width: 350px">
+            <span style="width: 350px" v-if="log.type === 'keyword'"
+              >Add filter keyword: {{ log.keyword }}
+            </span>
+            <span style="width: 350px" v-else>
               Add
               {{
                 log.type === "union"
@@ -71,11 +74,13 @@
               from table:
             </span>
             <span class="history-buttons-span">
-              <b-button size="sm" variant="danger">Undo </b-button>
+              <b-button size="sm" variant="danger" @click="undoLog(log)"
+                >Undo
+              </b-button>
             </span>
           </div>
 
-          <small>
+          <small v-if="log.type !== 'keyword'">
             <div
               class="inline-color-block"
               :style="{ 'background-color': log.table.color }"
@@ -237,6 +242,9 @@ export default {
     },
     addNewKeyword: function (keyword) {
       this.$parent.addNewKeyword(keyword);
+    },
+    undoLog: function (log) {
+      this.$parent.undoLog(log);
     },
     setPrimary: function (row) {
       this.primaryColumn = row.item.key;

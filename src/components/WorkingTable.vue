@@ -310,12 +310,27 @@ export default {
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
+      this.logs.push({
+        type: "keyword",
+        keyword: newKeyWordText,
+        time: new Date(),
+      });
     },
-    async removeKeyword(i) {
-      this.keywords.splice(i, 1);
+    async removeKeyword(i, byIndex = true) {
+      if (!byIndex) {
+        i = this.keywords.indexOf(i);
+      }
+      const removedKeyword = this.keywords.splice(i, 1)[0];
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
+      for (let j = 0; j < this.logs.length; ++j) {
+        const l = this.logs[j];
+        if (l.type === "keyword" && l.keyword === removedKeyword) {
+          this.logs.splice(j, 1);
+          break;
+        }
+      }
     },
     async resetTable() {
       this.pageIndex = 1;
@@ -488,6 +503,11 @@ export default {
     mouseLeaveCell() {
       this.tooltipVisible = false;
       this.tooltipText = "";
+    },
+    undoLog(log) {
+      if (log.type === "keyword") {
+        this.removeKeyword(log.keyword, false);
+      }
     },
   },
   async mounted() {
