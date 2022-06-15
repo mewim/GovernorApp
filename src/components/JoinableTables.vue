@@ -2,19 +2,10 @@
   <div>
     <b-list-group v-show="this.joinableTables.length === 0 || isLoading">
       <b-list-group-item
-        v-if="!primaryColumn"
+        v-if="joinableTables.length === 0 && !isLoading"
         class="d-flex justify-content-between align-items-center"
       >
-        Please select a column as primary to find related columns from other
-        tables.
-      </b-list-group-item>
-
-      <b-list-group-item
-        v-if="joinableTables.length === 0 && !isLoading && primaryColumn"
-        class="d-flex justify-content-between align-items-center"
-      >
-        No foreign column has been found. Please try to select another column as
-        primary.
+        No foreign column has been found.
       </b-list-group-item>
       <b-list-group-item
         v-if="isLoading"
@@ -42,7 +33,7 @@
               Table: {{ resource.name }}
             </b>
           </span>
-          <span style="min-width:142px;">
+          <span style="min-width: 142px">
             <b-button
               size="sm"
               variant="secondary"
@@ -166,10 +157,6 @@ export default {
       type: Array,
       required: true,
     },
-    primaryColumn: {
-      type: String,
-      required: false,
-    },
   },
   data: function () {
     return {
@@ -184,17 +171,6 @@ export default {
   },
   watch: {
     histories: {
-      immediate: true,
-      handler: async function () {
-        if (this.loadingPromise) {
-          await this.loadingPromise;
-        }
-        this.loadingPromise = this.reloadData();
-        await this.loadingPromise;
-        this.loadingPromise = null;
-      },
-    },
-    primaryColumn: {
       immediate: true,
       handler: async function () {
         if (this.loadingPromise) {
@@ -221,19 +197,7 @@ export default {
 
       this.joinableTables.splice(0);
       for (let h of this.histories) {
-        let primaryColumnIndex = null;
-        if (this.primaryColumn) {
-          for (let i = 0; i < h.resourceStats.schema.fields.length; ++i) {
-            if (h.resourceStats.schema.fields[i].name === this.primaryColumn) {
-              primaryColumnIndex = i;
-              break;
-            }
-          }
-        }
-        if (isNaN(parseInt(primaryColumnIndex))) {
-          continue;
-        }
-        const url = `api/keyjoinscores/${h.table.id}?index=${primaryColumnIndex}`;
+        const url = `api/keyjoinscores/${h.table.id}`;
         const data = await axios.get(url).then((res) => res.data);
 
         data.resources.forEach((r) => {
@@ -276,8 +240,21 @@ export default {
     },
     showJoinConfigModal: function (targetResource, column) {
       this.joinedColumn = column;
+      console.log("column", column);
       this.joinConfigModalComponentTables.splice(0);
       this.findJoinables(targetResource.id).forEach((j) => {
+        const history = this.histories.find(
+          (h) => h.table.id === j.source_resource.id
+        );
+        const columnsSet = new Set();
+        if (history && history.joinedTables) {
+          for (let j in history.joinedTables) {
+            history.joinedTables[j].columns.forEach((c) => columnsSet.add(c));
+          }
+          if (columnsSet.has(column.name)) {
+            return;
+          }
+        }
         const jCopy = Object.assign({}, j);
         jCopy.selected = "selected";
         this.joinConfigModalComponentTables.push(jCopy);
@@ -302,19 +279,46 @@ export default {
       });
     },
     filterColumns: function (resource) {
-      const joinables = this.findJoinables(resource.id);
+      let joinables = this.findJoinables(resource.id);
+      const joinedColumnsHash = {};
+      this.histories.forEach((h) => {
+        if (!joinedColumnsHash[h.table.id]) {
+          joinedColumnsHash[h.table.id] = new Set();
+        }
+        if (!h.joinedTables) {
+          return;
+        }
+        for (let j in h.joinedTables) {
+          h.joinedTables[j].columns.forEach((c) =>
+            joinedColumnsHash[h.table.id].add(c)
+          );
+        }
+      });
+      const joinableSources = joinables.map((j) => j.source_resource.id);
       const targerFieldNameSet = new Set(
         joinables.map((j) => j.target_field_name)
       );
       const targetResourceStats = this.resourceStatsHash[resource.id];
-      const sourceColumnSet = new Set();
+      const sourceColumnNames = new Set();
       for (let h of this.histories) {
         h.resourceStats.schema.fields.forEach((f) => {
-          sourceColumnSet.add(f.name);
+          sourceColumnNames.add(f.name);
         });
       }
       const results = targetResourceStats.schema.fields.filter((c) => {
-        return !targerFieldNameSet.has(c.name) && !sourceColumnSet.has(c.name);
+        let joinableNameConflict = true;
+        for (let j of joinableSources) {
+          // If we find at least one source without this column, we can stil join this column, so it should not be removed.
+          if (!joinedColumnsHash[j].has(c.name)) {
+            joinableNameConflict = false;
+            break;
+          }
+        }
+        return (
+          !targerFieldNameSet.has(c.name) &&
+          !sourceColumnNames.has(c.name) &&
+          !joinableNameConflict
+        );
       });
       return results;
     },

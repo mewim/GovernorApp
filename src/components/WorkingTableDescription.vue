@@ -13,9 +13,7 @@
         <h5>Actions</h5>
         <b-button size="sm" @click="resetTable()">Reset Working Table</b-button>
         &nbsp;
-        <b-button size="sm" @click="toggleColor()"
-          >Toggle Color</b-button
-        >
+        <b-button size="sm" @click="toggleColor()">Toggle Color</b-button>
         &nbsp;
         <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
         &nbsp;
@@ -109,29 +107,17 @@
               <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
             </template>
           </template>
-
-          <template #cell(primary)="row">
-            <b-button
-              variant="primary"
-              size="sm"
-              @click="setPrimary(row)"
-              v-if="row.item.key !== primaryColumn"
-            >
-              Set
-            </b-button>
-            <span v-else><b-icon-star-fill></b-icon-star-fill></span>
-          </template>
         </b-table>
-        <hr />
-        <div style="margin-left: 8px; margin-right: 8px">
-          <h6>From Other Tables</h6>
-          <joinable-tables
-            :histories="histories"
-            :primaryColumn="primaryColumn"
-          />
-        </div>
       </div>
     </div>
+
+    <hr />
+
+    <h5>Add Columns from Other Tables</h5>
+              <a href="#" @click="isJoinableTablesVisible = !isJoinableTablesVisible"
+        >[{{ isJoinableTablesVisible ? "Hide" : "Show" }}]</a
+      >
+    <joinable-tables v-show="isJoinableTablesVisible" :histories="histories" />
 
     <hr />
     <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
@@ -163,16 +149,11 @@ export default {
     return {
       isHistoriesShown: true,
       isColumnDetailsVisible: false,
+      isJoinableTablesVisible: false,
       primaryColumn: null,
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "title", label: "Column" },
-        {
-          key: "primary",
-          label: "Primary?",
-          tdClass: "text-center",
-          thClass: "text-center",
-        },
       ],
       sharedLink: "",
     };

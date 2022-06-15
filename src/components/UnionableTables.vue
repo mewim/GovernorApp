@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h5>Rows from Other Tables</h5>
+    <h5>Add Rows from Other Tables</h5>
 
     <div v-show="this.unionableTables.length !== 0">
       <a href="#" @click="isVisible = !isVisible"
