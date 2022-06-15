@@ -350,9 +350,11 @@ class DuckDB {
     const tableIdsString = [...tableIds].join(",");
     return `SELECT ${Object.keys(workingTableColumns)
       .map((c) => `"${c}"`)
-      .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}" FROM "${sourceColumnMapping.alias}"${
-      joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""
-    } ${orderByRowId ? `ORDER BY ${ROW_ID}` : ""}`;
+      .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}" FROM "${
+      sourceColumnMapping.alias
+    }"${joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""} ${
+      orderByRowId ? `ORDER BY ${ROW_ID}` : ""
+    }`;
   }
 
   createWithClauseForWorkingTable(columnsMapping) {

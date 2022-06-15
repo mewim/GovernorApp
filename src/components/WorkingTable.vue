@@ -10,10 +10,10 @@
       ref="workingTableDescription"
     />
     <div class="working-table-inner-container" ref="tableContainer">
-      <div class="table-pagination">
+      <div class="table-pagination" v-if="histories.length > 0">
         <div v-if="isPaginationLoading">
           <b-spinner small></b-spinner>
-          <span>Loading Pageination...</span>
+          <span>Loading Pagination...</span>
         </div>
         <ve-pagination
           v-else
@@ -276,6 +276,11 @@ export default {
     async reloadData(preventReloadColumns = false) {
       this.isPaginationLoading = true;
       console.time("Full reload");
+      if (!this.histories || this.histories.length === 0) {
+        await this.resetTable();
+        this.isPaginationLoading = false;
+        return;
+      }
       const { viewName, columnsMapping, workingTableColumns } =
         await DuckDB.createWorkingTable(
           this.histories,
@@ -361,8 +366,32 @@ export default {
     removeSelectedColumn(item) {
       this.selectedColumns.splice(this.selectedColumns.indexOf(item), 1);
     },
-    async removeTable(t) {
-      this.histories.splice(this.histories.indexOf(t), 1);
+    async removeTable(t, byId = false) {
+      if (byId) {
+        t = this.histories.find((h) => h.table.id === t);
+      }
+      const removedHistory = this.histories.splice(
+        this.histories.indexOf(t),
+        1
+      )[0];
+      const removedTableId = removedHistory.table.id;
+      this.logs = this.logs
+        .map((l) => {
+          if (l.type === "join") {
+            l.sources = l.sources.filter((s) => s.id !== removedTableId);
+          }
+          return l;
+        })
+        .filter((l) => {
+          if (l.type === "union" && l.table.id === removedTableId) {
+            return false;
+          }
+          if (l.type === "join" && l.sources.length === 0) {
+            return false;
+          }
+          return true;
+        });
+
       this.pageIndex = 1;
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
@@ -505,8 +534,17 @@ export default {
       this.tooltipText = "";
     },
     undoLog(log) {
-      if (log.type === "keyword") {
-        this.removeKeyword(log.keyword, false);
+      switch (log.type) {
+        case "join":
+          break;
+        case "keyword":
+          this.removeKeyword(log.keyword, false);
+          break;
+        case "union":
+          this.removeTable(log.table.id, true);
+          break;
+        default:
+          break;
       }
     },
   },

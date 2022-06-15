@@ -11,7 +11,7 @@
       <div class="table-pagination">
         <div v-if="isLoading">
           <b-spinner small></b-spinner>
-          <span>Loading Pageination...</span>
+          <span>Loading Pagination...</span>
         </div>
         <ve-pagination
           v-else
