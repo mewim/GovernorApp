@@ -9,8 +9,13 @@
       v-if="histories.length > 0"
     />
     <div class="working-table-inner-container" ref="tableContainer">
-      <div class="table-pagination" v-show="tableData.length > 0">
+      <div class="table-pagination">
+        <div v-if="isPaginationLoading">
+          <b-spinner small></b-spinner>
+          <span>Loading Pageination...</span>
+        </div>
         <ve-pagination
+          v-else
           :total="totalCount"
           :page-size-option="[10, 15, 25, 50, 100, 200, 500, 1000]"
           :page-index="pageIndex"
@@ -66,6 +71,7 @@ export default {
       logs: [],
       keywords: [],
       focusedTableId: null,
+      isPaginationLoading: false,
       sortOption: {
         sortChange: (params) => {
           this.sortChange(params);
@@ -139,6 +145,7 @@ export default {
       });
     },
     async loadDataForCurrentPage() {
+      console.time("Load data for page " + this.pageIndex);
       this.tableData.splice(0, this.tableData.length);
       (await DuckDB.getFullTable(this.viewName, this.pageIndex, this.pageSize))
         .toArray()
@@ -147,6 +154,7 @@ export default {
           d.rowKey = i;
           this.tableData.push(d);
         });
+      console.timeEnd("Load data for page " + this.pageIndex);
     },
     async addData(metadata) {
       this.$parent.toggleWorkingTable();
@@ -189,6 +197,7 @@ export default {
       this.columns = columns;
     },
     async reloadData() {
+      this.isPaginationLoading = true;
       console.time("Full reload");
       const { viewName, columnsMapping, workingTableColumns } =
         await DuckDB.createWorkingTable(
@@ -202,7 +211,19 @@ export default {
       this.reloadColumns();
       console.log(this.columns);
       await this.loadDataForCurrentPage();
+      this.reloadCount().then(() => {
+        this.isPaginationLoading = false;
+      });
       console.timeEnd("Full reload");
+    },
+    async reloadCount() {
+      console.time("Reloading count");
+      if (this.tableData.length < this.pageSize) {
+        this.totalCount = this.tableData.length;
+      } else {
+        this.totalCount = await DuckDB.getTotalCount(this.viewName);
+      }
+      console.timeEnd("Reloading count");
     },
     async addNewKeyword(newKeyWordText) {
       this.keywords.push(newKeyWordText);
