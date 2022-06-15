@@ -144,7 +144,7 @@ export default {
   computed: {
     visibleColumns: function () {
       const result = this.columns.filter((c) => {
-        return this.selectedColumns.indexOf(c.field) >= 0;
+        return this.selectedColumns.indexOf(c.title) >= 0;
       });
       return result;
     },
@@ -224,7 +224,7 @@ export default {
         const visibleColumnsSet = new Set(visibleColumns);
         this.columns.forEach((c) => {
           if (visibleColumnsSet.has(c.title)) {
-            this.addSelectedColumn(c.field);
+            this.addSelectedColumn(c.title);
           }
         });
       });
@@ -296,6 +296,9 @@ export default {
       await this.loadDataForCurrentPage();
       this.reloadCount().then(() => {
         this.isPaginationLoading = false;
+      });
+      this.selectedColumns = this.selectedColumns.filter((c) => {
+        return this.columns.find((c2) => c2.title === c);
       });
       this.$refs.workingTableDescription.syncSelectedColumns();
       console.timeEnd("Full reload");
@@ -436,12 +439,12 @@ export default {
       this.loadingPromise = null;
       this.columns.forEach((c) => {
         if (c.title === column.name) {
-          this.addSelectedColumn(c.field);
+          this.addSelectedColumn(c.title);
         }
       });
       this.logs.push({
         type: "join",
-        column: column,
+        column: column.name,
         table: joinables[0].target_resource,
         sources: joinables.map((j) => j.source_resource),
         time: new Date(),
@@ -533,9 +536,33 @@ export default {
       this.tooltipVisible = false;
       this.tooltipText = "";
     },
-    undoLog(log) {
+    async undoJoinLog(log) {
+      const sourcesSet = new Set(log.sources.map((s) => s.id));
+      for (let h of this.histories) {
+        if (sourcesSet.has(h.table.id)) {
+          if (h.joinedTables && h.joinedTables[log.table.id]) {
+            h.joinedTables[log.table.id].columns = h.joinedTables[
+              log.table.id
+            ].columns.filter((c) => c !== log.column);
+            console.log(h.joinedTables[log.table.id]);
+            if (h.joinedTables[log.table.id].columns.length === 0) {
+              delete h.joinedTables[log.table.id];
+            }
+            if (Object.keys(h.joinedTables).length === 0) {
+              delete h.joinedTables;
+            }
+          }
+        }
+      }
+      this.loadingPromise = this.reloadData();
+      await this.loadingPromise;
+      this.loadingPromise = null;
+      this.logs = this.logs.filter((l) => l !== log);
+    },
+    async undoLog(log) {
       switch (log.type) {
         case "join":
+          await this.undoJoinLog(log);
           break;
         case "keyword":
           this.removeKeyword(log.keyword, false);

@@ -68,8 +68,8 @@
               Add
               {{
                 log.type === "union"
-                  ? "rows"
-                  : "column" + `"${log.column.name}"`
+                  ? " rows"
+                  : " column" + `"${log.column}"`
               }}
               from table:
             </span>
@@ -209,20 +209,21 @@ export default {
       const rowsToSelect = this.columns
         .map((c, i) => {
           return {
-            key: c.key,
+            title: c.title,
             index: i,
           };
         })
-        .filter((c) => columnSet.has(c.key));
+        .filter((c) => columnSet.has(c.title));
+      console.log(rowsToSelect);
       rowsToSelect.forEach((r) => {
         this.$refs.schemaFieldsTable.selectRow(r.index);
       });
     },
     schemaFieldsTableRowClicked: function (row, idx) {
       if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
-        this.$parent.removeSelectedColumn(row.field);
+        this.$parent.removeSelectedColumn(row.title);
       } else {
-        this.$parent.addSelectedColumn(row.field);
+        this.$parent.addSelectedColumn(row.title);
       }
     },
     removeTable: function (h) {
@@ -245,9 +246,6 @@ export default {
     },
     undoLog: function (log) {
       this.$parent.undoLog(log);
-    },
-    setPrimary: function (row) {
-      this.primaryColumn = row.item.key;
     },
     async share() {
       axios
