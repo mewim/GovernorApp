@@ -24,9 +24,13 @@ const getDb = async () => {
     db = mongoClient.db("opencanada");
     process.on("SIGTERM", () => {
       disconnect();
+      console.log("Shutting down from SIGTERM ...");
+      process.exit(0);
     });
     process.on("SIGINT", () => {
       disconnect();
+      console.log("Shutting down from SIGINT ...");
+      process.exit(0);
     });
   }
   return db;
@@ -39,5 +43,5 @@ const disconnect = () => {
 module.exports = {
   connectMongo,
   getDb,
-  disconnect
+  disconnect,
 };

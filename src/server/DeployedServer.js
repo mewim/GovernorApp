@@ -12,8 +12,3 @@ app.use("/", express.static(distPath, { maxAge: 31536000 }));
 app.listen(PORT, () => {
   console.log("Deployed server started on port:", PORT);
 });
-
-process.on("SIGINT", function () {
-  console.log("Shutting down from SIGINT (Ctrl-C)...");
-  process.exit(0);
-});
