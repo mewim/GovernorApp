@@ -7,6 +7,7 @@ const WORKING_TABLE_NAME = "__work";
 const FILTERED_SORTED_WORKING_TABLE_NAME = "__work_filtered_sorted";
 const ALIAS_PREFIX = "alias_";
 const COLUMN_PREFIX = "column_";
+const ROW_ID = "__row_id";
 
 class DuckDB {
   constructor() {
@@ -97,7 +98,7 @@ class DuckDB {
         this.loadingTablePromises[uuid] = db
           .registerFileURL(`parquet_${uuid}`, url)
           .then(() => {
-            const query = `CREATE TABLE "${uuid}" AS SELECT * FROM "${url}"`;
+            const query = `CREATE TABLE "${uuid}" AS SELECT *, ROW_NUMBER() OVER() as "${ROW_ID}" FROM "${url}"`;
             console.debug(query);
             return conn.query(query);
           })
@@ -150,7 +151,7 @@ class DuckDB {
     const dropQuery = `DROP VIEW IF EXISTS "${viewName}"`;
     console.debug(dropQuery);
     await conn.query(dropQuery);
-    const columnCountQuery = `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}')`;
+    const columnCountQuery = `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}') WHERE name != '${ROW_ID}'`;
     console.debug(columnCountQuery);
     const columnCountsResult = await conn.query(columnCountQuery);
     const columnCounts = columnCountsResult.toArray()[0][0][0];
@@ -265,8 +266,14 @@ class DuckDB {
       this.createColumnMappingForHistories(histories);
     this.createColumnMappingForHistories(histories);
     const withClause = this.createWithClauseForWorkingTable(columnsMapping);
+    const isSorted = sortConfig && sortConfig.key;
     const joinCaluses = histories.map((h) =>
-      this.createJoinCaluseForHistory(h, columnsMapping, workingTableColumns)
+      this.createJoinCaluseForHistory(
+        h,
+        columnsMapping,
+        workingTableColumns,
+        !isSorted || (keywords && keywords.length > 0)
+      )
     );
     const allColumns = Object.keys(workingTableColumns);
     const whereClause =
@@ -293,7 +300,7 @@ class DuckDB {
         : null;
 
     let orderByClause;
-    if (sortConfig && sortConfig.key) {
+    if (isSorted) {
       if (sortConfig.isNumeric) {
         orderByClause = `ORDER BY (CASE WHEN "${
           sortConfig.key
@@ -332,7 +339,13 @@ class DuckDB {
     };
   }
 
-  createJoinCaluseForHistory(history, columnsMapping, workingTableColumns) {
+  createJoinCaluseForHistory(
+    history,
+    columnsMapping,
+    workingTableColumns,
+    orderByRowId = false
+  ) {
+    console.log(orderByRowId);
     const sourceColumnMapping = columnsMapping[history.resourceStats.uuid];
     const joinCaluses = [];
     const joinTargetSet = new Set();
@@ -360,7 +373,7 @@ class DuckDB {
       .map((c) => `"${c}"`)
       .join(", ")} FROM "${sourceColumnMapping.alias}"${
       joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""
-    }`;
+    } ${orderByRowId ? `ORDER BY ${ROW_ID}` : ""}`;
   }
 
   createWithClauseForWorkingTable(columnsMapping) {
@@ -388,7 +401,9 @@ class DuckDB {
         projections.push(currentProjection);
       }
       const projectionString = projections.join(", ");
-      const currentWithClause = `"${alias}" AS (SELECT ${projectionString} FROM "${uuid}"${
+      const currentWithClause = `"${alias}" AS (SELECT ${projectionString}${
+        currentMapping.isMain ? `, "${ROW_ID}"` : ""
+      } FROM "${uuid}"${
         currentMapping.isMain
           ? ""
           : ` GROUP BY "${currentMapping.groupByIndex}"`
