@@ -32,6 +32,7 @@
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
         :columns="visibleColumns"
+        :event-custom-option="eventCustomOption"
         :sort-option="sortOption"
         row-key-field-name="rowKey"
         ref="table"
@@ -39,6 +40,15 @@
       <div class="working-table-empty" v-if="histories.length === 0">
         The working table is currently empty. You can add rows to it by opening
         a file and click on "Add to Working Table" from the right panel.
+      </div>
+    </div>
+    <div
+      class="working-table-tooltip tooltip b-tooltip bs-tooltip-bottom"
+      ref="workingTableToolTip"
+      v-show="tooltipVisible"
+    >
+      <div class="tooltip-inner">
+        {{ tooltipText }}
       </div>
     </div>
   </div>
@@ -49,13 +59,17 @@ import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 import TableColorManger from "../TableColorManager";
 import axios from "axios";
-
+import { createPopper } from "@popperjs/core";
+const TABLE_ID = "__table_id";
+const NULL_TEXT = "NULL";
 export default {
   data() {
     return {
       pageIndex: 1,
       pageSize: 25,
       totalCount: 0,
+      tooltipVisible: false,
+      tooltipText: "",
       virtualScrollOption: {
         enable: true,
       },
@@ -68,6 +82,7 @@ export default {
       loadingPromise: null,
       selectedColumns: [],
       cellStyleOption: {},
+      cellTableMap: {},
       histories: [],
       logs: [],
       keywords: [],
@@ -81,6 +96,20 @@ export default {
         key: null,
         order: null,
         isNumeric: false,
+      },
+      eventCustomOption: {
+        bodyCellEvents: ({ row, column }) => {
+          return {
+            mouseenter: (event) => {
+              console.log(this);
+              this.mouseEnterCell(event, row, column);
+            },
+            mouseleave: (event) => {
+              console.log(this);
+              this.mouseLeaveCell(event, row, column);
+            },
+          };
+        },
       },
     };
   },
@@ -147,12 +176,35 @@ export default {
     async loadDataForCurrentPage() {
       console.time("Load data for page " + this.pageIndex);
       this.tableData.splice(0, this.tableData.length);
+      const cellTableMap = {};
       (await DuckDB.getFullTable(this.viewName, this.pageIndex, this.pageSize))
         .toArray()
         .map((d) => d.toJSON())
         .forEach((d, i) => {
+          const tableIds = d[TABLE_ID].split(",");
+          d[TABLE_ID] = tableIds;
+          for (let k in d) {
+            if (k === TABLE_ID) {
+              continue;
+            }
+            const value = d[k];
+            d[k] = /^[;\s]*$/.test(value) || !value ? NULL_TEXT : value;
+            for (let tableId of tableIds) {
+              if (
+                this.columnsMapping[tableId] &&
+                k in this.columnsMapping[tableId].mappedToColumnIndex
+              ) {
+                if (!cellTableMap[i]) {
+                  cellTableMap[i] = {};
+                }
+                cellTableMap[i][k] = tableId;
+                break;
+              }
+            }
+          }
           d.rowKey = i;
           this.tableData.push(d);
+          this.cellTableMap = cellTableMap;
         });
       console.timeEnd("Load data for page " + this.pageIndex);
     },
@@ -192,14 +244,25 @@ export default {
           title: this.workingTableColumns[k].name,
           width: 300,
           ellipsis: {
-            showTitle: true,
+            showTitle: false,
           },
           sortBy: this.sortConfig.key === k ? this.sortConfig.order : "",
           type: this.workingTableColumns[k].type,
+          renderBodyCell: this.renderBodyCell,
         });
         columnTitles.add(this.workingTableColumns[k].name);
       }
       this.columns = columns;
+    },
+    renderBodyCell({ row, column }, h) {
+      const style = {};
+      const value = row[column.key];
+      const tableId = this.cellTableMap[row.rowKey][column.key];
+      if (this.isColorEnabled && value !== NULL_TEXT) {
+        const color = TableColorManger.getColor(tableId);
+        style.color = color;
+      }
+      return h("span", { style }, value);
     },
     async reloadData(preventReloadColumns = false) {
       this.isPaginationLoading = true;
@@ -254,6 +317,7 @@ export default {
       this.viewName = null;
       this.tableData = [];
       this.selectedColumns = [];
+      this.cellTableMap = {};
       this.histories = [];
       this.logs = [];
       this.keywords = [];
@@ -386,6 +450,36 @@ export default {
       }
       await this.reloadData();
     },
+    mouseEnterCell(event, row, column) {
+      createPopper(
+        event.target.querySelector("span"),
+        this.$refs.workingTableToolTip,
+        {
+          placement: "bottom",
+          modifiers: [
+            {
+              name: "flip",
+              options: {
+                fallbackPlacements: ["top"],
+              },
+            },
+            {
+              name: "offset",
+              options: {
+                offset: [0, 0],
+              },
+            },
+          ],
+        }
+      );
+      const value = row[column.key];
+      this.tooltipText = value;
+      this.tooltipVisible = true;
+    },
+    mouseLeaveCell() {
+      this.tooltipVisible = false;
+      this.tooltipText = "";
+    },
   },
   async mounted() {
     this.loadingInstance = VeLoading({
@@ -442,5 +536,8 @@ export default {
       width: 100%;
     }
   }
+}
+.working-table-tooltip {
+  position: absolute;
 }
 </style>

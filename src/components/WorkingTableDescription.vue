@@ -57,7 +57,7 @@
       <b-list-group>
         <b-list-group-item v-for="(log, i) in logs" :key="i">
           <div class="d-flex w-100 justify-content-between">
-            <span>
+            <span style="width:350px;">
               Add
               {{
                 log.type === "union"
@@ -247,7 +247,7 @@ export default {
 <style lang="scss">
 .working-table-description-container {
   background-color: var(--bs-gray-100);
-  flex-basis: 25%;
+  width:480px;
   padding: 10px;
   overflow-y: scroll;
 }

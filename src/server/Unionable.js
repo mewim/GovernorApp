@@ -59,11 +59,18 @@ router.get("/:uuids", async (req, res) => {
 
   const found = await db
     .collection(COLLECTION)
-    .findOne({ uuids: { $in: uuidArray } });
-  if (!found) {
+    .find({ uuids: { $in: uuidArray } })
+    .toArray();
+  if (found.length === 0) {
     return res.send([]);
   }
-  const targetIds = found.uuids.filter((u) => !uuidSet.has(u));
+  const allUuids = new Set();
+  for (const item of found) {
+    for (const uuid of item.uuids) {
+      allUuids.add(uuid);
+    }
+  }
+  const targetIds = [...allUuids].filter((u) => !uuidSet.has(u));
   const targetIdsSet = new Set(targetIds);
   const matchedResources = (
     await db

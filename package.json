@@ -13,6 +13,7 @@
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.13.1-dev98.0",
     "@elastic/elasticsearch": "^7.15.0",
+    "@popperjs/core": "^2.11.5",
     "add-dashes-to-uuid": "^1.0.0",
     "apache-arrow": "^6.0.1",
     "axios": "^0.23.0",

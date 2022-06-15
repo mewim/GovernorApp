@@ -7,6 +7,7 @@ const WORKING_TABLE_NAME = "__work";
 const ALIAS_PREFIX = "alias_";
 const COLUMN_PREFIX = "column_";
 const ROW_ID = "__row_id";
+const TABLE_ID = "__table_id";
 const GC_ENABLED = true;
 
 class DuckDB {
@@ -324,6 +325,7 @@ class DuckDB {
     const sourceColumnMapping = columnsMapping[history.resourceStats.uuid];
     const joinCaluses = [];
     const joinTargetSet = new Set();
+    const tableIds = new Set([history.table.id]);
     for (let uuid in history.joinedTables) {
       const sourceKey = history.joinedTables[uuid].sourceKey;
       const targetKey = history.joinedTables[uuid].targetKey;
@@ -343,10 +345,12 @@ class DuckDB {
       joinTargetSet.add(joinTargetName);
       const currentJoinClause = `LEFT OUTER JOIN "${targetColumnMapping.alias}" ON "${sourceColumnMapping.alias}"."${joinSourceName}" = "${targetColumnMapping.alias}"."${joinTargetName}"`;
       joinCaluses.push(currentJoinClause);
+      tableIds.add(uuid);
     }
+    const tableIdsString = [...tableIds].join(",");
     return `SELECT ${Object.keys(workingTableColumns)
       .map((c) => `"${c}"`)
-      .join(", ")} FROM "${sourceColumnMapping.alias}"${
+      .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}" FROM "${sourceColumnMapping.alias}"${
       joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""
     } ${orderByRowId ? `ORDER BY ${ROW_ID}` : ""}`;
   }
