@@ -145,13 +145,15 @@
           Jump to table immediately upon open
         </b-form-checkbox>
 
-        <b>Use Cases Discovery Mode</b>
-        <b-form-radio v-model="useCasesDiscoveryMode" value="union-join"
-          >Union + Join</b-form-radio
-        >
-        <b-form-radio v-model="useCasesDiscoveryMode" value="union"
-          >Union Only</b-form-radio
-        >
+        <div v-if="DISCOVERY_MODE">
+          <b>Use Cases Discovery Mode</b>
+          <b-form-radio v-model="useCasesDiscoveryMode" value="union-join"
+            >Union + Join</b-form-radio
+          >
+          <b-form-radio v-model="useCasesDiscoveryMode" value="union"
+            >Union Only</b-form-radio
+          >
+        </div>
       </div>
     </b-modal>
   </div>
@@ -166,6 +168,7 @@ export default {
   name: "Search",
   data() {
     return {
+      DISCOVERY_MODE: true,
       searchBarText: "",
       keyword: "",
       results: [],
@@ -267,6 +270,7 @@ export default {
       lock: true,
       name: "wave",
     });
+    this.DISCOVERY_MODE = window.DISCOVERY_MODE;
   },
   destroyed() {
     this.loadingInstance.destroy();
