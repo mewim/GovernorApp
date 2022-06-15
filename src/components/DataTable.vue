@@ -333,12 +333,14 @@ export default {
       this.filterColumns();
     },
     async addToWorkingTable() {
-      this.$parent.$refs.workingTable.addData({
-        table: this.resource,
-        dataset: this.dataset,
-        visibleColumns: this.visibleColumns.map((c) => c.title),
-        resourceStats: this.resourceStats,
-      });
+      this.$parent.$refs.workingTable.addData(
+        {
+          table: this.resource,
+          dataset: this.dataset,
+          resourceStats: this.resourceStats,
+        },
+        this.visibleColumns.map((c) => c.title)
+      );
     },
 
     async dumpCsv() {

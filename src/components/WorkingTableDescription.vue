@@ -110,7 +110,6 @@
         </b-table>
       </div>
     </div>
-
     <hr />
 
     <h5>Add Columns from Other Tables</h5>
@@ -202,14 +201,6 @@ export default {
         this.$parent.addSelectedColumn(row.field);
       }
     },
-    showRelatedTables: function (h) {
-      this.$parent.focusOnTable(h.table.id);
-    },
-    hideRelatedTables: function () {
-      window.setTimeout(() => {
-        this.$parent.unfocusOnTable();
-      });
-    },
     removeTable: function (h) {
       this.$parent.removeTable(h);
     },
@@ -236,6 +227,9 @@ export default {
         .post("/api/sharedhistories/", {
           histories: this.histories,
           keywords: this.keywords,
+          selectedColumns: this.selectedColumns,
+          sortConfig: this.$parent.sortConfig,
+          logs: this.logs,
         })
         .then((res) => {
           const id = res.data._id;

@@ -19,7 +19,7 @@ module.exports = (app) => {
       })
     );
   } else {
-    app.use(express.json());
+    app.use(express.json({ limit: "16mb" }));
     app.use("/api", api);
     const filesPath = path.join(__dirname, "..", "..", "data", "files");
     app.use("/files", express.static(filesPath));

@@ -117,10 +117,9 @@ export default {
       const unionable = {
         dataset: dataset,
         table: resource,
-        visibleColumns: [],
         resourceStats,
       };
-      this.$parent.$parent.addData(unionable);
+      this.$parent.$parent.addData(unionable, []);
     },
   },
   props: {

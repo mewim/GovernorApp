@@ -7,6 +7,7 @@
       :columns="columns"
       :keywords="keywords"
       v-if="histories.length > 0"
+      ref="workingTableDescription"
     />
     <div class="working-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -30,7 +31,7 @@
         :virtual-scroll-option="virtualScrollOption"
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
-        :columns="columns"
+        :columns="visibleColumns"
         :sort-option="sortOption"
         row-key-field-name="rowKey"
         ref="table"
@@ -117,7 +118,7 @@ export default {
   computed: {
     visibleColumns: function () {
       const result = this.columns.filter((c) => {
-        return this.selectedColumns.indexOf(c.name) >= 0;
+        return this.selectedColumns.indexOf(c.field) >= 0;
       });
       return result;
     },
@@ -156,7 +157,7 @@ export default {
         });
       console.timeEnd("Load data for page " + this.pageIndex);
     },
-    async addData(metadata) {
+    addData(metadata, visibleColumns) {
       this.$parent.toggleWorkingTable();
       if (this.histories.find((h) => h.table.id === metadata.table.id)) {
         return;
@@ -171,6 +172,12 @@ export default {
         this.loadingPromise = this.reloadData();
         await this.loadingPromise;
         this.loadingPromise = null;
+        const visibleColumnsSet = new Set(visibleColumns);
+        this.columns.forEach((c) => {
+          if (visibleColumnsSet.has(c.title)) {
+            this.addSelectedColumn(c.field);
+          }
+        });
       });
     },
     reloadColumns() {
@@ -210,11 +217,11 @@ export default {
       if (!preventReloadColumns) {
         this.reloadColumns();
       }
-      console.log(this.columns);
       await this.loadDataForCurrentPage();
       this.reloadCount().then(() => {
         this.isPaginationLoading = false;
       });
+      this.$refs.workingTableDescription.syncSelectedColumns();
       console.timeEnd("Full reload");
     },
     async reloadCount() {
@@ -228,6 +235,7 @@ export default {
     },
     async addNewKeyword(newKeyWordText) {
       this.keywords.push(newKeyWordText);
+      this.pageIndex = 1;
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
@@ -247,6 +255,9 @@ export default {
       this.keywords.splice(0);
     },
     addSelectedColumn(item) {
+      if (this.selectedColumns.indexOf(item) >= 0) {
+        return;
+      }
       this.selectedColumns.push(item);
     },
     removeSelectedColumn(item) {
@@ -257,6 +268,7 @@ export default {
         this.focusedTableId = null;
       }
       this.histories.splice(this.histories.indexOf(t), 1);
+      this.pageIndex = 1;
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
@@ -288,12 +300,21 @@ export default {
             columns: [],
           };
         }
+        if (
+          history.joinedTables[targetId].columns.find((c) => c === column.name)
+        ) {
+          return;
+        }
         history.joinedTables[targetId].columns.push(column.name);
       }
-      this.selectedColumns.push(column.name);
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
+      this.columns.forEach((c) => {
+        if (c.title === column.name) {
+          this.addSelectedColumn(c.field);
+        }
+      });
       this.logs.push({
         type: "join",
         column: column,
@@ -334,6 +355,9 @@ export default {
         .then((res) => res.data);
       this.histories = result.histories;
       this.keywords = result.keywords;
+      this.sortConfig = result.sortConfig;
+      this.logs = result.logs;
+      this.selectedColumns = result.selectedColumns;
       await this.reloadData();
     },
   },
@@ -377,7 +401,6 @@ export default {
       border: 1px solid #eee;
       display: flex;
       flex-direction: row;
-      flex-grow: 1;
       justify-content: center;
       padding-top: 4px;
       padding-bottom: 4px;
