@@ -188,15 +188,14 @@ export default {
           ellipsis: {
             showTitle: true,
           },
-          sortBy:
-            parseInt(this.sortConfig.key) === k ? this.sortConfig.order : "",
+          sortBy: this.sortConfig.key === k ? this.sortConfig.order : "",
           type: this.workingTableColumns[k].type,
         });
         columnTitles.add(this.workingTableColumns[k].name);
       }
       this.columns = columns;
     },
-    async reloadData() {
+    async reloadData(preventReloadColumns = false) {
       this.isPaginationLoading = true;
       console.time("Full reload");
       const { viewName, columnsMapping, workingTableColumns } =
@@ -208,7 +207,9 @@ export default {
       this.viewName = viewName;
       this.columnsMapping = columnsMapping;
       this.workingTableColumns = workingTableColumns;
-      this.reloadColumns();
+      if (!preventReloadColumns) {
+        this.reloadColumns();
+      }
       console.log(this.columns);
       await this.loadDataForCurrentPage();
       this.reloadCount().then(() => {
@@ -307,6 +308,9 @@ export default {
         if (params[k]) {
           this.sortConfig.key = k;
           this.sortConfig.order = params[k];
+          this.sortConfig.isNumeric =
+            this.workingTableColumns[k].type === "number" ||
+            this.workingTableColumns[k].type === "integer";
           isSortByColumn = true;
           break;
         }
@@ -314,10 +318,14 @@ export default {
       if (!isSortByColumn) {
         this.sortConfig.key = null;
         this.sortConfig.order = null;
+        this.sortChange.isNumeric = false;
       }
       this.columns.forEach((c) => {
         c.sortBy = this.sortConfig.key === c.key ? this.sortConfig.order : "";
       });
+      this.loadingPromise = this.reloadData();
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
     async dumpCsv() {},
     async openSharedTable(id) {

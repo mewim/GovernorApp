@@ -314,7 +314,7 @@ class DuckDB {
       orderByClause ? orderByClause : ""
     }`;
 
-    const fullQuery = `CREATE TABLE "${WORKING_TABLE_NAME}" AS (${unionCaluse})`;
+    const fullQuery = `CREATE VIEW "${WORKING_TABLE_NAME}" AS (${unionCaluse})`;
     await this.resetWorkingTable();
     await Promise.all(
       Object.keys(columnsMapping).map((id) => this.loadParquet(id))
