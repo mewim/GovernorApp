@@ -25,7 +25,7 @@
         :virtual-scroll-option="virtualScrollOption"
         :cell-style-option="cellStyleOption"
         :tableData="tableData"
-        :columns="focusedTableId ? focusedColumns : visibleColumns"
+        :columns="columns"
         :sort-option="sortOption"
         row-key-field-name="rowKey"
         ref="table"
@@ -41,9 +41,8 @@
 <script>
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
-import TableColorManger from "../TableColorManager";
+// import TableColorManger from "../TableColorManager";
 import axios from "axios";
-const CHUNK_SIZE = 1000;
 
 export default {
   data() {
@@ -55,13 +54,11 @@ export default {
         enable: true,
       },
       columns: [],
+      columnsMapping: {},
+      workingTableColumns: {},
       isColorEnabled: false,
-      allData: [],
-      focusedData: [],
-      focusedColumns: [],
+      viewName: null,
       tableData: [],
-      sortedAllData: null,
-      inferredstats: null,
       loadingPromise: null,
       selectedColumns: [],
       cellStyleOption: {},
@@ -77,6 +74,7 @@ export default {
       sortConfig: {
         key: null,
         order: null,
+        isNumeric: false,
       },
     };
   },
@@ -112,20 +110,25 @@ export default {
   },
   computed: {
     visibleColumns: function () {
-      return this.columns.filter((c) => {
-        return this.selectedColumns.indexOf(c.key) >= 0;
+      const result = this.columns.filter((c) => {
+        return this.selectedColumns.indexOf(c.name) >= 0;
       });
+      return result;
     },
   },
   methods: {
-    pageNumberChange(pageIndex) {
+    async pageNumberChange(pageIndex) {
       this.pageIndex = pageIndex;
       this.loadingPromise = this.loadDataForCurrentPage();
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
-    pageSizeChange(pageSize) {
+    async pageSizeChange(pageSize) {
       this.pageIndex = 1;
       this.pageSize = pageSize;
       this.loadingPromise = this.loadDataForCurrentPage();
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
     forceRerender() {
       this.$nextTick(() => {
@@ -135,18 +138,16 @@ export default {
         backup.forEach((b) => this.tableData.push(b));
       });
     },
-    loadDataForCurrentPage() {
-      const dataSource = this.focusedTableId
-        ? this.focusedData
-        : this.sortedAllData
-        ? this.sortedAllData
-        : this.allData;
-      this.tableData = dataSource.slice(
-        (this.pageIndex - 1) * this.pageSize,
-        this.pageIndex * this.pageSize
-      );
+    async loadDataForCurrentPage() {
+      this.tableData.splice(0, this.tableData.length);
+      (await DuckDB.getFullTable(this.viewName, this.pageIndex, this.pageSize))
+        .toArray()
+        .map((d) => d.toJSON())
+        .forEach((d, i) => {
+          d.rowKey = i;
+          this.tableData.push(d);
+        });
     },
-    async loadInitialTable() {},
     async addData(metadata) {
       this.$parent.toggleWorkingTable();
       if (this.histories.find((h) => h.table.id === metadata.table.id)) {
@@ -164,265 +165,43 @@ export default {
         this.loadingPromise = null;
       });
     },
-    async getJoinedTable(tableId, key, resourceStats) {
-      console.time(`DuckDB table load ${tableId}`);
-      await DuckDB.loadParquet(tableId);
-      console.timeEnd(`DuckDB table load ${tableId}`);
-
-      console.time(`DuckDB table copy ${tableId}`);
-      const tableData = (await DuckDB.getFullTable(tableId)).toArray();
-      console.timeEnd(`DuckDB table copy ${tableId}`);
-      console.time(`Hash table data ${tableId}`);
-      const hashedTableData = [];
-      for (
-        let chunkCounter = 0;
-        chunkCounter < tableData.length / CHUNK_SIZE;
-        ++chunkCounter
-      ) {
-        const chunk = tableData.slice(
-          chunkCounter * CHUNK_SIZE,
-          (chunkCounter + 1) * CHUNK_SIZE
-        );
-        await new Promise((resolve) => {
-          window.setTimeout(() => {
-            for (let i = 0; i < chunk.length; ++i) {
-              const row = chunk[i].toJSON();
-              const rowDict = {};
-              resourceStats.schema.fields.forEach((f, j) => {
-                rowDict[f.name] = row[j];
-              });
-              if (!hashedTableData[rowDict[key]]) {
-                hashedTableData[rowDict[key]] = {};
-              }
-              for (let k in rowDict) {
-                if (k === key) {
-                  continue;
-                }
-                if (!hashedTableData[rowDict[key]][k]) {
-                  hashedTableData[rowDict[key]][k] = [];
-                }
-                hashedTableData[rowDict[key]][k].push(rowDict[k]);
-              }
-            }
-            resolve();
-          });
+    reloadColumns() {
+      const columns = [];
+      const columnTitles = new Set();
+      for (let k in this.workingTableColumns) {
+        if (columnTitles.has(this.workingTableColumns[k].name)) {
+          continue;
+        }
+        columns.push({
+          field: k,
+          key: k,
+          title: this.workingTableColumns[k].name,
+          width: 300,
+          ellipsis: {
+            showTitle: true,
+          },
+          sortBy:
+            parseInt(this.sortConfig.key) === k ? this.sortConfig.order : "",
+          type: this.workingTableColumns[k].type,
         });
+        columnTitles.add(this.workingTableColumns[k].name);
       }
-      console.timeEnd(`Hash table data ${tableId}`);
-      return hashedTableData;
-    },
-    async loadFocusedTable() {
-      if (!this.focusedTableId) {
-        return;
-      }
-      this.focusedData.splice(0);
-      this.focusedColumns.splice(0);
-      this.pageIndex = 1;
-      const columnSet = new Set();
-      const dataSource = this.sortedAllData ? this.sortedAllData : this.allData;
-      for (
-        let chunkCounter = 0;
-        chunkCounter < dataSource.length / CHUNK_SIZE;
-        ++chunkCounter
-      ) {
-        await new Promise((resolve) => {
-          window.setTimeout(() => {
-            dataSource
-              .slice(chunkCounter * CHUNK_SIZE, (chunkCounter + 1) * CHUNK_SIZE)
-              .filter((d) => {
-                const tableId = d.rowKey.split("_")[0];
-                return tableId === this.focusedTableId;
-              })
-              .forEach((d) => {
-                this.focusedData.push(d);
-                Object.keys(d).forEach((k) => columnSet.add(k));
-              });
-            resolve();
-          });
-        });
-      }
-      this.focusedColumns = this.columns.filter((c) => {
-        return this.selectedColumns.indexOf(c.key) >= 0 && columnSet.has(c.key);
-      });
-      this.totalCount = this.focusedData.length;
-    },
-    async focusOnTable(tableId) {
-      this.focusedTableId = tableId;
-      this.loadingPromise = this.loadFocusedTable();
-      await this.loadingPromise;
-      this.loadingPromise = null;
-      this.loadDataForCurrentPage();
-    },
-    unfocusOnTable() {
-      this.focusedTableId = null;
-      this.focusedData.splice(0);
-      this.focusedColumns.splice(0);
-      this.totalCount = this.allData.length;
-      this.loadDataForCurrentPage();
-    },
-    sortTableData() {
-      if (!this.sortConfig.key) {
-        this.sortedAllData = null;
-        return;
-      }
-      const columnTypes = [];
-      for (let h of this.histories) {
-        // First, try to find column key in the base table
-        let colunm = h.resourceStats.schema.fields.find(
-          (f) => f.name === this.sortConfig.key
-        );
-        // If not found, try to find it in all joined tables
-        if (!colunm) {
-          for (let j in h.joinedTables) {
-            colunm = h.joinedTables[j].targetResourceStats.schema.fields.find(
-              (f) => f.name === this.sortConfig.key
-            );
-            if (colunm) {
-              break;
-            }
-          }
-        }
-        if (colunm) {
-          columnTypes.push(colunm.type);
-        }
-      }
-      const isNumericalSorting = columnTypes.every(
-        (t) => t === "integer" || t === "number"
-      );
-      this.sortedAllData = [...this.allData].sort((a, b) => {
-        const order = this.sortConfig.order === "asc" ? 1 : -1;
-        let aValue = a[this.sortConfig.key] ? a[this.sortConfig.key] : "";
-        let bValue = b[this.sortConfig.key] ? b[this.sortConfig.key] : "";
-        if (typeof aValue !== "string") {
-          aValue = aValue.values ? aValue.values.join("; ") : "";
-        }
-        if (typeof bValue !== "string") {
-          bValue = bValue.values ? bValue.values.join("; ") : "";
-        }
-        return isNumericalSorting
-          ? order * (Number(aValue) - Number(bValue))
-          : order * aValue.localeCompare(bValue);
-      });
+      this.columns = columns;
     },
     async reloadData() {
       console.time("Full reload");
-      DuckDB.createWorkingTable(this.histories);
-      this.allData = [];
-      this.columns = [];
-      const columns = {};
-
-      const selectedColumnsSet = new Set();
-      for (let metadata of this.histories) {
-        console.time(`DuckDB table copy ${metadata.table.id}`);
-        const tableData = (
-          await DuckDB.getFullTableWithFilter(metadata.table.id, this.keywords)
-        ).toArray();
-        console.timeEnd(`DuckDB table copy ${metadata.table.id}`);
-        console.time(`Post-process ${metadata.table.id}`);
-        metadata.resourceStats.schema.fields.forEach((f) => {
-          if (!columns[f.name]) {
-            columns[f.name] = [];
-          }
-          columns[f.name].push(metadata.table.id);
-        });
-        metadata.visibleColumns.forEach((c) => {
-          selectedColumnsSet.add(c);
-        });
-        const foreignTables = {};
-        for (let tableId in metadata.joinedTables) {
-          const tableHash = await this.getJoinedTable(
-            tableId,
-            metadata.joinedTables[tableId].targetKey,
-            metadata.joinedTables[tableId].targetResourceStats
-          );
-          foreignTables[tableId] = tableHash;
-          metadata.joinedTables[tableId].columns.forEach((c) => {
-            if (!columns[c]) {
-              columns[c] = [];
-            }
-            columns[c].push(tableId);
-          });
-        }
-        for (
-          let chunkCounter = 0;
-          chunkCounter < tableData.length / CHUNK_SIZE;
-          ++chunkCounter
-        ) {
-          await new Promise((resolve) => {
-            window.setTimeout(() => {
-              for (
-                let i = chunkCounter * CHUNK_SIZE;
-                i < (chunkCounter + 1) * CHUNK_SIZE && i < tableData.length;
-                ++i
-              ) {
-                const row = tableData[i].toJSON();
-                const rowDict = { rowKey: `${metadata.table.id}_${i}` };
-                metadata.resourceStats.schema.fields.forEach((f, j) => {
-                  rowDict[f.name] = row[j];
-                });
-                for (let tableId in metadata.joinedTables) {
-                  const foreignTable = foreignTables[tableId];
-                  const currentJoinedTable = metadata.joinedTables[tableId];
-                  const lookup = rowDict[currentJoinedTable.sourceKey];
-                  const foreignRow = foreignTable[lookup];
-                  if (!foreignRow) {
-                    continue;
-                  }
-                  currentJoinedTable.columns.forEach((c) => {
-                    rowDict[c] = { tableId, values: foreignRow[c] };
-                  });
-                }
-                this.allData.push(rowDict);
-              }
-              resolve();
-            });
-          });
-        }
-        console.timeEnd(`Post-process ${metadata.table.id}`);
-      }
-      if (!(this.sortConfig.key in columns)) {
-        this.sortConfig.key = null;
-        this.sortConfig.order = null;
-      }
-
-      for (let columnName in columns) {
-        this.columns.push({
-          field: columnName,
-          key: columnName,
-          title: columnName,
-          tables: columns[columnName],
-          width: 500,
-          ellipsis: true,
-          sortBy:
-            this.sortConfig.key === columnName ? this.sortConfig.order : "",
-          renderBodyCell: ({ row, column }, h) => {
-            const style = {};
-            const tableId = row.rowKey.split("_")[0];
-            const content = row[column.field];
-            let text = content;
-            if (typeof content !== "string") {
-              text = content ? content.values.join("; ") : "NULL";
-            }
-            if (this.isColorEnabled && content) {
-              style.color = TableColorManger.getColor(
-                typeof content === "string" ? tableId : content.tableId
-              );
-            }
-            return h("span", { style }, text);
-          },
-        });
-      }
-      this.totalCount = this.allData.length;
-      const columnsSet = new Set(this.columns.map((c) => c.key));
-      this.selectedColumns = this.selectedColumns.filter((c) => {
-        return columnsSet.has(c);
-      });
-      selectedColumnsSet.forEach((c) => {
-        this.selectedColumns.push(c);
-      });
-      this.sortTableData();
-      await this.loadFocusedTable();
-      this.loadDataForCurrentPage();
+      const { viewName, columnsMapping, workingTableColumns } =
+        await DuckDB.createWorkingTable(
+          this.histories,
+          this.keywords,
+          this.sortConfig
+        );
+      this.viewName = viewName;
+      this.columnsMapping = columnsMapping;
+      this.workingTableColumns = workingTableColumns;
+      this.reloadColumns();
+      console.log(this.columns);
+      await this.loadDataForCurrentPage();
       console.timeEnd("Full reload");
     },
     async addNewKeyword(newKeyWordText) {
@@ -440,15 +219,9 @@ export default {
     async resetTable() {
       this.pageIndex = 1;
       this.totalCount = 0;
-      this.columns.splice(0);
-      this.allData.splice(0);
       this.tableData.splice(0);
-      this.inferredstats = null;
-      (this.loadingPromise = null), this.selectedColumns.splice(0);
+      this.selectedColumns.splice(0);
       this.histories.splice(0);
-      this.focusedTableId = null;
-      this.focusedData.splice(0);
-      this.focusedColumns.splice(0);
       this.keywords.splice(0);
     },
     addSelectedColumn(item) {
@@ -490,10 +263,10 @@ export default {
             targetKey: joinable.target_field_name,
             targetResourceStats: joinable.target_resourcestats,
             targerResource: joinable.target_resource,
-            columns: new Set(),
+            columns: [],
           };
         }
-        history.joinedTables[targetId].columns.add(column.name);
+        history.joinedTables[targetId].columns.push(column.name);
       }
       this.selectedColumns.push(column.name);
       this.loadingPromise = this.reloadData();
@@ -524,22 +297,6 @@ export default {
       this.columns.forEach((c) => {
         c.sortBy = this.sortConfig.key === c.key ? this.sortConfig.order : "";
       });
-      this.loadingPromise = new Promise((resolve) => {
-        window.setTimeout(() => {
-          this.sortTableData();
-          if (this.focusedTableId) {
-            this.loadFocusedTable().then(() => {
-              this.loadDataForCurrentPage();
-              resolve();
-            });
-          } else {
-            this.loadDataForCurrentPage();
-            resolve();
-          }
-        });
-      });
-      await this.loadingPromise;
-      this.loadingPromise = null;
     },
     async dumpCsv() {},
     async openSharedTable(id) {

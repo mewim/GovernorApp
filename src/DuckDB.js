@@ -4,6 +4,7 @@ const SQLEscape = require("sql-escape");
 const VIEW_PREFIX = "view_";
 const FIRST_TABLE_NAME = "T1";
 const WORKING_TABLE_NAME = "__work";
+const FILTERED_SORTED_WORKING_TABLE_NAME = "__work_filtered_sorted";
 const ALIAS_PREFIX = "alias_";
 const COLUMN_PREFIX = "column_";
 
@@ -14,26 +15,7 @@ class DuckDB {
     this.loadingTablePromises = {};
     this.dataTableViews = new Set();
     this.initializationPromise = this.init();
-  }
-
-  addJoinedTables(source, sourceColumnIndex, target, targertColumnIndex) {
-    this.dataTableViews.add({
-      source,
-      sourceColumnIndex,
-      target,
-      targertColumnIndex,
-    });
-    return [source, target].join("_");
-  }
-
-  decodecolumnIndex(columnIndex) {
-    const split = columnIndex.split("_");
-    return {
-      source: split[0],
-      sourceColumnIndex: split[1],
-      target: split[2],
-      targertColumnIndex: split[3],
-    };
+    this.referenceCounters = {};
   }
 
   async init() {
@@ -73,15 +55,34 @@ class DuckDB {
     return this.db;
   }
 
-  async unloadTable(uuid) {
+  async tryUnloadTable(uuid, conn = null) {
     if (!this.loadedTables[uuid]) {
       return;
     }
-    const db = await this.getDb();
-    const conn = await db.connect();
-    await conn.query(`DROP TABLE IF EXISTS "${uuid}"`);
-    delete this.loadedTables[uuid];
-    await conn.close();
+    const isConnProvided = !!conn;
+    if (!conn) {
+      const db = await this.getDb();
+      conn = await db.connect();
+    }
+    try {
+      const query = `DROP TABLE IF EXISTS "${uuid}" RESTRICT`;
+      console.debug(query);
+      await conn.query(query);
+      delete this.loadedTables[uuid];
+    } catch (e) {
+      console.debug("Cannot unload table:", uuid);
+    }
+    if (!isConnProvided) {
+      await conn.close();
+    }
+  }
+
+  async collectGarbage() {
+    for (let uuid in this.referenceCounters) {
+      if (this.referenceCounters[uuid] === 0) {
+        await this.tryUnloadTable(uuid);
+      }
+    }
   }
 
   async loadParquet(uuid) {
@@ -96,12 +97,14 @@ class DuckDB {
         this.loadingTablePromises[uuid] = db
           .registerFileURL(`parquet_${uuid}`, url)
           .then(() => {
-            return conn.query(
-              `CREATE TABLE "${uuid}" AS SELECT * FROM "${url}"`
-            );
+            const query = `CREATE TABLE "${uuid}" AS SELECT * FROM "${url}"`;
+            console.debug(query);
+            return conn.query(query);
           })
           .then(() => {
-            return conn.query(`SELECT COUNT(*) FROM "${uuid}"`);
+            const query = `SELECT COUNT(*) FROM "${uuid}"`;
+            console.debug(query);
+            return conn.query(query);
           })
           .then((countResult) => {
             const count = countResult.toArray()[0][0][0];
@@ -144,10 +147,12 @@ class DuckDB {
     const db = await this.getDb();
     const conn = await db.connect();
     const viewName = `${VIEW_PREFIX}${uuid}`;
-    await conn.query(`DROP VIEW IF EXISTS "${viewName}"`);
-    const columnCountsResult = await conn.query(
-      `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}')`
-    );
+    const dropQuery = `DROP VIEW IF EXISTS "${viewName}"`;
+    console.debug(dropQuery);
+    await conn.query(dropQuery);
+    const columnCountQuery = `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}')`;
+    console.debug(columnCountQuery);
+    const columnCountsResult = await conn.query(columnCountQuery);
     const columnCounts = columnCountsResult.toArray()[0][0][0];
     const allColumns = [];
     for (let i = 0; i < columnCounts; ++i) {
@@ -255,7 +260,7 @@ class DuckDB {
     return results;
   }
 
-  async createWorkingTable(histories) {
+  async createWorkingTable(histories, keywords = null, sortConfig = null) {
     const { workingTableColumns, columnsMapping } =
       this.createColumnMappingForHistories(histories);
     this.createColumnMappingForHistories(histories);
@@ -263,21 +268,68 @@ class DuckDB {
     const joinCaluses = histories.map((h) =>
       this.createJoinCaluseForHistory(h, columnsMapping, workingTableColumns)
     );
+    const allColumns = Object.keys(workingTableColumns);
+    const whereClause =
+      keywords && keywords.length > 0
+        ? keywords
+            .map((currKeywords) => {
+              const keywordsSplit = currKeywords.toLowerCase().split(" ");
+              const andConditions = [];
+              for (let k of keywordsSplit) {
+                const orConditions = [];
+                for (let f of allColumns) {
+                  const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(
+                    k
+                  )}')`;
+                  orConditions.push(currCondition);
+                }
+                const currentAndConditions = `(${orConditions.join(" OR ")})`;
+                andConditions.push(currentAndConditions);
+              }
+              const currentAndConditions = `(${andConditions.join(" AND ")})`;
+              return `(${currentAndConditions})`;
+            })
+            .join(" OR ")
+        : null;
 
+    let orderByClause;
+    if (sortConfig && sortConfig.key) {
+      if (sortConfig.isNumeric) {
+        orderByClause = `ORDER BY (CASE WHEN "${
+          sortConfig.key
+        }" SIMILAR TO '[+-]?([0-9]*[.])?[0-9]+' THEN "${
+          sortConfig.key
+        }"::FLOAT ELSE NULL END) ${
+          sortConfig.order === "asc" ? "ASC" : "DESC"
+        } NULLS LAST`;
+      } else {
+        orderByClause = `ORDER BY "${sortConfig.key}" ${
+          sortConfig.order === "asc" ? "ASC" : "DESC"
+        } NULLS LAST`;
+      }
+    }
     const unionCaluse = `${withClause} SELECT * FROM (${joinCaluses
       .map((j) => `(${j})`)
-      .join(" UNION ALL ")})`;
+      .join(" UNION ALL ")}) ${whereClause ? `WHERE ${whereClause}` : ""} ${
+      orderByClause ? orderByClause : ""
+    }`;
+
     const fullQuery = `CREATE VIEW "${WORKING_TABLE_NAME}" AS (${unionCaluse})`;
     await this.resetWorkingTable();
     await Promise.all(
       Object.keys(columnsMapping).map((id) => this.loadParquet(id))
     );
+
     const db = await this.getDb();
     const conn = await db.connect();
     console.debug(fullQuery);
-
     await conn.query(fullQuery);
     await conn.close();
+    return {
+      viewName: WORKING_TABLE_NAME,
+      columnsMapping,
+      workingTableColumns,
+    };
   }
 
   createJoinCaluseForHistory(history, columnsMapping, workingTableColumns) {
@@ -359,8 +411,7 @@ class DuckDB {
   async resetWorkingTable() {
     const db = await this.getDb();
     const conn = await db.connect();
-    const tableName = WORKING_TABLE_NAME;
-    const query = `DROP VIEW IF EXISTS "${tableName}"`;
+    const query = `DROP VIEW IF EXISTS "${FILTERED_SORTED_WORKING_TABLE_NAME}"; DROP VIEW IF EXISTS "${WORKING_TABLE_NAME}"`;
     await conn.query(query);
     await conn.close();
   }
@@ -458,11 +509,18 @@ class DuckDB {
       }
 
       for (let uuid in h.joinedTables) {
-        const targetKeyIndex = h.joinedTables[uuid].targetResourceStats.schema.findIndex(
+        const targetKeyIndex = h.joinedTables[
+          uuid
+        ].targetResourceStats.schema.fields.findIndex(
           (f) => f.name === h.joinedTables[uuid].targetKey
         );
-        const schema = h.joinedTables[uuid].targetResourceStats.schema;
-        schema.fields.forEach((f, i) => {
+        const columns = new Set(h.joinedTables[uuid].columns);
+        const fields = h.joinedTables[
+          uuid
+        ].targetResourceStats.schema.fields.filter((f, i) => {
+          return i === targetKeyIndex || columns.has(f.name);
+        });
+        fields.forEach((f, i) => {
           if (!workingTableNameToColumnMap[f.name]) {
             workingTableNameToColumnMap[f.name] = [`${COLUMN_PREFIX}${idx++}`];
           } else if (i === targetKeyIndex) {
@@ -481,7 +539,7 @@ class DuckDB {
           };
         }
         if (!uuidToFieldsMap[uuid]) {
-          uuidToFieldsMap[uuid] = schema.fields;
+          uuidToFieldsMap[uuid] = fields;
         }
       }
     });
@@ -502,8 +560,7 @@ class DuckDB {
           currentColumnMappedName ? currentColumnMappedName : null;
       });
       for (let uuid in h.joinedTables) {
-        const schema = h.joinedTables[uuid].targetResourceStats.schema;
-        schema.fields.forEach((f, j) => {
+        uuidToFieldsMap[uuid].forEach((f, j) => {
           const currentColumnMappedName =
             currWorkingTableNameToColumnMap[f.name].shift();
           columnsMapping[uuid].columnIndexToMapped[j] = currentColumnMappedName
@@ -606,5 +663,6 @@ class DuckDB {
   }
 }
 
+// Singleton instance
 const instance = new DuckDB();
 export default instance;

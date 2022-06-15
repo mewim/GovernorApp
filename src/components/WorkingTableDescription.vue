@@ -14,7 +14,7 @@
         <b-button size="sm" @click="resetTable()">Reset Working Table</b-button>
         &nbsp;
         <b-button size="sm" @click="toggleColor()"
-          >Toggle Color By Table</b-button
+          >Toggle Color</b-button
         >
         &nbsp;
         <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
