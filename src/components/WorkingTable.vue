@@ -101,11 +101,9 @@ export default {
         bodyCellEvents: ({ row, column }) => {
           return {
             mouseenter: (event) => {
-              console.log(this);
               this.mouseEnterCell(event, row, column);
             },
             mouseleave: (event) => {
-              console.log(this);
               this.mouseLeaveCell(event, row, column);
             },
           };
@@ -235,6 +233,16 @@ export default {
       const columns = [];
       const columnTitles = new Set();
       for (let k in this.workingTableColumns) {
+        const tables = new Set();
+        for (let tableId in this.columnsMapping) {
+          if (
+            this.columnsMapping[tableId] &&
+            k in this.columnsMapping[tableId].mappedToColumnIndex &&
+            this.columnsMapping[tableId].mappedToColumnIndex[k] !== null
+          ) {
+            tables.add(tableId);
+          }
+        }
         if (columnTitles.has(this.workingTableColumns[k].name)) {
           continue;
         }
@@ -249,6 +257,7 @@ export default {
           sortBy: this.sortConfig.key === k ? this.sortConfig.order : "",
           type: this.workingTableColumns[k].type,
           renderBodyCell: this.renderBodyCell,
+          tables: Array.from(tables),
         });
         columnTitles.add(this.workingTableColumns[k].name);
       }

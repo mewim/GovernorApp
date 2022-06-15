@@ -54,10 +54,14 @@
       </b-list-group>
       <hr />
       <h5>History</h5>
-      <b-list-group>
+      <a href="#" @click="isLogsVisible = !isLogsVisible"
+        >[{{ isLogsVisible ? "Hide" : "Show" }}]</a
+      >
+      <p></p>
+      <b-list-group v-show="isLogsVisible">
         <b-list-group-item v-for="(log, i) in logs" :key="i">
           <div class="d-flex w-100 justify-content-between">
-            <span style="width:350px;">
+            <span style="width: 350px">
               Add
               {{
                 log.type === "union"
@@ -107,15 +111,27 @@
               <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
             </template>
           </template>
+          <template #cell(tables)="row">
+            <div
+              v-for="id in row.item.tables"
+              :key="id"
+              class="inline-color-block"
+              :style="{
+                'background-color': getColor(id),
+                'margin-right': '4px',
+              }"
+            ></div>
+          </template>
         </b-table>
       </div>
     </div>
     <hr />
 
     <h5>Add Columns from Other Tables</h5>
-              <a href="#" @click="isJoinableTablesVisible = !isJoinableTablesVisible"
-        >[{{ isJoinableTablesVisible ? "Hide" : "Show" }}]</a
-      >
+    <a href="#" @click="isJoinableTablesVisible = !isJoinableTablesVisible"
+      >[{{ isJoinableTablesVisible ? "Hide" : "Show" }}]</a
+    >
+    <p></p>
     <joinable-tables v-show="isJoinableTablesVisible" :histories="histories" />
 
     <hr />
@@ -134,6 +150,7 @@
 
 <script>
 import axios from "axios";
+import TableColorManger from "../TableColorManager";
 export default {
   name: "WorkingTableDescription",
 
@@ -149,10 +166,12 @@ export default {
       isHistoriesShown: true,
       isColumnDetailsVisible: false,
       isJoinableTablesVisible: false,
+      isLogsVisible: false,
       primaryColumn: null,
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "title", label: "Column" },
+        { key: "tables", label: "Tables" },
       ],
       sharedLink: "",
     };
@@ -240,6 +259,9 @@ export default {
           console.log(err);
         });
     },
+    getColor(id) {
+      return TableColorManger.getColor(id);
+    },
   },
 };
 </script>
@@ -247,7 +269,7 @@ export default {
 <style lang="scss">
 .working-table-description-container {
   background-color: var(--bs-gray-100);
-  width:480px;
+  width: 480px;
   padding: 10px;
   overflow-y: scroll;
 }
