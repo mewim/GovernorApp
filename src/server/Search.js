@@ -122,7 +122,6 @@ router.get("/", async (req, res) => {
   splittedKeywords.forEach((k) => {
     must.push({ term: { values: k } });
   });
-  console.log(must)
   const found = await client.search({
     index: "tuples",
     body: {
