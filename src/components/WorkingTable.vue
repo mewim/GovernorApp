@@ -47,7 +47,7 @@
 <script>
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
-// import TableColorManger from "../TableColorManager";
+import TableColorManger from "../TableColorManager";
 import axios from "axios";
 
 export default {
@@ -373,6 +373,17 @@ export default {
       this.sortConfig = result.sortConfig;
       this.logs = result.logs;
       this.selectedColumns = result.selectedColumns;
+      for (let h of this.histories) {
+        TableColorManger.addColor(h.table.id, h.table.color);
+        if (h.joinedTables) {
+          for (let j in h.joinedTables) {
+            TableColorManger.addColor(
+              j,
+              h.joinedTables[j].targerResource.color
+            );
+          }
+        }
+      }
       await this.reloadData();
     },
   },

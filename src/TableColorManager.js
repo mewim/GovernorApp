@@ -12,6 +12,9 @@ class TableColorManger {
     this.colors[tableId] = color;
     return color;
   }
+  addColor(tableId, color) {
+    this.colors[tableId] = color;
+  }
 }
 
 const instance = new TableColorManger();
