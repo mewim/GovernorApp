@@ -217,7 +217,7 @@ const parseNumericalValue = (string) => {
         }
       }
       dataset.push({
-        file_id: uuid,
+        file_id: uuid.split("-").join(""),
         row_number: i,
         fields: Object.keys(rowDict),
         values: Object.values(rowDict),
