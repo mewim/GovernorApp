@@ -44,10 +44,12 @@ class DuckDB {
     const logger = new duckdb.ConsoleLogger();
     const db = new duckdb.AsyncDuckDB(logger, worker);
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    const conn = await db.connect();
     // Create temporary file system (currently not working)
-    // const conn = await db.connect();
     // await conn.query(`PRAGMA temp_directory='/tmp'`);
-    // await conn.close();
+    // Lift memory limit
+    // await conn.query(`PRAGMA memory_limit='2GB';`)
+    await conn.close();
     this.db = db;
     window.duckdb = this;
     console.timeEnd("DuckDB init");
