@@ -68,6 +68,73 @@ router.get("/:uuid", async (req, res) => {
       $match,
     },
     {
+      $group: {
+        _id: "$target_uuid",
+        max_count: {
+          $max: "$query_unique_count",
+        },
+        records: {
+          $push: "$$ROOT",
+        },
+      },
+    },
+    {
+      $project: {
+        items: {
+          $filter: {
+            input: "$records",
+            as: "records",
+            cond: {
+              $eq: ["$$records.query_unique_count", "$max_count"],
+            },
+          },
+        },
+      },
+    },
+    {
+      $unwind: {
+        path: "$items",
+        preserveNullAndEmptyArrays: false,
+      },
+    },
+    {
+      $replaceWith: "$items",
+    },
+    {
+      $group: {
+        _id: "$target_uuid",
+        max_score: {
+          $max: `$${metricsVariableName}`,
+        },
+        records: {
+          $push: "$$ROOT",
+        },
+      },
+    },
+    {
+      $project: {
+        items: {
+          $filter: {
+            input: "$records",
+            as: "records",
+            cond: {
+              $eq: [`$$records.${metricsVariableName}`, "$max_score"],
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        items: {
+          $first: "$items",
+        },
+      },
+    },
+    {
+      $replaceWith: "$items",
+    },
+    {
       $project: {
         _id: false,
         query_index: "$query_index",
