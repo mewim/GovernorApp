@@ -2,11 +2,6 @@
 // NPM: https://www.npmjs.com/package/pg-escape
 // License: MIT
 // Modified for frontend use by removing fs and assert dependency
-
-/**
- * Module dependencies.
- */
-
 /**
  * Reserved word map.
  */
