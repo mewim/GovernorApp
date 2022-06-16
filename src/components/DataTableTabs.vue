@@ -1,19 +1,41 @@
 <template>
   <div class="data-table-tab-container">
-    <div>
+    <div ref="dataTableTabBar">
       <ul role="tablist" class="nav nav-tabs">
         <li>
           <b-button
-            variant="light"
-            @click="toggleTableView()"
+            variant="info"
+            @click="toggleSettings()"
             class="toggle-table-button"
-            ><b-icon :icon="toggleTableViewButtonIcon"></b-icon
+            ><b-icon icon="gear-fill"></b-icon
           ></b-button>
+
+          <b-button
+            v-if="DISCOVERY_MODE"
+            variant="warning"
+            @click="toggleUseCasesDiscovery()"
+            class="toggle-table-button"
+            ><b-icon icon="eye-fill"></b-icon
+          ></b-button>
+
+          <b-button
+            variant="primary"
+            @click="toggleSearchView()"
+            class="toggle-table-button"
+            ><b-icon icon="search"></b-icon
+          ></b-button>
+
+          <b-button
+            variant="success"
+            @click="toggleWorkingTable()"
+            class="toggle-table-button"
+            ><b-icon icon="table"></b-icon>&nbsp;Working Table</b-button
+          >
         </li>
 
         <li v-for="item in openedResources" :key="item.resource.id">
           <p :class="getTabClass(item.resource.id)">
-            <a href="#" @click="activeResourceId = item.resource.id">{{
+            <a href="#" @click="toggleResource(item.resource.id)">{{
               item.resource.name
             }}</a>
             <span class="close-button" @click="closeResource(item.resource.id)">
@@ -27,75 +49,133 @@
     <div
       class="data-table-container"
       ref="dataTableContainer"
-      v-show="tableViewDisplayed"
+      :style="dataTableContainerStyle"
     >
+      <search-view v-show="isSearchActive" ref="searchView" />
+      <working-table
+        v-show="isWorkingTableActive"
+        :height="tableAreaHeight"
+        :isActive="isWorkingTableActive"
+        ref="workingTable"
+      />
+      <use-cases-discovery
+        v-if="DISCOVERY_MODE"
+        v-show="isUseCasesDiscoveryActive"
+        ref="useCasesDiscovery"
+      >
+      </use-cases-discovery>
       <data-table
         v-for="item in openedResources"
-        v-show="activeResourceId === item.resource.id"
+        v-show="
+          !isSearchActive &&
+          !isWorkingTableActive &&
+          !isUseCasesDiscoveryActive &&
+          activeResourceId === item.resource.id
+        "
         :key="item.resource.id"
-        :selectedFields="item.selectedFields"
-        :showAllRows="item.showAllRows"
         :resource="item.resource"
+        :resourceStats="item.resourceStats"
+        :keyword="item.keyword"
+        :dataset="item.dataset"
         :tableId="item.resource.id"
         :height="tableAreaHeight"
+        :isActive="
+          !isSearchActive &&
+          !isWorkingTableActive &&
+          !isUseCasesDiscoveryActive &&
+          activeResourceId === item.resource.id
+        "
         :ref="`table-${item.resource.id}`"
       />
     </div>
+    <div></div>
   </div>
 </template>
 
 <script>
+import DuckDB from "../DuckDB";
 export default {
   data() {
     return {
       activeResourceId: null,
       openedResources: [],
       tableAreaHeight: 0,
-      tableViewDisplayed: true,
+      isSearchActive: true,
+      isWorkingTableActive: false,
+      isUseCasesDiscoveryActive: false,
+      TABLE_AREA_OFFSET: 40,
+      DISCOVERY_MODE: true,
     };
   },
   props: {},
   watch: {},
   computed: {
-    toggleTableViewButtonIcon: function () {
-      if (this.tableViewDisplayed) {
-        return "arrow-bar-down";
-      }
-      return "arrow-bar-up";
+    dataTableContainerStyle: function () {
+      let height = this.tableAreaHeight;
+      height += this.TABLE_AREA_OFFSET;
+      return { height: `${height}px` };
+    },
+    openedDataTables: function () {
+      return this.openedResources.filter((r) => !r.isJoinedTable);
     },
   },
   methods: {
-    toggleTableView: function () {
-      this.tableViewDisplayed = !this.tableViewDisplayed;
-      this.$emit("tableViewDisplayed", true);
+    toggleSettings: function () {
+      this.$refs.searchView.toggleSettings();
+    },
+    toggleSearchView: function () {
+      this.isWorkingTableActive = false;
+      this.isUseCasesDiscoveryActive = false;
+      this.isSearchActive = true;
+    },
+    toggleWorkingTable: function () {
       this.$nextTick(() => {
         this.updatePreviewAreaHeight();
       });
+      this.isSearchActive = false;
+      this.isUseCasesDiscoveryActive = false;
+      this.isWorkingTableActive = true;
+    },
+    toggleUseCasesDiscovery: function () {
+      this.isSearchActive = false;
+      this.isWorkingTableActive = false;
+      this.isUseCasesDiscoveryActive = true;
+    },
+    toggleResource: function (resourceId) {
+      this.isSearchActive = false;
+      this.isUseCasesDiscoveryActive = false;
+      this.isWorkingTableActive = false;
+      this.activeResourceId = resourceId;
     },
     getTabClass: function (resourceId) {
-      return resourceId === this.activeResourceId
+      return resourceId === this.activeResourceId &&
+        !this.isSearchActive &&
+        !this.isWorkingTableActive &&
+        !this.isUseCasesDiscoveryActive
         ? "nav-link active"
         : "nav-link";
     },
-    openResource: function (r) {
+    openResource: function (r, jumpImmediately, isJoinedTable = false) {
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
           this.activeResourceId = r.resource.id;
-          this.openedResources[i].resource = r.resource;
-          this.$nextTick(() => {
-            this.updatePreviewAreaHeight();
-          });
+          if (!isJoinedTable) {
+            this.openedResources[i].resource = r.resource;
+            this.openedResources[i].dataset = r.dataset;
+            this.openedResources[i].resourceStats = r.resourceStats;
+            this.openedResources[i].keyword = r.keyword;
+          }
           return;
         }
       }
+      r.isJoinedTable = isJoinedTable;
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
-      if (this.openedResources.length === 1) {
-        this.$emit("showTabAreaChanged", true);
+      if (jumpImmediately) {
+        this.isSearchActive = false;
+        this.isWorkingTableActive = false;
+        this.isUseCasesDiscoveryActive = false;
       }
-      this.$nextTick(() => {
-        this.updatePreviewAreaHeight();
-      });
     },
     closeResource: function (id) {
       for (let i = 0; i < this.openedResources.length; ++i) {
@@ -113,41 +193,32 @@ export default {
             : null;
         }
         this.openedResources.splice(i, 1);
+        DuckDB.dropDataView(id, true);
         break;
       }
       if (this.openedResources.length === 0) {
-        this.$emit("showTabAreaChanged", false);
+        this.isSearchActive = true;
       }
-      this.$nextTick(() => {
-        this.updatePreviewAreaHeight();
-      });
-    },
-    setAttributeForResource: function (id, key, newValue) {
-      for (let i = 0; i < this.openedResources.length; ++i) {
-        if (this.openedResources[i].resource.id !== id) {
-          continue;
-        }
-        this.openedResources[i][key] = newValue;
-        break;
-      }
-    },
-    setSelectedFields: function (id, newValue) {
-      this.setAttributeForResource(id, "selectedFields", newValue);
-    },
-    setShowAllRows: function (id, newValue) {
-      this.setAttributeForResource(id, "showAllRows", newValue);
     },
     updatePreviewAreaHeight: function () {
       try {
         this.tableAreaHeight =
-          this.$refs.dataTableContainer.getBoundingClientRect().height;
+          window.innerHeight -
+          this.$refs.dataTableTabBar.getBoundingClientRect().height -
+          this.TABLE_AREA_OFFSET;
       } catch (err) {
-        this.tableAreaHeight = 0;
+        this.tableAreaHeight = window.innerHeight;
       }
+    },
+    useCasesDiscoveryModeChanged: function (isUnion) {
+      this.$refs.useCasesDiscovery.useCasesDiscoveryModeChanged(isUnion);
     },
   },
 
-  mounted() {},
+  mounted() {
+    this.updatePreviewAreaHeight();
+    this.DISCOVERY_MODE = window.DISCOVERY_MODE;
+  },
   created() {
     window.addEventListener("resize", this.updatePreviewAreaHeight);
   },
@@ -158,38 +229,55 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.close-button {
-  color: #6c7572;
-  &:hover {
-    color: #5a6268;
-  }
-  cursor: pointer;
-}
 .nav.nav-tabs {
-  border-top: 1px solid #dee2e6;
-  border-left: 1px solid #dee2e6;
-  border-right: 1px solid #dee2e6;
+  background: var(--bs-gray-700);
+  li {
+    button.btn {
+      border-radius: 0;
+    }
+  }
 }
 .nav-link {
   > a {
+    color: var(--bs-white);
     text-decoration: none;
   }
   &.active {
     > a {
+      color: var(--bs-grey-700);
       cursor: default;
-      color: #495057;
+    }
+    .close-button {
+      > svg {
+        color: var(--bs-gray-600);
+        &:hover {
+          color: var(--bs-gray-500);
+        }
+      }
     }
   }
+  .close-button {
+    > svg {
+      color: var(--bs-white);
+      &:hover {
+        color: var(--bs-gray-300);
+      }
+    }
+    cursor: pointer;
+  }
+}
+.btn.btn-info {
+  color: var(--bs-white);
+}
+.btn.btn-warning {
+  color: var(--bs-white);
 }
 .data-table-tab-container {
   height: 100%;
   display: flex;
   flex-direction: column;
-  .data-table-container {
-    flex-grow: 1;
-  }
 }
 .toggle-table-button {
-  height: 100%;
+  height: 41px;
 }
 </style>

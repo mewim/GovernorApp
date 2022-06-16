@@ -3,9 +3,9 @@
     <div class="searchbar-container">
       <div class="input-group mb-3">
         <b-form-input
-          v-model="searchBarText"
+          v-model.lazy="searchBarText"
           v-on:keyup.enter="searchButtonClicked()"
-          placeholder="Enter a keyword"
+          placeholder="Enter a keyword / UUID"
         ></b-form-input>
         <div class="input-group-append">
           <b-button
@@ -20,14 +20,6 @@
             v-on:click="searchButtonClicked(true)"
             >Search Metadata</b-button
           >
-          <b-button
-            variant="primary"
-            class="search-button"
-            @click="$refs.searchResultSettingsModal.show()"
-            v-if="searchSuccess && results.length > 0"
-          >
-            <b-icon icon="gear-fill"></b-icon>
-          </b-button>
         </div>
       </div>
     </div>
@@ -42,168 +34,101 @@
         class="search-result-cards-container"
         v-if="searchSuccess && results.length > 0"
       >
-        <b-card-group>
-          <b-card
-            v-for="(r, i) in searchResultTableItems"
-            :key="i"
-            :class="{
-              active: selectedResource && r.id === selectedResource.id,
-            }"
+        <b-card v-for="(r, i) in results" :key="i">
+          <template #header>
+            <b>{{ r.title }}</b>
+          </template>
+          <b-card-text
+            v-if="searchResultFields.matched_count && !searchMetadata"
           >
-            <template #header>
-              <a href="#" @click="fileSelected(r.dataset_id, r.id)"
-                ><b>{{ r.file_title }}</b></a
-              >
-            </template>
-            <b-card-text v-if="searchResultFields.dataset_title">
-              <b>Dataset:</b>
-              <a target="_blank" :href="getUrl(r.dataset_id)">
-                {{ r.dataset_title }}
-              </a>
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.matched_count">
-              <b> Matched Count:</b> {{ r.matched_count }}
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.matched_columns">
-              <b> Matched Columns:</b> {{ r.matched_columns.join(", ") }}
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.languages">
-              <b> Languages:</b> {{ r.languages.join(", ") }}
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.subjects">
-              <b> Subjects:&nbsp;</b>
-              <span
-                class="badge rounded-pill bg-primary"
-                v-for="(s, i) in r.subject"
-                :key="i"
-                >{{ s.replaceAll("_", " ") }}</span
-              >
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.portal_release_date">
-              <b> Release Date:</b>
-              {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
-            </b-card-text>
-            <b-card-text v-if="searchResultFields.notes">
-              <b> Notes:</b>
-              {{ r.notes ? r.notes : "N/A" }}
-            </b-card-text>
-          </b-card>
-        </b-card-group>
-      </div>
-      <div class="dataset-description-container" v-if="!!selectedDataset">
-        <div>
-          <h4>
-            Release Date
-            <span class="dataset-description-buttons-container">
-              <b-icon @click="closeDatasetDescription()" icon="x"></b-icon>
-            </span>
-          </h4>
-        </div>
-        <p>{{ selectedDataset.portal_release_date }}</p>
-        <p></p>
-
-        <h4>Subjects</h4>
-        <div>
-          <span
-            class="badge rounded-pill bg-primary"
-            v-for="(s, i) in selectedDataset.subject"
-            :key="i"
-            >{{ s.replaceAll("_", " ") }}</span
-          >
-        </div>
-        <p></p>
-        <h4>Notes</h4>
-        <p>{{ selectedDataset.notes }}</p>
-
-        <p></p>
-        <h4>URL</h4>
-        <a target="_blank" :href="getUrl(selectedDataset.id)">{{
-          getUrl(selectedDataset.id)
-        }}</a>
-        <div v-if="!!selectedResourceStats">
-          <p></p>
-          <h4>Number of Rows</h4>
-          <p>{{ selectedResourceStats.tuples_count }}</p>
-
-          <p></p>
-          <h4>
-            Data
-            <span class="dataset-description-buttons-container">
-              <b-button size="sm" @click="showAllRows = !showAllRows">{{
-                toggleRowText
-              }}</b-button>
-              <b-button
-                size="sm"
-                variant="primary"
-                @click="previewFile(selectedResource.id)"
-                >Open</b-button
-              >
-            </span>
-          </h4>
-
-          <div class="schema-fields-table-container">
-            <b-table
-              ref="schemaFieldsTable"
-              :items="selectedResourceStats.schema.fields"
-              :fields="schemaFields"
-              no-select-on-click
-              selectable
-              @row-selected="schemaFieldsTableRowSelected"
-              @row-clicked="schemaFieldsTableRowClicked"
+            <b> Matched Count:</b> {{ r.matched_count }}
+          </b-card-text>
+          <b-card-text v-if="searchResultFields.subjects">
+            <b> Subjects:&nbsp;</b>
+            <span
+              class="badge rounded-pill bg-primary"
+              v-for="(s, j) in r.subject"
+              :key="j"
+              >{{ s.replaceAll("_", " ") }}</span
             >
-              <template #cell(selected)="{ rowSelected }">
-                <template v-if="rowSelected">
-                  <span class="schema-table-span" aria-hidden="true"
-                    >&check;</span
+          </b-card-text>
+          <b-card-text v-if="searchResultFields.portal_release_date">
+            <b> Release Date:</b>
+            {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
+          </b-card-text>
+          <b-card-text>
+            <b> Notes: </b>
+            <a
+              href="#"
+              @click="r.display_notes = r.display_notes ? '' : r.notes"
+            >
+              {{ r.display_notes ? "Hide" : "Show" }}
+            </a>
+            <p>{{ r.display_notes }}</p>
+          </b-card-text>
+          <div class="file-description-cards-outer-container">
+            <div class="file-description-cards-container">
+              <b-card
+                v-for="(res, i) in r.resources"
+                :key="i"
+                class="mb-2 file-description-card"
+              >
+                <b-card-text
+                  class="file-description-card-title"
+                  :id="res.id + '-title'"
+                  ><a href="#" @click="fileSelected(r.id, res.id)">{{
+                    res.name
+                  }}</a></b-card-text
+                >
+                <b-tooltip
+                  placement="right"
+                  :target="res.id + '-title'"
+                  triggers="hover"
+                >
+                  Open file: <i>{{ res.name }}</i>
+                </b-tooltip>
+                <b-card-text
+                  class="file-description-card-description"
+                  v-if="searchResultFields.languages"
+                >
+                  <b> Language{{ res.language.length > 1 ? "s" : "" }}: </b>
+                  {{ res.language.join(", ") }}
+                </b-card-text>
+                <b-card-text
+                  class="file-description-card-description"
+                  v-if="searchResultFields.matched_count && !searchMetadata"
+                >
+                  <b>
+                    {{ res.matches.count }} match{{
+                      res.matches.count > 1 ? "es" : ""
+                    }}</b
                   >
-                </template>
-                <template v-else>
-                  <span class="schema-table-span" aria-hidden="true"
-                    >&nbsp;</span
+                  on
+                  <span
+                    style="font-style: italic"
+                    >{{res.matches.columns.join(", "),}}</span
                   >
-                </template>
-              </template>
-
-              <template #cell(stats)="row">
-                <b-button variant="primary" size="sm" @click="showStats(row)">
-                  <b-icon icon="bar-chart-line-fill"></b-icon>
-                </b-button>
-              </template>
-            </b-table>
+                </b-card-text>
+              </b-card>
+            </div>
           </div>
-        </div>
+        </b-card>
       </div>
     </div>
-
-    <div
-      class="table-preview-container"
-      v-show="showTabArea"
-      ref="tablePreviewContainer"
-      :class="{ 'table-content-hidden': !tableViewDisplayed }"
-    >
-      <data-table-tabs
-        ref="dataTableTabs"
-        v-on:showTabAreaChanged="showTabArea = !showTabArea"
-        v-on:tableViewDisplayed="tableViewDisplayed = !tableViewDisplayed"
-      />
-    </div>
-
     <b-modal
       ref="searchResultSettingsModal"
-      title="Search Results Fields"
+      title="Settings"
       ok-only
       :hideHeaderClose="true"
       :centered="true"
     >
       <div class="search-results-fields-toggle-container">
+        <b>Search Results Fields</b>
         <b-form-checkbox v-model="searchResultFields.dataset_title">
           Dataset
         </b-form-checkbox>
         <b-form-checkbox v-model="searchResultFields.matched_count">
           Matched Count
-        </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.matched_columns">
-          Matched Columns
         </b-form-checkbox>
         <b-form-checkbox v-model="searchResultFields.languages">
           Languages
@@ -214,133 +139,84 @@
         <b-form-checkbox v-model="searchResultFields.portal_release_date">
           Release Date
         </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.notes">
-          Notes
+
+        <b>Navigation Option</b>
+        <b-form-checkbox v-model="jumpImmediately">
+          Jump to table immediately upon open
         </b-form-checkbox>
+
+        <div v-if="DISCOVERY_MODE">
+          <b>Use Cases Discovery Mode</b>
+          <b-form-radio v-model="useCasesDiscoveryMode" value="union-join"
+            >Union + Join</b-form-radio
+          >
+          <b-form-radio v-model="useCasesDiscoveryMode" value="union"
+            >Union Only</b-form-radio
+          >
+        </div>
       </div>
     </b-modal>
-    <div>
-      <b-modal
-        ref="columnStatsModal"
-        title="Stats"
-        ok-only
-        static
-        :hideHeaderClose="true"
-        :centered="true"
-        size="xl"
-      >
-        <column-stats ref="columnStats" />
-      </b-modal>
-    </div>
   </div>
 </template>
 
 <script>
 import axios from "axios";
 import { VeLoading } from "vue-easytable";
+import TableColorManger from "../TableColorManager";
 
 export default {
   name: "Search",
   data() {
     return {
+      DISCOVERY_MODE: true,
       searchBarText: "",
+      keyword: "",
       results: [],
+      isNotesDisplayed: [],
       searchResultFields: {
         dataset_title: true,
         languages: true,
-        matched_columns: true,
         matched_count: true,
         subjects: false,
         portal_release_date: false,
-        notes: false,
       },
-      schemaFields: [
-        { key: "selected", label: "✓" },
-        { key: "name", label: "Inferred Column Name" },
-        { key: "type", label: "Inferred Column Type" },
-        { key: "stats", label: "Stats" },
-      ],
+      jumpImmediately: true,
       selectedResource: null,
       selectedDataset: null,
       selectedResourceStats: null,
-      previewAreaHeight: 0,
-      selectedFields: [],
-      showAllRows: false,
       searchSuccess: false,
-      openedResources: {},
-      showTabArea: false,
       loadingInstance: null,
-      tableViewDisplayed: true,
+      searchMetadata: false,
+      useCasesDiscoveryMode: "union-join",
     };
   },
   watch: {
-    showAllRows: function (newValue) {
-      this.$refs.dataTableTabs.setShowAllRows(
-        this.selectedResource.id,
-        newValue
-      );
+    useCasesDiscoveryMode(newValue) {
+      this.$parent.useCasesDiscoveryModeChanged(newValue === "union");
     },
   },
-  computed: {
-    toggleRowText: function () {
-      if (this.showAllRows) {
-        return "Show Matched Rows";
-      }
-      return "Show All Rows";
-    },
-    searchResultTableItems: function () {
-      const items = [];
-      this.results.forEach((r) => {
-        r.resources.forEach((rs) => {
-          items.push({
-            id: rs.id,
-            dataset_title: r.title,
-            file_title: rs.name,
-            languages: rs.language,
-            dataset_id: r.id,
-            portal_release_date: r.portal_release_date,
-            matched_columns: rs.matches.columns,
-            matched_count: rs.matches.count,
-            subject: r.subject,
-            notes: r.notes,
-          });
-        });
-      });
-      items.sort((a, b) => b.matched_count - a.matched_count);
-      return items;
-    },
-  },
+  computed: {},
   methods: {
-    showStats: function (row) {
-      const fieldName = row.item.name;
-      const resourceId = this.selectedResource.id;
-      this.$refs.columnStatsModal.show();
-      this.$refs.columnStats.reloadData(resourceId, fieldName);
+    toggleSettings: function () {
+      this.$refs.searchResultSettingsModal.show();
     },
-    schemaFieldsTableRowSelected: function (rows) {
-      this.selectedFields = rows.map((r) => r.name);
-      this.$refs.dataTableTabs.setSelectedFields(
-        this.selectedResource.id,
-        this.selectedFields
-      );
+    shouldShowNotes: function (i) {
+      return this.isNotesDisplayed[i];
     },
-    schemaFieldsTableRowClicked: function (_, idx) {
-      if (this.$refs.schemaFieldsTable.isRowSelected(idx)) {
-        this.$refs.schemaFieldsTable.unselectRow(idx);
-      } else {
-        this.$refs.schemaFieldsTable.selectRow(idx);
-      }
+    toggleNotesDisplayed: function (i) {
+      this.isNotesDisplayed[i] = !this.isNotesDisplayed[i];
     },
     searchButtonClicked: async function (searchMetadata) {
+      this.searchSuccess = false;
+      this.keyword = this.searchBarText;
+      this.searchMetadata = searchMetadata;
       if (this.searchBarText.length === 0) {
-        this.results = [];
+        this.results.splice(0);
         this.searchSuccess = true;
         return;
       }
-      this.results = await this.loadSeachResult(
-        this.searchBarText,
-        searchMetadata
-      );
+      await this.loadSeachResult(this.searchBarText, searchMetadata);
+
       this.searchSuccess = true;
     },
     closeDatasetDescription: function () {
@@ -348,20 +224,22 @@ export default {
       this.selectedDataset = null;
       this.selectedResourceStats = null;
     },
-    previewFile: function () {
-      this.$refs.dataTableTabs.openResource({
-        resource: this.selectedResource,
-        showAllRows: this.showAllRows,
-        selectedFields: this.selectedFields,
-      });
-    },
     loadSeachResult: async function (keyword, searchMetadata) {
+      this.results.splice(0);
+      this.isNotesDisplayed.splice(0);
       const url = searchMetadata ? "/api/search/metadata" : "/api/search/";
       this.loadingInstance.show();
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios.get(url, { params }).then((res) => res.data);
+      results.forEach((r) => {
+        r.resources.forEach(
+          (res) => (res.color = TableColorManger.getColor(res.id))
+        );
+        r.display_notes = "";
+        this.results.push(r);
+        this.isNotesDisplayed.push(false);
+      });
       this.loadingInstance.close();
-      return results;
     },
     getInferredStats: function (fileId) {
       return axios.get(`/api/inferredstats/${fileId}`).then((res) => res.data);
@@ -372,20 +250,15 @@ export default {
         (r) => r.id === fileId
       )[0];
       this.selectedResourceStats = await this.getInferredStats(fileId);
-      this.$nextTick(() => {
-        const matchedColumns = new Set(this.selectedResource.matches.columns);
-        for (
-          let i = 0;
-          i < this.selectedResourceStats.schema.fields.length;
-          ++i
-        ) {
-          if (
-            matchedColumns.has(this.selectedResourceStats.schema.fields[i].name)
-          ) {
-            this.$refs.schemaFieldsTable.selectRow(i);
-          }
-        }
-      });
+      this.$parent.openResource(
+        {
+          resource: this.selectedResource,
+          dataset: this.selectedDataset,
+          resourceStats: this.selectedResourceStats,
+          keyword: this.searchMetadata ? null : this.keyword,
+        },
+        this.jumpImmediately
+      );
     },
     getUrl: function (uuid) {
       return "https://open.canada.ca/data/en/dataset/" + uuid;
@@ -397,6 +270,7 @@ export default {
       lock: true,
       name: "wave",
     });
+    this.DISCOVERY_MODE = window.DISCOVERY_MODE;
   },
   destroyed() {
     this.loadingInstance.destroy();
@@ -412,6 +286,11 @@ export default {
   display: flex;
   flex-direction: column;
 }
+.searchbar-container {
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-top: 10px;
+}
 .search-result-container {
   overflow: hidden;
   display: flex;
@@ -419,24 +298,49 @@ export default {
   flex-grow: 2;
   height: 100%;
 }
-a {
-  color: #42b983;
+.file-description-cards-outer-container {
+  position: relative;
+  .file-description-cards-container {
+    display: flex;
+    max-width: 100%;
+    position: relative;
+    overflow: auto;
+    .file-description-card {
+      min-width: 20rem;
+      max-width: 20rem;
+      .file-description-card-title.card-text {
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+      }
+      .file-description-card-description.card-text {
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+      }
+    }
+  }
 }
 .search-result-cards-container {
   flex-grow: 1;
-  flex-basis: 66.66%;
   overflow-y: scroll;
+  padding-left: 10px;
+  padding-right: 10px;
+
   div.card {
     &.active {
       > .card-header {
         border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
-        background-color: #007bff !important;
+        background-color: var(--bs-blue) !important;
         a {
-          color: #ffffff !important;
+          color: white !important;
         }
       }
     }
-    min-width: 500px;
+    min-width: 1000px;
     border: 1px solid rgba(0, 0, 0, 0.125) !important;
     border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0 !important;
     margin-right: 10px;
@@ -446,43 +350,13 @@ a {
     }
   }
 }
-.dataset-description-container {
-  flex-basis: 33.33%;
-  padding-left: 10px;
-  overflow-y: scroll;
+.sr-only {
+  display: none;
 }
-.dataset-description-buttons-container {
-  float: right;
-  > button:not(:last-child) {
-    margin-right: 4px;
-  }
-  svg {
-    color: #6c7572;
-    &:hover {
-      color: #5a6268;
-    }
-    cursor: pointer;
-  }
-}
-
 .search-result-container > .b-table-sticky-header {
-  flex-basis: 66.66%;
   overflow: scroll;
   flex-grow: 1;
   margin-bottom: 0;
-}
-.table-preview-container {
-  padding-top: 4px;
-  min-height: 50%;
-  max-height: 50%;
-  &.table-content-hidden {
-    flex-grow: 1;
-    min-height: auto;
-  }
-}
-.schema-table-span {
-  width: 10px;
-  display: inline-block;
 }
 span {
   margin-right: 2px;
@@ -499,11 +373,6 @@ span {
 div.search-results-fields-toggle-container {
   label {
     padding-left: 8px;
-  }
-}
-div.schema-fields-table-container {
-  tr {
-    cursor: pointer;
   }
 }
 .search-button {

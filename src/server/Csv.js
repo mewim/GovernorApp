@@ -31,6 +31,10 @@ router.post("/:uuid", async (req, res) => {
     PYTHON_ENCODING_CONVERTER_PATH,
     encoding,
   ]);
+  pythonEncodingConverter.stdin.on("error", () => {
+    // ignore error on SIGKILL of the Python process so we can quit early
+    return;
+  });
   const stream = createReadStream(path.join(CSV_BASE_PATH, `${uuid}.csv`));
   stream.pipe(pythonEncodingConverter.stdin);
   res.setHeader("content-type", "text/csv");
@@ -50,11 +54,6 @@ router.post("/:uuid", async (req, res) => {
     i = skipLines;
   }
   const rowsSet = new Set(rows);
-
-  pythonEncodingConverter.stdin.on("error", () => {
-    // ignore error on SIGKILL of the Python process so we can quit early
-    return;
-  });
 
   pythonEncodingConverter.stdout
     .pipe(csvPaser(paserOptions))

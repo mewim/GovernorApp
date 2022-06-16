@@ -1,11 +1,12 @@
 <template>
   <div id="app">
-    <search-view />
+    <data-table-tabs />
   </div>
 </template>
 
 <script>
-
+import 'bootstrap/dist/css/bootstrap.css'
+import 'bootstrap-vue/dist/bootstrap-vue.css'
 export default {
   name: "App",
 
@@ -14,9 +15,6 @@ export default {
 
 <style>
 #app {
-  padding-top: 20px;
-  padding-left: 10px;
-  padding-right: 10px;
   display: block;
   position: absolute;
   height: 100%;

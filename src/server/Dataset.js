@@ -35,4 +35,18 @@ router.get("/:uuid", async (req, res) => {
   return res.send(found);
 });
 
+router.get("/", async (req, res) => {
+  const db = await mongoUtil.getDb();
+  const resourceId = req.query.resource_id;
+  const found = await db
+    .collection(COLLECTION)
+    .findOne({ "resources.id": resourceId });
+
+  if (!found) {
+    return res.sendStatus(404);
+  }
+
+  return res.send(found);
+});
+
 module.exports = router;

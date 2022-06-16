@@ -2,7 +2,6 @@ const express = require("express");
 const api = require("./API");
 const path = require("path");
 const { createProxyMiddleware } = require("http-proxy-middleware");
-
 module.exports = (app) => {
   if (process.env.PROXY_API_REQUESTS) {
     app.use(
@@ -20,7 +19,7 @@ module.exports = (app) => {
       })
     );
   } else {
-    app.use(express.json());
+    app.use(express.json({ limit: "16mb" }));
     app.use("/api", api);
     const filesPath = path.join(__dirname, "..", "..", "data", "files");
     app.use("/files", express.static(filesPath));

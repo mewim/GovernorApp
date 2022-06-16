@@ -113,16 +113,15 @@ router.get("/metadata", async (req, res) => {
 
 router.get("/", async (req, res) => {
   const db = await mongoUtil.getDb();
-  const keyword = req.query.q;
+  const keyword = req.query.q.toLowerCase();
   if (!keyword) {
     return res.sendStatus(400);
   }
   const splittedKeywords = keyword.split(" ");
   const must = [];
   splittedKeywords.forEach((k) => {
-    must.push({ term: { tuple: k } });
+    must.push({ term: { values: k } });
   });
-
   const found = await client.search({
     index: "tuples",
     body: {
@@ -132,7 +131,7 @@ router.get("/", async (req, res) => {
       query: {
         bool: {
           should: [
-            { match: { tuple: keyword } },
+            { match: { values: keyword } },
             {
               bool: {
                 must,
@@ -147,13 +146,16 @@ router.get("/", async (req, res) => {
   found.body.hits.hits.forEach((b) => {
     const uuid = adddashestouuid(b._source.file_id.split("-").join(""));
     const matchedFields = [];
-    for (let k in b._source.tuple) {
-      if (b._source.tuple[k] === keyword) {
+
+    for(let i = 0; i < b._source.values.length; ++i){
+      const k = b._source.fields[i];
+      const v = String(b._source.values[i]).toLowerCase();
+      if (v.includes(keyword)) {
         matchedFields.push(k);
         continue;
       }
       for (let kw of splittedKeywords) {
-        if (b._source.tuple[k] === kw) {
+        if (v.includes(kw)) {
           matchedFields.push(k);
           break;
         }
@@ -195,12 +197,18 @@ router.get("/", async (req, res) => {
       continue;
     }
     d.resources = d.resources.filter((r) => r.id in documentsMatchedDict);
+    let matchedCount = 0;
     for (let r of d.resources) {
       r.matches = documentsMatchedDict[r.id];
+      matchedCount += r.matches.count;
     }
+    d.matched_count = matchedCount;
     dataSetDict[d._id] = d;
   }
-  res.send(Object.values(dataSetDict));
+  const output = Object.values(dataSetDict).sort(
+    (a, b) => b.matched_count - a.matched_count
+  );
+  res.send(output);
 });
 
 module.exports = router;
