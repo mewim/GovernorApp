@@ -544,7 +544,6 @@ export default {
             h.joinedTables[log.table.id].columns = h.joinedTables[
               log.table.id
             ].columns.filter((c) => c !== log.column);
-            console.log(h.joinedTables[log.table.id]);
             if (h.joinedTables[log.table.id].columns.length === 0) {
               delete h.joinedTables[log.table.id];
             }

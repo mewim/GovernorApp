@@ -10,7 +10,7 @@
         >Add to Working Table</b-button
       >
       &nbsp;
-      <b-button size="sm" @click="toggleColor()">Toggle Color</b-button>
+      <b-button size="sm" @click="toggleColor()" v-if="false">Toggle Color</b-button>
       &nbsp;
       <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
     </div>
@@ -190,7 +190,7 @@ export default {
 <style lang="scss">
 .dataset-description-container {
   background-color: var(--bs-gray-100);
-  width: 480px;
+  width: 500px;
   padding: 10px;
   overflow-y: scroll;
 }

@@ -214,7 +214,6 @@ export default {
           };
         })
         .filter((c) => columnSet.has(c.title));
-      console.log(rowsToSelect);
       rowsToSelect.forEach((r) => {
         this.$refs.schemaFieldsTable.selectRow(r.index);
       });
@@ -262,7 +261,7 @@ export default {
           this.$refs.sharedLinkModal.show();
         })
         .catch((err) => {
-          console.log(err);
+          console.error(err);
         });
     },
     getColor(id) {
@@ -275,7 +274,7 @@ export default {
 <style lang="scss">
 .working-table-description-container {
   background-color: var(--bs-gray-100);
-  width: 480px;
+  width: 500px;
   padding: 10px;
   overflow-y: scroll;
 }

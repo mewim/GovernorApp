@@ -240,7 +240,6 @@ export default {
     },
     showJoinConfigModal: function (targetResource, column) {
       this.joinedColumn = column;
-      console.log("column", column);
       this.joinConfigModalComponentTables.splice(0);
       this.findJoinables(targetResource.id).forEach((j) => {
         const history = this.histories.find(
