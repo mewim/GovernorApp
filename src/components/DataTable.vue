@@ -279,7 +279,7 @@ export default {
       this.isLoading = false;
     },
     async reloadCount() {
-      if (this.tableData.length < this.pageSize) {
+      if (this.pageIndex === 1 && this.tableData.length < this.pageSize) {
         this.totalCount = this.tableData.length;
       } else {
         this.totalCount = await DuckDB.getTotalCount(this.viewId);
