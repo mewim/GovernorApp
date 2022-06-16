@@ -143,9 +143,10 @@ class DuckDB {
   async getFullTable(uuid, pageIndex, pageSize) {
     const db = await this.getDb();
     const conn = await db.connect();
-    const query = `
-      SELECT * FROM "${uuid}"
-      ${this.createPaginationSubquery(pageIndex, pageSize)}`;
+    const query = `SELECT * FROM "${uuid}" ${this.createPaginationSubquery(
+      pageIndex,
+      pageSize
+    )}`;
     console.debug(query);
     const databaseResult = await conn.query(query);
     await conn.close();
