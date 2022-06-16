@@ -14,7 +14,7 @@
         >Toggle Color</b-button
       >
       &nbsp;
-      <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
+      <b-button size="sm" @click="dumpCsv()">Download as CSV</b-button>
     </div>
     <hr />
     <div>

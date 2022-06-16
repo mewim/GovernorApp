@@ -26,17 +26,10 @@
         >
           <span>
             <div>
-              <span>
-                <div
-                  class="inline-color-block"
-                  :style="{ 'background-color': r.resource.color }"
-                ></div>
-                &nbsp; Table: {{ r.resource.name }}</span
-              >
+              <span>Table: {{ r.resource.name }}</span>
             </div>
             <small>
-              <div class="inline-color-block"></div>
-              &nbsp; From: <i>{{ r.datasetName }}</i>
+              From: <i>{{ r.datasetName }}</i>
             </small>
           </span>
           <span style="min-width: 142px">
@@ -212,7 +205,6 @@ export default {
         const data = await axios.get(url).then((res) => res.data);
 
         data.resources.forEach((r) => {
-          r.color = TableColorManger.getColor(r.id);
           this.resourcesHash[r.id] = r;
           this.resourcesHash[r.id].isColumnsVisiable = false;
           this.datasetNameHash[r.id] = h.dataset.title;
@@ -280,6 +272,11 @@ export default {
     addColumn: function () {
       const column = this.joinedColumn;
       const joinables = this.joinConfigModalSelectedComponentTables;
+      for (let j of joinables) {
+        j.target_resource.color = TableColorManger.getColor(
+          j.target_resource.id
+        );
+      }
       this.closeJoinConfigModal();
       this.$parent.$parent.addColumn(joinables, column);
     },

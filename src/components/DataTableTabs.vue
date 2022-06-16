@@ -94,6 +94,7 @@
 
 <script>
 import DuckDB from "../DuckDB";
+import TableColorManger from "../TableColorManager";
 export default {
   data() {
     return {
@@ -155,20 +156,20 @@ export default {
         ? "nav-link active"
         : "nav-link";
     },
-    openResource: function (r, jumpImmediately, isJoinedTable = false) {
+    openResource: function (r, jumpImmediately) {
+      if (!r.resource.color) {
+        r.resource.color = TableColorManger.getColor(r.resource.id);
+      }
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
           this.activeResourceId = r.resource.id;
-          if (!isJoinedTable) {
-            this.openedResources[i].resource = r.resource;
-            this.openedResources[i].dataset = r.dataset;
-            this.openedResources[i].resourceStats = r.resourceStats;
-            this.openedResources[i].keyword = r.keyword;
-          }
+          this.openedResources[i].resource = r.resource;
+          this.openedResources[i].dataset = r.dataset;
+          this.openedResources[i].resourceStats = r.resourceStats;
+          this.openedResources[i].keyword = r.keyword;
           return;
         }
       }
-      r.isJoinedTable = isJoinedTable;
       this.openedResources.push(r);
       this.activeResourceId = r.resource.id;
       if (jumpImmediately) {

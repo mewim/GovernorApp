@@ -172,7 +172,6 @@
 import axios from "axios";
 import adddashestouuid from "add-dashes-to-uuid";
 import { VeLoading } from "vue-easytable";
-import TableColorManger from "../TableColorManager";
 const uuid = require("uuid");
 
 export default {
@@ -229,6 +228,7 @@ export default {
       this.keyword = this.searchBarText;
       this.searchMetadata = isSearchMetadata;
       if (isSearchUUID) {
+        this.searchBarText = this.searchBarText.trim();
         if (
           this.searchBarText.length === 32 &&
           /[0-9A-Fa-f]{32}/g.test(this.searchBarText)
@@ -268,9 +268,6 @@ export default {
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios.get(url, { params }).then((res) => res.data);
       results.forEach((r) => {
-        r.resources.forEach(
-          (res) => (res.color = TableColorManger.getColor(res.id))
-        );
         r.display_notes = "";
         this.results.push(r);
         this.isNotesDisplayed.push(false);
