@@ -37,6 +37,7 @@
             <b-button
               size="sm"
               variant="secondary"
+              style="min-width:75px !important;"
               @click="r.resource.isColumnsVisiable = !r.resource.isColumnsVisiable"
               >{{ r.resource.isColumnsVisiable ? "Hide" : "Columns" }}</b-button
             >

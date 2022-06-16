@@ -1,6 +1,6 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 import papaparse from "papaparse";
-const SQLEscape = require("sql-escape");
+const PGEscape = require("./PGEscape");
 const VIEW_PREFIX = "view_";
 const FIRST_TABLE_NAME = "T1";
 const WORKING_TABLE_NAME = "__work";
@@ -132,6 +132,11 @@ class DuckDB {
     return this.loadedTables[uuid];
   }
 
+  encodeTableIds(tableIds) {
+    const encodedTableIds = [];
+    tableIds.forEach((t) => encodedTableIds.push(t));
+  }
+
   createPaginationSubquery(pageIndex, pageSize) {
     if (!(Number.isInteger(pageIndex) && Number.isInteger(pageSize))) {
       return "";
@@ -202,9 +207,10 @@ class DuckDB {
             for (let k of keywordsSplit) {
               const orConditions = [];
               for (let f of allColumns) {
-                const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(
+                const currCondition = `CONTAINS(LOWER("${f}"),${PGEscape(
+                  "%L",
                   k
-                )}')`;
+                )})`;
                 orConditions.push(currCondition);
               }
               const currentAndConditions = `(${orConditions.join(" OR ")})`;
@@ -251,9 +257,10 @@ class DuckDB {
               for (let k of keywordsSplit) {
                 const orConditions = [];
                 for (let f of allColumns) {
-                  const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(
+                  const currCondition = `CONTAINS(LOWER("${f}"),${PGEscape(
+                    "%L",
                     k
-                  )}')`;
+                  )})`;
                   orConditions.push(currCondition);
                 }
                 const currentAndConditions = `(${orConditions.join(" OR ")})`;
