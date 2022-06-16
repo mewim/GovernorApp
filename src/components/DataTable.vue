@@ -6,6 +6,7 @@
       :resource="resource"
       :keywords="keywords"
       :selectedFields="selectedFields"
+      :dataDictionary="dataDictionary"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -41,9 +42,7 @@
       v-if="isEllipsisEnabled"
       v-show="tooltipVisible"
     >
-      <div class="tooltip-inner">
-        {{ tooltipText }}
-      </div>
+      <div class="tooltip-inner" v-html="tooltipText"></div>
     </div>
   </div>
 </template>
@@ -87,22 +86,33 @@ export default {
         isNumeric: false,
       },
       isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
-      eventCustomOption: IS_ELLIPSIS_ENABLED
-        ? {
-            bodyCellEvents: ({ row, column }) => {
+      eventCustomOption: {
+        bodyCellEvents: IS_ELLIPSIS_ENABLED
+          ? ({ row, column }) => {
               return {
                 mouseenter: (event) => {
                   this.mouseEnterCell(event, row, column);
                 },
-                mouseleave: (event) => {
-                  this.mouseLeaveCell(event, row, column);
+                mouseleave: () => {
+                  this.mouseLeaveCell();
                 },
               };
+            }
+          : undefined,
+        headerCellEvents: ({ column }) => {
+          return {
+            mouseenter: (event) => {
+              this.mouseEnterHeader(event, column);
             },
-          }
-        : {},
+            mouseleave: () => {
+              this.mouseLeaveCell();
+            },
+          };
+        },
+      },
       tooltipVisible: false,
       tooltipText: "",
+      dataDictionary: null,
     };
   },
   props: {
@@ -244,6 +254,10 @@ export default {
           });
         }
       });
+      this.dataDictionary = await axios
+        .get(`api/datadictionaries/${this.tableId}`, {})
+        .then((res) => res.data)
+        .catch(() => {});
       console.time("DuckDB Load");
       await DuckDB.loadParquet(this.tableId);
       console.timeEnd("DuckDB Load");
@@ -413,6 +427,52 @@ export default {
     mouseLeaveCell() {
       this.tooltipVisible = false;
       this.tooltipText = "";
+    },
+
+    mouseEnterHeader(event, column) {
+      if (!this.dataDictionary) {
+        return;
+      }
+      createPopper(event.target, this.$refs.tableToolTip, {
+        placement: "bottom",
+        modifiers: [
+          {
+            name: "offset",
+            options: {
+              offset: [-50, 0],
+            },
+          },
+        ],
+      });
+      this.tooltipText = this.getColumnDescription(column.title);
+      this.tooltipVisible = true;
+    },
+
+    getColumnDescription: function (name, delimiter = "<br/>") {
+      const NO_DESCRIPTION = "(No description available)";
+      if (!this.dataDictionary.fields) {
+        return NO_DESCRIPTION;
+      }
+      const field = this.dataDictionary.fields.find(
+        (f) => f.field_name === name
+      );
+      if (!field) {
+        return NO_DESCRIPTION;
+      }
+      const descriptionText = [];
+      if (field.field_desc) {
+        descriptionText.push(field.field_desc);
+      }
+      if (field.values && field.values.length > 0) {
+        if (descriptionText.length > 0) {
+          descriptionText.push("");
+        }
+        descriptionText.push("Possible values:");
+        field.values.forEach((v) => {
+          descriptionText.push(`- ${v.value_name}: ${v.value_desc}`);
+        });
+      }
+      return descriptionText.join(delimiter);
     },
   },
   mounted() {

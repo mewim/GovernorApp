@@ -10,7 +10,9 @@
         >Add to Working Table</b-button
       >
       &nbsp;
-      <b-button size="sm" @click="toggleColor()" v-if="false">Toggle Color</b-button>
+      <b-button size="sm" @click="toggleColor()" v-if="false"
+        >Toggle Color</b-button
+      >
       &nbsp;
       <b-button size="sm" @click="dumpCsv()">Dump as CSV</b-button>
     </div>
@@ -52,11 +54,24 @@
           </template>
 
           <template #cell(name)="row">
-            <div
-              class="inline-color-block"
-              :style="{ 'background-color': row.item.color }"
-            ></div>
-            <span>&nbsp; {{ row.item.name }}</span>
+            <span
+              v-if="!!dataDictionary"
+              v-b-tooltip.hover.html
+              :title="getColumnDescription(row.item)"
+            >
+              <div
+                class="inline-color-block"
+                :style="{ 'background-color': row.item.color }"
+              ></div>
+              <span>&nbsp; {{ row.item.name }}</span>
+            </span>
+            <span v-else>
+              <div
+                class="inline-color-block"
+                :style="{ 'background-color': row.item.color }"
+              ></div>
+              <span>&nbsp; {{ row.item.name }}</span>
+            </span>
           </template>
 
           <template #cell(stats)="row">
@@ -131,6 +146,7 @@ export default {
   props: {
     dataset: Object,
     resourceStats: Object,
+    dataDictionary: Object,
     resource: Object,
     keywords: Array,
     selectedFields: Array,
@@ -183,11 +199,20 @@ export default {
     addNewKeyword: function (keyword) {
       this.$parent.addNewKeyword(keyword);
     },
+    generateRowId: function (row) {
+      return `column-table-item__${this.resource.id}_${row.item.i}_${row.item.name}`;
+    },
+    getColumnDescription: function (item) {
+      return this.$parent.getColumnDescription(item.name);
+    },
   },
 };
 </script>
 
 <style lang="scss">
+.tooltip-inner {
+  text-align: left !important;
+}
 .dataset-description-container {
   background-color: var(--bs-gray-100);
   width: 500px;
