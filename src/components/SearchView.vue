@@ -168,7 +168,7 @@ export default {
   name: "Search",
   data() {
     return {
-      DISCOVERY_MODE: true,
+      DISCOVERY_MODE: false,
       searchBarText: "",
       keyword: "",
       results: [],
@@ -270,7 +270,7 @@ export default {
       lock: true,
       name: "wave",
     });
-    this.DISCOVERY_MODE = window.DISCOVERY_MODE;
+    this.DISCOVERY_MODE = !!window.DISCOVERY_MODE;
   },
   destroyed() {
     this.loadingInstance.destroy();

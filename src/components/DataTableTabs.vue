@@ -104,7 +104,7 @@ export default {
       isWorkingTableActive: false,
       isUseCasesDiscoveryActive: false,
       TABLE_AREA_OFFSET: 40,
-      DISCOVERY_MODE: true,
+      DISCOVERY_MODE: false,
     };
   },
   props: {},
@@ -217,7 +217,7 @@ export default {
 
   mounted() {
     this.updatePreviewAreaHeight();
-    this.DISCOVERY_MODE = window.DISCOVERY_MODE;
+    this.DISCOVERY_MODE = !!window.DISCOVERY_MODE;
   },
   created() {
     window.addEventListener("resize", this.updatePreviewAreaHeight);
