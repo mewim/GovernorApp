@@ -22,6 +22,7 @@ class DuckDB {
   }
 
   async init() {
+    console.time("DuckDB init");
     if (this.initializationPromise) {
       await this.initializationPromise;
       delete this.initializationPromise;
@@ -45,6 +46,7 @@ class DuckDB {
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
     this.db = db;
     window.duckdb = this;
+    console.timeEnd("DuckDB init");
   }
 
   async getDb() {
@@ -144,7 +146,7 @@ class DuckDB {
     const query = `
       SELECT * FROM "${uuid}"
       ${this.createPaginationSubquery(pageIndex, pageSize)}`;
-
+    console.debug(query);
     const databaseResult = await conn.query(query);
     await conn.close();
     return databaseResult;
@@ -398,6 +400,7 @@ class DuckDB {
     const db = await this.getDb();
     const conn = await db.connect();
     const query = `SELECT COUNT(*) FROM "${tablId}"`;
+    console.debug(query);
     const result = await conn.query(query);
     const totalCount = result.toArray()[0][0][0];
     await conn.close();
@@ -412,7 +415,7 @@ class DuckDB {
       await this.decrementReferenceCount(uuid, false);
     }
     this.workingTableComponents = new Set();
-
+    console.debug(query);
     await conn.query(query);
     await conn.close();
     if (triggerGc) {
