@@ -6,6 +6,7 @@
       :resource="resource"
       :keywords="keywords"
       :selectedFields="selectedFields"
+      :dataDictionary="dataDictionary"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -27,12 +28,21 @@
         :max-height="height"
         :virtual-scroll-option="virtualScrollOption"
         :columns="visibleColumns ? visibleColumns : columns"
+        :event-custom-option="eventCustomOption"
         :table-data="tableData"
         row-key-field-name="rowKey"
         :cell-style-option="cellStyleOption"
         :sort-option="sortOption"
         ref="table"
       />
+    </div>
+    <div
+      class="table-tooltip tooltip b-tooltip bs-tooltip-bottom"
+      ref="tableToolTip"
+      v-if="isEllipsisEnabled"
+      v-show="tooltipVisible"
+    >
+      <div class="tooltip-inner" v-html="tooltipText"></div>
     </div>
   </div>
 </template>
@@ -41,10 +51,13 @@
 import axios from "axios";
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
+import { createPopper } from "@popperjs/core";
+
 const FIRST_TABLE_NAME = "T1";
 
 export default {
   data() {
+    const IS_ELLIPSIS_ENABLED = true;
     return {
       pageIndex: 1,
       pageSize: 25,
@@ -72,6 +85,34 @@ export default {
         order: null,
         isNumeric: false,
       },
+      isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
+      eventCustomOption: {
+        bodyCellEvents: IS_ELLIPSIS_ENABLED
+          ? ({ row, column }) => {
+              return {
+                mouseenter: (event) => {
+                  this.mouseEnterCell(event, row, column);
+                },
+                mouseleave: () => {
+                  this.mouseLeaveCell();
+                },
+              };
+            }
+          : undefined,
+        headerCellEvents: ({ column }) => {
+          return {
+            mouseenter: (event) => {
+              this.mouseEnterHeader(event, column);
+            },
+            mouseleave: () => {
+              this.mouseLeaveCell();
+            },
+          };
+        },
+      },
+      tooltipVisible: false,
+      tooltipText: "",
+      dataDictionary: null,
     };
   },
   props: {
@@ -137,9 +178,11 @@ export default {
           key: key,
           title: f.name,
           width: 300,
-          // ellipsis: {
-          //   showTitle: true,
-          // },
+          ellipsis: this.isEllipsisEnabled
+            ? {
+                showTitle: false,
+              }
+            : undefined,
           sortBy:
             parseInt(this.sortConfig.key) === i ? this.sortConfig.order : "",
         });
@@ -211,6 +254,10 @@ export default {
           });
         }
       });
+      this.dataDictionary = await axios
+        .get(`api/datadictionaries/${this.tableId}`, {})
+        .then((res) => res.data)
+        .catch(() => {});
       console.time("DuckDB Load");
       await DuckDB.loadParquet(this.tableId);
       console.timeEnd("DuckDB Load");
@@ -342,7 +389,6 @@ export default {
         this.visibleColumns.map((c) => c.title)
       );
     },
-
     async dumpCsv() {
       this.loadingPromise = DuckDB.dumpCsv(
         this.viewId ? this.viewId : this.tableId,
@@ -351,6 +397,82 @@ export default {
       );
       await this.loadingPromise;
       this.loadingPromise = null;
+    },
+    mouseEnterCell(event, row, column) {
+      createPopper(
+        event.target.querySelector("span"),
+        this.$refs.tableToolTip,
+        {
+          placement: "bottom",
+          modifiers: [
+            {
+              name: "flip",
+              options: {
+                fallbackPlacements: ["top"],
+              },
+            },
+            {
+              name: "offset",
+              options: {
+                offset: [0, 0],
+              },
+            },
+          ],
+        }
+      );
+      const value = row[column.key];
+      this.tooltipText = value;
+      this.tooltipVisible = true;
+    },
+    mouseLeaveCell() {
+      this.tooltipVisible = false;
+      this.tooltipText = "";
+    },
+
+    mouseEnterHeader(event, column) {
+      if (!this.dataDictionary) {
+        return;
+      }
+      createPopper(event.target, this.$refs.tableToolTip, {
+        placement: "bottom",
+        modifiers: [
+          {
+            name: "offset",
+            options: {
+              offset: [-50, 0],
+            },
+          },
+        ],
+      });
+      this.tooltipText = this.getColumnDescription(column.title);
+      this.tooltipVisible = true;
+    },
+
+    getColumnDescription: function (name, delimiter = "<br/>") {
+      const NO_DESCRIPTION = "(No description available)";
+      if (!this.dataDictionary.fields) {
+        return NO_DESCRIPTION;
+      }
+      const field = this.dataDictionary.fields.find(
+        (f) => f.field_name === name
+      );
+      if (!field) {
+        return NO_DESCRIPTION;
+      }
+      const descriptionText = [];
+      if (field.field_desc) {
+        descriptionText.push(field.field_desc);
+      }
+      if (field.values && field.values.length > 0) {
+        if (descriptionText.length > 0) {
+          descriptionText.push("");
+        }
+        descriptionText.push("Possible values:");
+        field.values.forEach((v) => {
+          descriptionText.push(`- ${v.value_name}: ${v.value_desc}`);
+        });
+      }
+      return descriptionText.join(delimiter);
     },
   },
   mounted() {

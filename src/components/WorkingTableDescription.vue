@@ -26,27 +26,45 @@
         <b-list-group-item v-for="(h, i) in histories" :key="i">
           <div class="d-flex w-100 justify-content-between">
             <span>
-              <div
-                class="inline-color-block"
-                :style="{ 'background-color': h.table.color }"
-              ></div>
+              <div>
+                <span>
+                  <div
+                    class="inline-color-block"
+                    :style="{ 'background-color': h.table.color }"
+                  ></div>
+                  &nbsp;
+                  {{ h.table.name }}</span
+                >
+              </div>
+              <small>
+                <div class="inline-color-block"></div>
+                &nbsp; From: <i>{{ h.dataset.title }}</i>
+              </small>
+            </span>
+            <span class="history-buttons-span" style="min-width: 122px">
+              <b-button
+                size="sm"
+                :variant="focusedComponentIndex === i ? 'danger' : 'primary'"
+                style="width: 72px !important"
+                @click="focusComponent(i)"
+              >
+                {{ focusedComponentIndex === i ? "Unfocus" : "Focus" }}
+              </b-button>
               &nbsp;
-              {{ h.table.name }}</span
-            >
-            <span class="history-buttons-span">
               <b-button size="sm" variant="danger" @click="removeTable(h)"
                 ><b-icon icon="trash"></b-icon
               ></b-button>
             </span>
           </div>
+
           <div v-if="h.joinedTables">
             <div v-for="(j, k) in h.joinedTables" :key="k">
               <small>
                 <div
                   class="inline-color-block"
-                  :style="{ 'background-color': j.targerResource.color }"
+                  :style="{ 'background-color': j.targetResource.color }"
                 ></div>
-                &nbsp; Joined Table: {{ j.targerResource.name }}
+                &nbsp; Joined Table: {{ j.targetResource.name }}
               </small>
             </div>
           </div>
@@ -67,9 +85,7 @@
             <span style="width: 350px" v-else>
               Add
               {{
-                log.type === "union"
-                  ? " rows"
-                  : " column" + `"${log.column}"`
+                log.type === "union" ? " rows" : " column" + `"${log.column}"`
               }}
               from table:
             </span>
@@ -165,6 +181,7 @@ export default {
     columns: Array,
     selectedColumns: Array,
     keywords: Array,
+    focusedComponentIndex: Number,
   },
   data: function () {
     return {
@@ -214,7 +231,6 @@ export default {
           };
         })
         .filter((c) => columnSet.has(c.title));
-      console.log(rowsToSelect);
       rowsToSelect.forEach((r) => {
         this.$refs.schemaFieldsTable.selectRow(r.index);
       });
@@ -262,11 +278,14 @@ export default {
           this.$refs.sharedLinkModal.show();
         })
         .catch((err) => {
-          console.log(err);
+          console.error(err);
         });
     },
     getColor(id) {
       return TableColorManger.getColor(id);
+    },
+    focusComponent(i) {
+      this.$parent.focusComponent(i);
     },
   },
 };
@@ -275,7 +294,7 @@ export default {
 <style lang="scss">
 .working-table-description-container {
   background-color: var(--bs-gray-100);
-  width: 480px;
+  width: 500px;
   padding: 10px;
   overflow-y: scroll;
 }

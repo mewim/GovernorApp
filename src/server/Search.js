@@ -4,6 +4,7 @@ const elasticclient = require("@elastic/elasticsearch").Client;
 const adddashestouuid = require("add-dashes-to-uuid");
 const mongoUtil = require("./MongoUtil");
 const axios = require("axios");
+const uuid = require("uuid");
 
 const client = new elasticclient({
   node: "http://localhost:9200",
@@ -14,24 +15,49 @@ const client = new elasticclient({
 
 router.get("/metadata", async (req, res) => {
   const db = await mongoUtil.getDb();
-  const q = req.query.q;
+  let q = req.query.q;
   if (!q) {
     return res.sendStatus(400);
   }
-  let openCanadaResults;
-  try {
-    const apiRes = await axios.get(
-      "https://open.canada.ca/data/api/action/package_search",
-      {
-        params: {
-          q,
-          rows: 1000,
-        },
+  let isUUID = false;
+  // If the query is a UUID, we use it directly without performing a search
+  if (q.length === 32 && /[0-9A-Fa-f]{32}/g.test(q)) {
+    q = adddashestouuid(q);
+  }
+  if (q.length === 36 && uuid.validate(q)) {
+    isUUID = true;
+    q = q.toLowerCase();
+  }
+  let openCanadaResults = [];
+  let resourceIdMatch;
+  if (!isUUID) {
+    try {
+      const apiRes = await axios.get(
+        "https://open.canada.ca/data/api/action/package_search",
+        {
+          params: {
+            q,
+            rows: 1000,
+          },
+        }
+      );
+      openCanadaResults = apiRes.data.result.results.map((r) => r.id);
+    } catch (err) {
+      return req.sendStatus(500);
+    }
+  } else {
+    const dbQueryResult = await db.collection("metadata").findOne({
+      $or: [{ id: q }, { "resources.id": q }],
+    });
+    if (dbQueryResult) {
+      openCanadaResults = [dbQueryResult.id];
+      for (let resource of dbQueryResult.resources) {
+        if (resource.id === q) {
+          resourceIdMatch = q;
+          break;
+        }
       }
-    );
-    openCanadaResults = apiRes.data.result.results.map((r) => r.id);
-  } catch (err) {
-    return req.sendStatus(500);
+    }
   }
   const resourceIds = await db
     .collection("metadata")
@@ -83,7 +109,10 @@ router.get("/metadata", async (req, res) => {
     ])
     .toArray();
   const resourceIdsArray = resourceIds.map((r) => r.uuid);
-  const resourceIdsSet = new Set(resourceIdsArray);
+  let resourceIdsSet = new Set(resourceIdsArray);
+  if (resourceIdMatch && resourceIdsSet.has(resourceIdMatch)) {
+    resourceIdsSet = new Set([resourceIdMatch]);
+  }
 
   const datasets = await db
     .collection("metadata")
@@ -147,7 +176,7 @@ router.get("/", async (req, res) => {
     const uuid = adddashestouuid(b._source.file_id.split("-").join(""));
     const matchedFields = [];
 
-    for(let i = 0; i < b._source.values.length; ++i){
+    for (let i = 0; i < b._source.values.length; ++i) {
       const k = b._source.fields[i];
       const v = String(b._source.values[i]).toLowerCase();
       if (v.includes(keyword)) {

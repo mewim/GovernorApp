@@ -217,7 +217,7 @@ export default {
 
   mounted() {
     this.updatePreviewAreaHeight();
-    this.DISCOVERY_MODE = !!window.DISCOVERY_MODE;
+    this.DISCOVERY_MODE = window.config && window.config.DISCOVERY_MODE;
   },
   created() {
     window.addEventListener("resize", this.updatePreviewAreaHeight);

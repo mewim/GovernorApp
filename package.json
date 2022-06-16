@@ -11,7 +11,7 @@
     "install-python": "python3 -m pip install -r requirements.txt"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.13.1-dev98.0",
+    "@duckdb/duckdb-wasm": "^1.14.4",
     "@elastic/elasticsearch": "^7.15.0",
     "@popperjs/core": "^2.11.5",
     "add-dashes-to-uuid": "^1.0.0",
@@ -31,7 +31,6 @@
     "nodemon": "^2.0.14",
     "papaparse": "^5.3.2",
     "randomcolor": "^0.6.2",
-    "sql-escape": "^1.0.1",
     "underscore": "^1.13.1",
     "uuid": "^8.3.2",
     "vue": "^2.6.14",

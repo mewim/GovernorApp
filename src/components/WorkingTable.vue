@@ -6,6 +6,7 @@
       :selectedColumns="selectedColumns"
       :columns="columns"
       :keywords="keywords"
+      :focusedComponentIndex="focusedComponentIndex"
       v-if="histories.length > 0"
       ref="workingTableDescription"
     />
@@ -43,8 +44,9 @@
       </div>
     </div>
     <div
-      class="working-table-tooltip tooltip b-tooltip bs-tooltip-bottom"
-      ref="workingTableToolTip"
+      class="table-tooltip tooltip b-tooltip bs-tooltip-bottom"
+      ref="tableToolTip"
+      v-if="isEllipsisEnabled"
       v-show="tooltipVisible"
     >
       <div class="tooltip-inner">
@@ -64,10 +66,12 @@ const TABLE_ID = "__table_id";
 const NULL_TEXT = "NULL";
 export default {
   data() {
+    const IS_ELLIPSIS_ENABLED = true;
     return {
       pageIndex: 1,
       pageSize: 25,
       totalCount: 0,
+      focusedComponentIndex: null,
       tooltipVisible: false,
       tooltipText: "",
       virtualScrollOption: {
@@ -97,18 +101,21 @@ export default {
         order: null,
         isNumeric: false,
       },
-      eventCustomOption: {
-        bodyCellEvents: ({ row, column }) => {
-          return {
-            mouseenter: (event) => {
-              this.mouseEnterCell(event, row, column);
+      isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
+      eventCustomOption: IS_ELLIPSIS_ENABLED
+        ? {
+            bodyCellEvents: ({ row, column }) => {
+              return {
+                mouseenter: (event) => {
+                  this.mouseEnterCell(event, row, column);
+                },
+                mouseleave: (event) => {
+                  this.mouseLeaveCell(event, row, column);
+                },
+              };
             },
-            mouseleave: (event) => {
-              this.mouseLeaveCell(event, row, column);
-            },
-          };
-        },
-      },
+          }
+        : {},
     };
   },
   props: {
@@ -251,9 +258,11 @@ export default {
           key: k,
           title: this.workingTableColumns[k].name,
           width: 300,
-          ellipsis: {
-            showTitle: false,
-          },
+          ellipsis: this.isEllipsisEnabled
+            ? {
+                showTitle: false,
+              }
+            : undefined,
           sortBy: this.sortConfig.key === k ? this.sortConfig.order : "",
           type: this.workingTableColumns[k].type,
           renderBodyCell: this.renderBodyCell,
@@ -274,6 +283,16 @@ export default {
       return h("span", { style }, value);
     },
     async reloadData(preventReloadColumns = false) {
+      let focusedIds;
+      if (!isNaN(parseInt(this.focusedComponentIndex))) {
+        const history = this.histories[this.focusedComponentIndex];
+        focusedIds = new Set([history.table.id]);
+        if (history.joinedTables) {
+          for (let id in history.joinedTables) {
+            focusedIds.add(id);
+          }
+        }
+      }
       this.isPaginationLoading = true;
       console.time("Full reload");
       if (!this.histories || this.histories.length === 0) {
@@ -285,7 +304,8 @@ export default {
         await DuckDB.createWorkingTable(
           this.histories,
           this.keywords,
-          this.sortConfig
+          this.sortConfig,
+          focusedIds
         );
       this.viewName = viewName;
       this.columnsMapping = columnsMapping;
@@ -343,6 +363,7 @@ export default {
     async resetTable() {
       this.pageIndex = 1;
       this.totalCount = 0;
+      this.focusedComponentIndex = null;
       this.columns = [];
       this.columnsMapping = {};
       this.workingTableColumns = {};
@@ -423,7 +444,7 @@ export default {
               history.resourceStats.schema.fields[joinable.source_index].name,
             targetKey: joinable.target_field_name,
             targetResourceStats: joinable.target_resourcestats,
-            targerResource: joinable.target_resource,
+            targetResource: joinable.target_resource,
             columns: [],
           };
         }
@@ -499,7 +520,7 @@ export default {
           for (let j in h.joinedTables) {
             TableColorManger.addColor(
               j,
-              h.joinedTables[j].targerResource.color
+              h.joinedTables[j].targetResource.color
             );
           }
         }
@@ -509,7 +530,7 @@ export default {
     mouseEnterCell(event, row, column) {
       createPopper(
         event.target.querySelector("span"),
-        this.$refs.workingTableToolTip,
+        this.$refs.tableToolTip,
         {
           placement: "bottom",
           modifiers: [
@@ -544,7 +565,6 @@ export default {
             h.joinedTables[log.table.id].columns = h.joinedTables[
               log.table.id
             ].columns.filter((c) => c !== log.column);
-            console.log(h.joinedTables[log.table.id]);
             if (h.joinedTables[log.table.id].columns.length === 0) {
               delete h.joinedTables[log.table.id];
             }
@@ -573,6 +593,17 @@ export default {
         default:
           break;
       }
+    },
+    async focusComponent(i) {
+      if (this.focusedComponentIndex === i) {
+        this.focusedComponentIndex = null;
+      } else {
+        this.focusedComponentIndex = i;
+      }
+      this.pageIndex = 1;
+      this.loadingPromise = this.reloadData(true);
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
   },
   async mounted() {
@@ -631,7 +662,7 @@ export default {
     }
   }
 }
-.working-table-tooltip {
+.table-tooltip {
   position: absolute;
 }
 </style>

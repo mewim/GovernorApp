@@ -1,6 +1,6 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 import papaparse from "papaparse";
-const SQLEscape = require("sql-escape");
+const PGEscape = require("./PGEscape");
 const VIEW_PREFIX = "view_";
 const FIRST_TABLE_NAME = "T1";
 const WORKING_TABLE_NAME = "__work";
@@ -9,6 +9,7 @@ const COLUMN_PREFIX = "column_";
 const ROW_ID = "__row_id";
 const TABLE_ID = "__table_id";
 const GC_ENABLED = true;
+const NO_CACHE_MODE = false;
 
 class DuckDB {
   constructor() {
@@ -44,6 +45,12 @@ class DuckDB {
     const logger = new duckdb.ConsoleLogger();
     const db = new duckdb.AsyncDuckDB(logger, worker);
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    const conn = await db.connect();
+    // Create temporary file system (currently not working)
+    // await conn.query(`PRAGMA temp_directory='/tmp'`);
+    // Lift memory limit
+    // await conn.query(`PRAGMA memory_limit='1.9GB';`);
+    await conn.close();
     this.db = db;
     window.duckdb = this;
     console.timeEnd("DuckDB init");
@@ -70,7 +77,9 @@ class DuckDB {
       conn = await db.connect();
     }
     try {
-      const query = `DROP TABLE IF EXISTS "${uuid}" CASCADE`;
+      const query = `DROP ${
+        NO_CACHE_MODE ? "VIEW" : "TABLE"
+      } IF EXISTS "${uuid}" CASCADE`;
       console.debug(query);
       await conn.query(query);
       delete this.loadedTables[uuid];
@@ -109,7 +118,9 @@ class DuckDB {
         this.loadingTablePromises[uuid] = db
           .registerFileURL(`parquet_${uuid}`, url)
           .then(() => {
-            const query = `CREATE TABLE "${uuid}" AS SELECT *, ROW_NUMBER() OVER() as "${ROW_ID}" FROM "${url}"`;
+            const query = `CREATE ${
+              NO_CACHE_MODE ? "VIEW" : "TABLE"
+            } "${uuid}" AS SELECT *, ROW_NUMBER() OVER() as "${ROW_ID}" FROM "${url}"`;
             console.debug(query);
             return conn.query(query);
           })
@@ -119,7 +130,9 @@ class DuckDB {
             return conn.query(query);
           })
           .then((countResult) => {
-            const count = countResult.toArray()[0][0][0];
+            const count = Number(
+              Object.values(countResult.toArray()[0].toJSON())[0]
+            );
             console.debug(`Loaded parquet file: ${uuid} with ${count} rows`);
             this.loadedTables[uuid] = count;
             return count;
@@ -130,6 +143,12 @@ class DuckDB {
     }
     await conn.close();
     return this.loadedTables[uuid];
+  }
+
+  encodeTableIds(tableIds) {
+    const encodedTableIds = [];
+    tableIds.forEach((t) => encodedTableIds.push(t));
+    return encodedTableIds.sort().join(",");
   }
 
   createPaginationSubquery(pageIndex, pageSize) {
@@ -143,9 +162,10 @@ class DuckDB {
   async getFullTable(uuid, pageIndex, pageSize) {
     const db = await this.getDb();
     const conn = await db.connect();
-    const query = `
-      SELECT * FROM "${uuid}"
-      ${this.createPaginationSubquery(pageIndex, pageSize)}`;
+    const query = `SELECT * FROM "${uuid}" ${this.createPaginationSubquery(
+      pageIndex,
+      pageSize
+    )}`;
     console.debug(query);
     const databaseResult = await conn.query(query);
     await conn.close();
@@ -163,7 +183,9 @@ class DuckDB {
     const columnCountQuery = `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}') WHERE name != '${ROW_ID}'`;
     console.debug(columnCountQuery);
     const columnCountsResult = await conn.query(columnCountQuery);
-    const columnCounts = columnCountsResult.toArray()[0][0][0];
+    const columnCounts = Object.values(
+      columnCountsResult.toArray()[0].toJSON()
+    )[0];
     const allColumns = [];
     for (let i = 0; i < columnCounts; ++i) {
       allColumns.push(i);
@@ -201,9 +223,10 @@ class DuckDB {
             for (let k of keywordsSplit) {
               const orConditions = [];
               for (let f of allColumns) {
-                const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(
+                const currCondition = `CONTAINS(LOWER("${f}"),${PGEscape(
+                  "%L",
                   k
-                )}')`;
+                )})`;
                 orConditions.push(currCondition);
               }
               const currentAndConditions = `(${orConditions.join(" OR ")})`;
@@ -226,7 +249,12 @@ class DuckDB {
     return viewName;
   }
 
-  async createWorkingTable(histories, keywords = null, sortConfig = null) {
+  async createWorkingTable(
+    histories,
+    keywords = null,
+    sortConfig = null,
+    focusedIds = null
+  ) {
     const { workingTableColumns, columnsMapping } =
       this.createColumnMappingForHistories(histories);
     this.createColumnMappingForHistories(histories);
@@ -241,7 +269,7 @@ class DuckDB {
       )
     );
     const allColumns = Object.keys(workingTableColumns);
-    const whereClause =
+    let whereClause =
       keywords && keywords.length > 0
         ? keywords
             .map((currKeywords) => {
@@ -250,9 +278,10 @@ class DuckDB {
               for (let k of keywordsSplit) {
                 const orConditions = [];
                 for (let f of allColumns) {
-                  const currCondition = `CONTAINS(LOWER("${f}"),'${SQLEscape(
+                  const currCondition = `CONTAINS(LOWER("${f}"),${PGEscape(
+                    "%L",
                     k
-                  )}')`;
+                  )})`;
                   orConditions.push(currCondition);
                 }
                 const currentAndConditions = `(${orConditions.join(" OR ")})`;
@@ -263,7 +292,10 @@ class DuckDB {
             })
             .join(" OR ")
         : null;
-
+    if (focusedIds) {
+      const condition = `"${TABLE_ID}" IN ('${this.encodeTableIds(focusedIds)}')`;
+      whereClause = whereClause ? `${whereClause} AND ${condition}` : condition;
+    }
     let orderByClause;
     if (isSorted) {
       if (sortConfig.isNumeric) {
@@ -349,7 +381,7 @@ class DuckDB {
       joinCaluses.push(currentJoinClause);
       tableIds.add(uuid);
     }
-    const tableIdsString = [...tableIds].join(",");
+    const tableIdsString = this.encodeTableIds(tableIds);
     return `SELECT ${Object.keys(workingTableColumns)
       .map((c) => `"${c}"`)
       .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}" FROM "${
@@ -402,7 +434,7 @@ class DuckDB {
     const query = `SELECT COUNT(*) FROM "${tablId}"`;
     console.debug(query);
     const result = await conn.query(query);
-    const totalCount = result.toArray()[0][0][0];
+    const totalCount = Number(Object.values(result.toArray()[0].toJSON())[0]);
     await conn.close();
     return totalCount;
   }

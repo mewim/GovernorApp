@@ -5,7 +5,7 @@
         <b-form-input
           v-model.lazy="searchBarText"
           v-on:keyup.enter="searchButtonClicked()"
-          placeholder="Enter a keyword / UUID"
+          :placeholder="uuidPlaceHolder"
         ></b-form-input>
         <div class="input-group-append">
           <b-button
@@ -20,6 +20,13 @@
             v-on:click="searchButtonClicked(true)"
             >Search Metadata</b-button
           >
+          <b-button
+            variant="success"
+            class="search-button"
+            v-on:click="searchButtonClicked(true, true)"
+            v-if="UUID_ENABLED"
+            >Search UUID</b-button
+          >
         </div>
       </div>
     </div>
@@ -28,7 +35,9 @@
         class="search-no-result"
         v-if="searchSuccess && results.length === 0"
       >
-        Sorry, no table has been found. Please try other keywords.
+        Sorry, no table has been found. Please try other keywords{{
+          UUID_ENABLED ? " or UUID" : ""
+        }}.
       </div>
       <div
         class="search-result-cards-container"
@@ -161,14 +170,17 @@
 
 <script>
 import axios from "axios";
+import adddashestouuid from "add-dashes-to-uuid";
 import { VeLoading } from "vue-easytable";
 import TableColorManger from "../TableColorManager";
+const uuid = require("uuid");
 
 export default {
   name: "Search",
   data() {
     return {
       DISCOVERY_MODE: false,
+      UUID_ENABLED: false,
       searchBarText: "",
       keyword: "",
       results: [],
@@ -195,7 +207,13 @@ export default {
       this.$parent.useCasesDiscoveryModeChanged(newValue === "union");
     },
   },
-  computed: {},
+  computed: {
+    uuidPlaceHolder() {
+      return this.UUID_ENABLED
+        ? "Enter a keyword / UUID to search"
+        : "Enter a keyword to search";
+    },
+  },
   methods: {
     toggleSettings: function () {
       this.$refs.searchResultSettingsModal.show();
@@ -206,16 +224,34 @@ export default {
     toggleNotesDisplayed: function (i) {
       this.isNotesDisplayed[i] = !this.isNotesDisplayed[i];
     },
-    searchButtonClicked: async function (searchMetadata) {
+    searchButtonClicked: async function (isSearchMetadata, isSearchUUID) {
       this.searchSuccess = false;
       this.keyword = this.searchBarText;
-      this.searchMetadata = searchMetadata;
+      this.searchMetadata = isSearchMetadata;
+      if (isSearchUUID) {
+        if (
+          this.searchBarText.length === 32 &&
+          /[0-9A-Fa-f]{32}/g.test(this.searchBarText)
+        ) {
+          this.searchBarText = adddashestouuid(this.searchBarText);
+        }
+        if (
+          this.searchBarText.length === 36 &&
+          uuid.validate(this.searchBarText)
+        ) {
+          this.searchBarText = this.searchBarText.toLowerCase();
+        } else {
+          this.results.splice(0);
+          this.searchSuccess = true;
+          return;
+        }
+      }
       if (this.searchBarText.length === 0) {
         this.results.splice(0);
         this.searchSuccess = true;
         return;
       }
-      await this.loadSeachResult(this.searchBarText, searchMetadata);
+      await this.loadSeachResult(this.searchBarText, isSearchMetadata);
 
       this.searchSuccess = true;
     },
@@ -270,7 +306,8 @@ export default {
       lock: true,
       name: "wave",
     });
-    this.DISCOVERY_MODE = !!window.DISCOVERY_MODE;
+    this.DISCOVERY_MODE = window.config && window.config.DISCOVERY_MODE;
+    this.UUID_ENABLED = window.config && window.config.UUID_ENABLED;
   },
   destroyed() {
     this.loadingInstance.destroy();
