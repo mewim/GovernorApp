@@ -172,7 +172,6 @@
 import axios from "axios";
 import adddashestouuid from "add-dashes-to-uuid";
 import { VeLoading } from "vue-easytable";
-import TableColorManger from "../TableColorManager";
 const uuid = require("uuid");
 
 export default {
@@ -268,9 +267,6 @@ export default {
       const params = new URLSearchParams([["q", keyword]]);
       const results = await axios.get(url, { params }).then((res) => res.data);
       results.forEach((r) => {
-        r.resources.forEach(
-          (res) => (res.color = TableColorManger.getColor(res.id))
-        );
         r.display_notes = "";
         this.results.push(r);
         this.isNotesDisplayed.push(false);

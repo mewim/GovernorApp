@@ -178,6 +178,7 @@ export default {
           key: key,
           title: f.name,
           width: 300,
+          align: "left",
           ellipsis: this.isEllipsisEnabled
             ? {
                 showTitle: false,

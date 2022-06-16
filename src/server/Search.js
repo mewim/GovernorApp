@@ -43,7 +43,7 @@ router.get("/metadata", async (req, res) => {
       );
       openCanadaResults = apiRes.data.result.results.map((r) => r.id);
     } catch (err) {
-      return req.sendStatus(500);
+      return res.sendStatus(500);
     }
   } else {
     const dbQueryResult = await db.collection("metadata").findOne({
@@ -151,24 +151,26 @@ router.get("/", async (req, res) => {
   splittedKeywords.forEach((k) => {
     must.push({ term: { values: k } });
   });
+  const query = {
+    bool: {
+      should: [
+        // { match: { values: keyword } },
+        {
+          bool: {
+            must,
+          },
+        },
+      ],
+    },
+  };
+  // console.log(JSON.stringify(query, null, 2));
   const found = await client.search({
     index: "tuples",
     body: {
       from: 0,
       size: 4000,
 
-      query: {
-        bool: {
-          should: [
-            { match: { values: keyword } },
-            {
-              bool: {
-                must,
-              },
-            },
-          ],
-        },
-      },
+      query,
     },
   });
   const documentsMatchedDict = {};

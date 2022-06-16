@@ -90,7 +90,6 @@ export default {
       const data = await axios.get(url).then((res) => res.data);
       data.forEach((d) => {
         d.resources.forEach((r) => {
-          r.color = TableColorManger.getColor(r.id);
           this.datasetHash[r.id] = d;
         });
       });
@@ -114,6 +113,7 @@ export default {
       const resourceStats = await axios
         .get(`/api/inferredstats/${resource.id}`)
         .then((res) => res.data);
+      resource.color = TableColorManger.getColor(resource.id);
       const unionable = {
         dataset: dataset,
         table: resource,

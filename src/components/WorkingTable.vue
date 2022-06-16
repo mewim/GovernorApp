@@ -256,6 +256,7 @@ export default {
         columns.push({
           field: k,
           key: k,
+          align: "left",
           title: this.workingTableColumns[k].name,
           width: 300,
           ellipsis: this.isEllipsisEnabled
@@ -276,8 +277,11 @@ export default {
       const style = {};
       const value = row[column.key];
       const tableId = this.cellTableMap[row.rowKey][column.key];
-      if (this.isColorEnabled && value !== NULL_TEXT) {
-        const color = TableColorManger.getColor(tableId);
+      if (this.isColorEnabled) {
+        const color =
+          value === NULL_TEXT
+            ? TableColorManger.nullColor
+            : TableColorManger.getColor(tableId);
         style.color = color;
       }
       return h("span", { style }, value);
