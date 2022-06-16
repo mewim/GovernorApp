@@ -44,6 +44,10 @@ class DuckDB {
     const logger = new duckdb.ConsoleLogger();
     const db = new duckdb.AsyncDuckDB(logger, worker);
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    // Create temporary file system (currently not working)
+    // const conn = await db.connect();
+    // await conn.query(`PRAGMA temp_directory='/tmp'`);
+    // await conn.close();
     this.db = db;
     window.duckdb = this;
     console.timeEnd("DuckDB init");
@@ -119,7 +123,9 @@ class DuckDB {
             return conn.query(query);
           })
           .then((countResult) => {
-            const count = countResult.toArray()[0][0][0];
+            const count = Number(
+              Object.values(countResult.toArray()[0].toJSON())[0]
+            );
             console.debug(`Loaded parquet file: ${uuid} with ${count} rows`);
             this.loadedTables[uuid] = count;
             return count;
@@ -169,7 +175,9 @@ class DuckDB {
     const columnCountQuery = `SELECT COUNT(*) AS count FROM pragma_table_info('${uuid}') WHERE name != '${ROW_ID}'`;
     console.debug(columnCountQuery);
     const columnCountsResult = await conn.query(columnCountQuery);
-    const columnCounts = columnCountsResult.toArray()[0][0][0];
+    const columnCounts = Object.values(
+      columnCountsResult.toArray()[0].toJSON()
+    )[0];
     const allColumns = [];
     for (let i = 0; i < columnCounts; ++i) {
       allColumns.push(i);
@@ -410,7 +418,7 @@ class DuckDB {
     const query = `SELECT COUNT(*) FROM "${tablId}"`;
     console.debug(query);
     const result = await conn.query(query);
-    const totalCount = result.toArray()[0][0][0];
+    const totalCount = Number(Object.values(result.toArray()[0].toJSON())[0]);
     await conn.close();
     return totalCount;
   }
