@@ -27,12 +27,23 @@
         :max-height="height"
         :virtual-scroll-option="virtualScrollOption"
         :columns="visibleColumns ? visibleColumns : columns"
+        :event-custom-option="eventCustomOption"
         :table-data="tableData"
         row-key-field-name="rowKey"
         :cell-style-option="cellStyleOption"
         :sort-option="sortOption"
         ref="table"
       />
+    </div>
+    <div
+      class="table-tooltip tooltip b-tooltip bs-tooltip-bottom"
+      ref="tableToolTip"
+      v-if="isEllipsisEnabled"
+      v-show="tooltipVisible"
+    >
+      <div class="tooltip-inner">
+        {{ tooltipText }}
+      </div>
     </div>
   </div>
 </template>
@@ -41,10 +52,13 @@
 import axios from "axios";
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
+import { createPopper } from "@popperjs/core";
+
 const FIRST_TABLE_NAME = "T1";
 
 export default {
   data() {
+    const IS_ELLIPSIS_ENABLED = true;
     return {
       pageIndex: 1,
       pageSize: 25,
@@ -72,6 +86,23 @@ export default {
         order: null,
         isNumeric: false,
       },
+      isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
+      eventCustomOption: IS_ELLIPSIS_ENABLED
+        ? {
+            bodyCellEvents: ({ row, column }) => {
+              return {
+                mouseenter: (event) => {
+                  this.mouseEnterCell(event, row, column);
+                },
+                mouseleave: (event) => {
+                  this.mouseLeaveCell(event, row, column);
+                },
+              };
+            },
+          }
+        : {},
+      tooltipVisible: false,
+      tooltipText: "",
     };
   },
   props: {
@@ -137,9 +168,11 @@ export default {
           key: key,
           title: f.name,
           width: 300,
-          // ellipsis: {
-          //   showTitle: true,
-          // },
+          ellipsis: this.isEllipsisEnabled
+            ? {
+                showTitle: false,
+              }
+            : undefined,
           sortBy:
             parseInt(this.sortConfig.key) === i ? this.sortConfig.order : "",
         });
@@ -342,7 +375,6 @@ export default {
         this.visibleColumns.map((c) => c.title)
       );
     },
-
     async dumpCsv() {
       this.loadingPromise = DuckDB.dumpCsv(
         this.viewId ? this.viewId : this.tableId,
@@ -351,6 +383,36 @@ export default {
       );
       await this.loadingPromise;
       this.loadingPromise = null;
+    },
+    mouseEnterCell(event, row, column) {
+      createPopper(
+        event.target.querySelector("span"),
+        this.$refs.tableToolTip,
+        {
+          placement: "bottom",
+          modifiers: [
+            {
+              name: "flip",
+              options: {
+                fallbackPlacements: ["top"],
+              },
+            },
+            {
+              name: "offset",
+              options: {
+                offset: [0, 0],
+              },
+            },
+          ],
+        }
+      );
+      const value = row[column.key];
+      this.tooltipText = value;
+      this.tooltipVisible = true;
+    },
+    mouseLeaveCell() {
+      this.tooltipVisible = false;
+      this.tooltipText = "";
     },
   },
   mounted() {

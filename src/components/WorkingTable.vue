@@ -43,8 +43,9 @@
       </div>
     </div>
     <div
-      class="working-table-tooltip tooltip b-tooltip bs-tooltip-bottom"
-      ref="workingTableToolTip"
+      class="table-tooltip tooltip b-tooltip bs-tooltip-bottom"
+      ref="tableToolTip"
+      v-if="isEllipsisEnabled"
       v-show="tooltipVisible"
     >
       <div class="tooltip-inner">
@@ -64,6 +65,7 @@ const TABLE_ID = "__table_id";
 const NULL_TEXT = "NULL";
 export default {
   data() {
+    const IS_ELLIPSIS_ENABLED = true;
     return {
       pageIndex: 1,
       pageSize: 25,
@@ -97,18 +99,21 @@ export default {
         order: null,
         isNumeric: false,
       },
-      eventCustomOption: {
-        bodyCellEvents: ({ row, column }) => {
-          return {
-            mouseenter: (event) => {
-              this.mouseEnterCell(event, row, column);
+      isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
+      eventCustomOption: IS_ELLIPSIS_ENABLED
+        ? {
+            bodyCellEvents: ({ row, column }) => {
+              return {
+                mouseenter: (event) => {
+                  this.mouseEnterCell(event, row, column);
+                },
+                mouseleave: (event) => {
+                  this.mouseLeaveCell(event, row, column);
+                },
+              };
             },
-            mouseleave: (event) => {
-              this.mouseLeaveCell(event, row, column);
-            },
-          };
-        },
-      },
+          }
+        : {},
     };
   },
   props: {
@@ -251,9 +256,11 @@ export default {
           key: k,
           title: this.workingTableColumns[k].name,
           width: 300,
-          ellipsis: {
-            showTitle: false,
-          },
+          ellipsis: this.isEllipsisEnabled
+            ? {
+                showTitle: false,
+              }
+            : undefined,
           sortBy: this.sortConfig.key === k ? this.sortConfig.order : "",
           type: this.workingTableColumns[k].type,
           renderBodyCell: this.renderBodyCell,
@@ -509,7 +516,7 @@ export default {
     mouseEnterCell(event, row, column) {
       createPopper(
         event.target.querySelector("span"),
-        this.$refs.workingTableToolTip,
+        this.$refs.tableToolTip,
         {
           placement: "bottom",
           modifiers: [
@@ -630,7 +637,7 @@ export default {
     }
   }
 }
-.working-table-tooltip {
+.table-tooltip {
   position: absolute;
 }
 </style>
