@@ -293,7 +293,9 @@ class DuckDB {
             .join(" OR ")
         : null;
     if (focusedIds) {
-      const condition = `"${TABLE_ID}" IN ('${this.encodeTableIds(focusedIds)}')`;
+      const condition = `"${TABLE_ID}" IN ('${this.encodeTableIds(
+        focusedIds
+      )}')`;
       whereClause = whereClause ? `${whereClause} AND ${condition}` : condition;
     }
     let orderByClause;
@@ -589,10 +591,13 @@ class DuckDB {
         const columns = new Set(h.joinedTables[uuid].columns);
         const fields = h.joinedTables[
           uuid
-        ].targetResourceStats.schema.fields.filter((f, i) => {
-          return i === targetKeyIndex || columns.has(f.name);
+        ].targetResourceStats.schema.fields.map((f, i) => {
+          return i === targetKeyIndex || columns.has(f.name) ? f : null;
         });
         fields.forEach((f, i) => {
+          if (!f) {
+            return;
+          }
           if (!workingTableNameToColumnMap[f.name]) {
             workingTableNameToColumnMap[f.name] = [`${COLUMN_PREFIX}${idx++}`];
           } else if (i === targetKeyIndex) {
@@ -633,6 +638,9 @@ class DuckDB {
       });
       for (let uuid in h.joinedTables) {
         uuidToFieldsMap[uuid].forEach((f, j) => {
+          if (!f) {
+            return;
+          }
           const currentColumnMappedName =
             currWorkingTableNameToColumnMap[f.name].shift();
           columnsMapping[uuid].columnIndexToMapped[j] = currentColumnMappedName

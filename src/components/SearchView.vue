@@ -228,6 +228,7 @@ export default {
       this.keyword = this.searchBarText;
       this.searchMetadata = isSearchMetadata;
       if (isSearchUUID) {
+        this.searchBarText = this.searchBarText.trim();
         if (
           this.searchBarText.length === 32 &&
           /[0-9A-Fa-f]{32}/g.test(this.searchBarText)

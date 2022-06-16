@@ -26,10 +26,10 @@
         >
           <span>
             <div>
-              <span> &nbsp; Table: {{ r.resource.name }}</span>
+              <span>Table: {{ r.resource.name }}</span>
             </div>
             <small>
-              &nbsp; From: <i>{{ r.datasetName }}</i>
+              From: <i>{{ r.datasetName }}</i>
             </small>
           </span>
           <span style="min-width: 142px">

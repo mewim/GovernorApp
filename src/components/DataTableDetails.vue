@@ -23,7 +23,7 @@
             >{{ s.replaceAll("_", " ") }}</span
           >
         </div>
-        <p><b>UUID: </b>{{ resource.id }}</p>
+        <p><b>UUID: </b>{{ dataset.id }}</p>
         <p><b>Dataset: </b>{{ dataset.title }}</p>
         <p><b>Notes: </b>{{ dataset.notes }}</p>
         <p>

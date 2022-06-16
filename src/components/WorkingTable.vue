@@ -430,6 +430,7 @@ export default {
       this.forceRerender();
     },
     async addColumn(joinables, column) {
+      console.log(joinables, column);
       for (let joinable of joinables) {
         const sourceResourceId = joinable.source_resource.id;
         const history = this.histories.find(
