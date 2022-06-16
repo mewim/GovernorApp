@@ -9,6 +9,7 @@ const COLUMN_PREFIX = "column_";
 const ROW_ID = "__row_id";
 const TABLE_ID = "__table_id";
 const GC_ENABLED = true;
+const NO_CACHE_MODE = false;
 
 class DuckDB {
   constructor() {
@@ -48,7 +49,7 @@ class DuckDB {
     // Create temporary file system (currently not working)
     // await conn.query(`PRAGMA temp_directory='/tmp'`);
     // Lift memory limit
-    // await conn.query(`PRAGMA memory_limit='2GB';`)
+    // await conn.query(`PRAGMA memory_limit='1.9GB';`);
     await conn.close();
     this.db = db;
     window.duckdb = this;
@@ -76,7 +77,9 @@ class DuckDB {
       conn = await db.connect();
     }
     try {
-      const query = `DROP TABLE IF EXISTS "${uuid}" CASCADE`;
+      const query = `DROP ${
+        NO_CACHE_MODE ? "VIEW" : "TABLE"
+      } IF EXISTS "${uuid}" CASCADE`;
       console.debug(query);
       await conn.query(query);
       delete this.loadedTables[uuid];
@@ -115,7 +118,9 @@ class DuckDB {
         this.loadingTablePromises[uuid] = db
           .registerFileURL(`parquet_${uuid}`, url)
           .then(() => {
-            const query = `CREATE TABLE "${uuid}" AS SELECT *, ROW_NUMBER() OVER() as "${ROW_ID}" FROM "${url}"`;
+            const query = `CREATE ${
+              NO_CACHE_MODE ? "VIEW" : "TABLE"
+            } "${uuid}" AS SELECT *, ROW_NUMBER() OVER() as "${ROW_ID}" FROM "${url}"`;
             console.debug(query);
             return conn.query(query);
           })
@@ -143,6 +148,7 @@ class DuckDB {
   encodeTableIds(tableIds) {
     const encodedTableIds = [];
     tableIds.forEach((t) => encodedTableIds.push(t));
+    return encodedTableIds.sort().join(",");
   }
 
   createPaginationSubquery(pageIndex, pageSize) {
@@ -243,7 +249,12 @@ class DuckDB {
     return viewName;
   }
 
-  async createWorkingTable(histories, keywords = null, sortConfig = null) {
+  async createWorkingTable(
+    histories,
+    keywords = null,
+    sortConfig = null,
+    focusedIds = null
+  ) {
     const { workingTableColumns, columnsMapping } =
       this.createColumnMappingForHistories(histories);
     this.createColumnMappingForHistories(histories);
@@ -258,7 +269,7 @@ class DuckDB {
       )
     );
     const allColumns = Object.keys(workingTableColumns);
-    const whereClause =
+    let whereClause =
       keywords && keywords.length > 0
         ? keywords
             .map((currKeywords) => {
@@ -281,7 +292,10 @@ class DuckDB {
             })
             .join(" OR ")
         : null;
-
+    if (focusedIds) {
+      const condition = `"${TABLE_ID}" IN ('${this.encodeTableIds(focusedIds)}')`;
+      whereClause = whereClause ? `${whereClause} AND ${condition}` : condition;
+    }
     let orderByClause;
     if (isSorted) {
       if (sortConfig.isNumeric) {
@@ -367,7 +381,7 @@ class DuckDB {
       joinCaluses.push(currentJoinClause);
       tableIds.add(uuid);
     }
-    const tableIdsString = [...tableIds].join(",");
+    const tableIdsString = this.encodeTableIds(tableIds);
     return `SELECT ${Object.keys(workingTableColumns)
       .map((c) => `"${c}"`)
       .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}" FROM "${

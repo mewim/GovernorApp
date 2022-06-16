@@ -6,6 +6,7 @@
       :selectedColumns="selectedColumns"
       :columns="columns"
       :keywords="keywords"
+      :focusedComponentIndex="focusedComponentIndex"
       v-if="histories.length > 0"
       ref="workingTableDescription"
     />
@@ -70,6 +71,7 @@ export default {
       pageIndex: 1,
       pageSize: 25,
       totalCount: 0,
+      focusedComponentIndex: null,
       tooltipVisible: false,
       tooltipText: "",
       virtualScrollOption: {
@@ -281,6 +283,16 @@ export default {
       return h("span", { style }, value);
     },
     async reloadData(preventReloadColumns = false) {
+      let focusedIds;
+      if (!isNaN(parseInt(this.focusedComponentIndex))) {
+        const history = this.histories[this.focusedComponentIndex];
+        focusedIds = new Set([history.table.id]);
+        if (history.joinedTables) {
+          for (let id in history.joinedTables) {
+            focusedIds.add(id);
+          }
+        }
+      }
       this.isPaginationLoading = true;
       console.time("Full reload");
       if (!this.histories || this.histories.length === 0) {
@@ -292,7 +304,8 @@ export default {
         await DuckDB.createWorkingTable(
           this.histories,
           this.keywords,
-          this.sortConfig
+          this.sortConfig,
+          focusedIds
         );
       this.viewName = viewName;
       this.columnsMapping = columnsMapping;
@@ -350,6 +363,7 @@ export default {
     async resetTable() {
       this.pageIndex = 1;
       this.totalCount = 0;
+      this.focusedComponentIndex = null;
       this.columns = [];
       this.columnsMapping = {};
       this.workingTableColumns = {};
@@ -430,7 +444,7 @@ export default {
               history.resourceStats.schema.fields[joinable.source_index].name,
             targetKey: joinable.target_field_name,
             targetResourceStats: joinable.target_resourcestats,
-            targerResource: joinable.target_resource,
+            targetResource: joinable.target_resource,
             columns: [],
           };
         }
@@ -506,7 +520,7 @@ export default {
           for (let j in h.joinedTables) {
             TableColorManger.addColor(
               j,
-              h.joinedTables[j].targerResource.color
+              h.joinedTables[j].targetResource.color
             );
           }
         }
@@ -579,6 +593,17 @@ export default {
         default:
           break;
       }
+    },
+    async focusComponent(i) {
+      if (this.focusedComponentIndex === i) {
+        this.focusedComponentIndex = null;
+      } else {
+        this.focusedComponentIndex = i;
+      }
+      this.pageIndex = 1;
+      this.loadingPromise = this.reloadData(true);
+      await this.loadingPromise;
+      this.loadingPromise = null;
     },
   },
   async mounted() {
