@@ -11,6 +11,22 @@
       ref="workingTableDescription"
     />
     <div class="working-table-inner-container" ref="tableContainer">
+      <div class="working-table-alert-container">
+        <b-alert
+          :show="dismissCountDown"
+          fade
+          variant="primary"
+          @dismiss-count-down="countDownChanged"
+        >
+          <span>
+            <b-icon icon="check2" />
+            &nbsp;
+            <span>
+              {{ alertMessage }}
+            </span>
+          </span>
+        </b-alert>
+      </div>
       <div class="table-pagination" v-if="histories.length > 0">
         <div v-if="isPaginationLoading">
           <b-spinner small></b-spinner>
@@ -64,6 +80,7 @@ import axios from "axios";
 import { createPopper } from "@popperjs/core";
 const TABLE_ID = "__table_id";
 const NULL_TEXT = "NULL";
+const DEFAULT_COUNT_DOWN = 2;
 export default {
   data() {
     const IS_ELLIPSIS_ENABLED = true;
@@ -116,6 +133,8 @@ export default {
             },
           }
         : {},
+      dismissCountDown: 0,
+      alertMessage: "",
     };
   },
   props: {
@@ -129,7 +148,6 @@ export default {
           if (this.loadingPromise) {
             await this.loadingPromise;
           } else {
-            // Hack to trigger rerender when the view is changed
             this.forceRerender();
           }
         }
@@ -235,6 +253,7 @@ export default {
           }
         });
       });
+      this.showAlert(`Added rows from table: "${metadata.table.name}" `);
     },
     reloadColumns() {
       const columns = [];
@@ -347,6 +366,7 @@ export default {
         keyword: newKeyWordText,
         time: new Date(),
       });
+      this.showAlert(`Added filter keyword: "${newKeyWordText}" `);
     },
     async removeKeyword(i, byIndex = true) {
       if (!byIndex) {
@@ -363,6 +383,7 @@ export default {
           break;
         }
       }
+      this.showAlert(`Removed filter keyword: "${removedKeyword}" `);
     },
     async resetTable() {
       this.pageIndex = 1;
@@ -424,6 +445,16 @@ export default {
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
+      const joinedTablesLength = removedHistory.joinedTables
+        ? Object.keys(removedHistory.joinedTables).length
+        : 0;
+      this.showAlert(
+        `Removed table "${removedHistory.table.name}"${
+          joinedTablesLength > 0
+            ? ` and ${joinedTablesLength} joined tables`
+            : ""
+        }`
+      );
     },
     toggleColor() {
       this.isColorEnabled = !this.isColorEnabled;
@@ -474,6 +505,9 @@ export default {
         sources: joinables.map((j) => j.source_resource),
         time: new Date(),
       });
+      this.showAlert(
+        `Added column "${column.name}" from "${joinables[0].target_resource.name}"`
+      );
     },
     async sortChange(params) {
       let isSortByColumn = false;
@@ -581,7 +615,15 @@ export default {
       this.loadingPromise = this.reloadData();
       await this.loadingPromise;
       this.loadingPromise = null;
-      this.logs = this.logs.filter((l) => l !== log);
+      let alertMessage;
+      this.logs = this.logs.filter((l) => {
+        if (l !== log) {
+          return true;
+        }
+        alertMessage = `Removed column "${log.column}" from "${log.table.name}"`;
+        return false;
+      });
+      this.showAlert(alertMessage);
     },
     async undoLog(log) {
       switch (log.type) {
@@ -608,6 +650,13 @@ export default {
       this.loadingPromise = this.reloadData(true);
       await this.loadingPromise;
       this.loadingPromise = null;
+    },
+    showAlert(message) {
+      this.alertMessage = message;
+      this.dismissCountDown = DEFAULT_COUNT_DOWN;
+    },
+    countDownChanged(dismissCountDown) {
+      this.dismissCountDown = dismissCountDown;
     },
   },
   async mounted() {
@@ -664,6 +713,12 @@ export default {
       overflow-y: overflow;
       width: 100%;
     }
+  }
+}
+div.working-table-alert-container {
+  > div.alert.alert-primary {
+    margin-bottom: 0;
+    padding: 8px;
   }
 }
 .table-tooltip {

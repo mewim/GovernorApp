@@ -19,7 +19,7 @@
         :key="i"
         class="d-flex justify-content-between align-items-center"
       >
-        <span>
+        <span class="filter-remove-button-container">
           <b-icon-x @click="removeKeyword(i)" />
           {{ k }}
         </span>
@@ -89,7 +89,7 @@ export default {
       this.isAddingNewFilter = true;
     },
     addNewKeyword() {
-      this.$emit("filter-keywords-added", this.newKeyWordText)
+      this.$emit("filter-keywords-added", this.newKeyWordText);
       this.cancelNewKeyword();
     },
     cancelNewKeyword() {
@@ -106,7 +106,7 @@ export default {
 h5 {
   padding-bottom: 4px;
 }
-span {
+span.filter-remove-button-container {
   svg.b-icon.bi {
     color: var(--bs-gray-600);
     &:hover {
