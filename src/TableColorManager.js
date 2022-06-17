@@ -17,6 +17,9 @@ class TableColorManger {
     this.colors = {};
   }
   getColor(tableId) {
+    if (!tableId) {
+      return this.nullColor;
+    }
     if (this.colors[tableId]) {
       return this.colors[tableId];
     }

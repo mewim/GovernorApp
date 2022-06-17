@@ -103,7 +103,6 @@ export default {
       loadingPromise: null,
       selectedColumns: [],
       cellStyleOption: {},
-      cellTableMap: {},
       histories: [],
       logs: [],
       keywords: [],
@@ -197,9 +196,12 @@ export default {
       });
     },
     async loadDataForCurrentPage() {
+      const keywords = this.keywords
+        .map((k) => k.toLowerCase().split(" "))
+        .flat();
       console.time("Load data for page " + this.pageIndex);
       this.tableData.splice(0, this.tableData.length);
-      const cellTableMap = {};
+      const columnsToEnable = new Set();
       (await DuckDB.getFullTable(this.viewName, this.pageIndex, this.pageSize))
         .toArray()
         .map((d) => d.toJSON())
@@ -211,24 +213,33 @@ export default {
               continue;
             }
             const value = d[k];
-            d[k] = /^[;\s]*$/.test(value) || !value ? NULL_TEXT : value;
+            d[k] = {
+              value: /^[;\s]*$/.test(value) || !value ? null : value,
+            };
+            keywords.forEach((kw) => {
+              if (d[k].value && d[k].value.toLowerCase().includes(kw)) {
+                columnsToEnable.add(k);
+                d[k].isHighlighted = true;
+              }
+            });
             for (let tableId of tableIds) {
               if (
                 this.columnsMapping[tableId] &&
                 k in this.columnsMapping[tableId].mappedToColumnIndex
               ) {
-                if (!cellTableMap[i]) {
-                  cellTableMap[i] = {};
-                }
-                cellTableMap[i][k] = tableId;
+                d[k].tableId = tableId;
                 break;
               }
             }
           }
           d.rowKey = i;
           this.tableData.push(d);
-          this.cellTableMap = cellTableMap;
         });
+      columnsToEnable.forEach((c) => {
+        if (this.workingTableColumns[c]) {
+          this.addSelectedColumn(this.workingTableColumns[c].name);
+        }
+      });
       console.timeEnd("Load data for page " + this.pageIndex);
     },
     addData(metadata, visibleColumns) {
@@ -294,16 +305,19 @@ export default {
     },
     renderBodyCell({ row, column }, h) {
       const style = {};
-      const value = row[column.key];
-      const tableId = this.cellTableMap[row.rowKey][column.key];
+      const value = row[column.key].value;
+      const tableId = row[column.key].tableId;
+      console.log("tableId", tableId);
       if (this.isColorEnabled) {
-        const color =
-          value === NULL_TEXT
-            ? TableColorManger.nullColor
-            : TableColorManger.getColor(tableId);
+        const color = value
+          ? TableColorManger.getColor(tableId)
+          : TableColorManger.nullColor;
         style.color = color;
       }
-      return h("span", { style }, value);
+      if (row[column.key].isHighlighted) {
+        style.fontWeight = "bold";
+      }
+      return h("span", { style }, value ? value : NULL_TEXT);
     },
     async reloadData(preventReloadColumns = false) {
       let focusedIds;
@@ -395,7 +409,6 @@ export default {
       this.viewName = null;
       this.tableData = [];
       this.selectedColumns = [];
-      this.cellTableMap = {};
       this.histories = [];
       this.logs = [];
       this.keywords = [];
@@ -566,6 +579,10 @@ export default {
       await this.reloadData();
     },
     mouseEnterCell(event, row, column) {
+      const value = row[column.key].value;
+      if (!value) {
+        return;
+      }
       createPopper(
         event.target.querySelector("span"),
         this.$refs.tableToolTip,
@@ -587,7 +604,6 @@ export default {
           ],
         }
       );
-      const value = row[column.key];
       this.tooltipText = value;
       this.tooltipVisible = true;
     },

@@ -52,8 +52,10 @@ import axios from "axios";
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 import { createPopper } from "@popperjs/core";
+import TableColorManger from "../TableColorManager";
 
 const FIRST_TABLE_NAME = "T1";
+const NULL_TEXT = "NULL";
 
 export default {
   data() {
@@ -197,12 +199,18 @@ export default {
       results.forEach((r) => {
         r.renderBodyCell = ({ row, column }, h) => {
           const style = {};
+          const text = row[column.field].value;
+
           if (this.isColorEnabled) {
-            const color = this.resource.color;
+            const color = text
+              ? this.resource.color
+              : TableColorManger.nullColor;
             style.color = color;
           }
-          const text = row[column.field];
-          return h("span", { style }, text);
+          if (row[column.field].isHighlighted) {
+            style.fontWeight = "bold";
+          }
+          return h("span", { style }, text ? text : NULL_TEXT);
         };
       });
       return results;
@@ -369,10 +377,11 @@ export default {
         const rowDict = { rowKey: i };
         const rowObject = r.toJSON();
         Object.keys(rowObject).forEach((k) => {
-          rowDict[k] = rowObject[k];
+          rowDict[k] = { value: rowObject[k] };
           keywords.forEach((kw) => {
-            if (rowDict[k].toLowerCase().includes(kw)) {
+            if (rowDict[k].value.toLowerCase().includes(kw)) {
               columnsToEnable.add(k);
+              rowDict[k].isHighlighted = true;
             }
           });
         });
@@ -417,6 +426,10 @@ export default {
       this.loadingPromise = null;
     },
     mouseEnterCell(event, row, column) {
+      const value = row[column.key].value;
+      if (!value) {
+        return;
+      }
       createPopper(
         event.target.querySelector("span"),
         this.$refs.tableToolTip,
@@ -438,7 +451,6 @@ export default {
           ],
         }
       );
-      const value = row[column.key];
       this.tooltipText = value;
       this.tooltipVisible = true;
     },
