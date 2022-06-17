@@ -307,7 +307,6 @@ export default {
       const style = {};
       const value = row[column.key].value;
       const tableId = row[column.key].tableId;
-      console.log("tableId", tableId);
       if (this.isColorEnabled) {
         const color = value
           ? TableColorManger.getColor(tableId)
