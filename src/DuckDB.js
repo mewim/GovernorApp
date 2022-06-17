@@ -27,7 +27,6 @@ class DuckDB {
   }
 
   async init() {
-    console.time("DuckDB init");
     if (this.initializationPromise) {
       await this.initializationPromise;
       delete this.initializationPromise;
@@ -42,6 +41,7 @@ class DuckDB {
         mainWorker: "/js/duckdb-browser-eh.worker.js",
       },
     };
+    console.time("DuckDB init");
     // Select a bundle based on browser checks
     const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
     // Instantiate the asynchronus version of DuckDB-wasm
