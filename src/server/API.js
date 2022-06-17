@@ -14,6 +14,7 @@ const keyjoinscores = require("./KeyJoinScores");
 const datadictionaries = require("./DataDictionaries");
 const usecasediscoveries = require("./UseCaseDiscoveries");
 const sharedhistories = require("./SharedHistories");
+const inferredcolumnstats = require("./InferredColumnStats");
 
 router.use("/search", search);
 router.use("/inferredstats", inferredstats);
@@ -28,6 +29,7 @@ router.use("/datadictionaries", datadictionaries);
 router.use("/unionable", unionable);
 router.use("/usecasediscoveries", usecasediscoveries);
 router.use("/sharedhistories", sharedhistories);
+router.use("/inferredcolumnstats", inferredcolumnstats);
 
 router.use((_, res) => {
   return res.sendStatus(501);

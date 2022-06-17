@@ -67,6 +67,7 @@ export default {
       },
       isColorEnabled: false,
       isLoading: false,
+      isInitialLoading: true,
       visibleColumns: [],
       tableData: [],
       keywords: [],
@@ -134,11 +135,15 @@ export default {
     keyword: {
       immediate: true,
       handler: function (newValue) {
-        this.keywords.splice(0, this.keywords.length);
         if (!newValue) {
           return;
         }
-        this.keywords.push(newValue);
+        if (this.keywords.indexOf(newValue) === -1) {
+          this.keywords.push(newValue);
+          if (!this.isInitialLoading) {
+            this.reloadData();
+          }
+        }
       },
     },
     isActive: {
@@ -244,17 +249,28 @@ export default {
       this.inferredstats = await axios
         .get(`/api/inferredstats/${this.tableId}`)
         .then((res) => res.data);
-      this.inferredstats.schema.fields.forEach((f, i) => {
-        if (!this.keyword) {
-          this.selectedFields.push(i);
-        } else {
-          this.resource.matches.columns.forEach((c) => {
-            if (c === f.name) {
-              this.selectedFields.push(i);
-            }
+      if (this.isInitialLoading) {
+        let topColumnIndexes;
+        await axios
+          .get(`/api/inferredcolumnstats/${this.tableId}/topuniquecolumns`)
+          .then((res) => {
+            topColumnIndexes = new Set(res.data);
+          })
+          .catch(() => {
+            topColumnIndexes = new Set();
           });
-        }
-      });
+        this.inferredstats.schema.fields.forEach((f, i) => {
+          if (topColumnIndexes.has(i)) {
+            this.selectedFields.push(i);
+          } else {
+            this.resource.matches.columns.forEach((c) => {
+              if (c === f.name) {
+                this.selectedFields.push(i);
+              }
+            });
+          }
+        });
+      }
       this.dataDictionary = await axios
         .get(`api/datadictionaries/${this.tableId}`, {})
         .then((res) => res.data)
@@ -267,6 +283,7 @@ export default {
       await this.loadingPromise;
       await this.reloadCount();
       this.isLoading = false;
+      this.isInitialLoading = false;
     },
     async createDataView() {
       const viewResult = await DuckDB.createDataTableView(
@@ -415,7 +432,7 @@ export default {
             {
               name: "offset",
               options: {
-                offset: [0, 0],
+                offset: [-50, 0],
               },
             },
           ],
@@ -429,7 +446,6 @@ export default {
       this.tooltipVisible = false;
       this.tooltipText = "";
     },
-
     mouseEnterHeader(event, column) {
       if (!this.dataDictionary) {
         return;
@@ -448,7 +464,6 @@ export default {
       this.tooltipText = this.getColumnDescription(column.title);
       this.tooltipVisible = true;
     },
-
     getColumnDescription: function (name, delimiter = "<br/>") {
       const NO_DESCRIPTION = "(No description available)";
       if (!this.dataDictionary.fields) {

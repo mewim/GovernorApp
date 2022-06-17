@@ -156,26 +156,28 @@ export default {
         ? "nav-link active"
         : "nav-link";
     },
+    jumpToResource(resourceId) {
+      this.activeResourceId = resourceId;
+      this.isSearchActive = false;
+      this.isWorkingTableActive = false;
+      this.isUseCasesDiscoveryActive = false;
+    },
     openResource: function (r, jumpImmediately) {
       if (!r.resource.color) {
         r.resource.color = TableColorManger.getColor(r.resource.id);
       }
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
-          this.activeResourceId = r.resource.id;
-          this.openedResources[i].resource = r.resource;
-          this.openedResources[i].dataset = r.dataset;
-          this.openedResources[i].resourceStats = r.resourceStats;
           this.openedResources[i].keyword = r.keyword;
+          if (jumpImmediately) {
+            this.jumpToResource(r.resource.id);
+          }
           return;
         }
       }
       this.openedResources.push(r);
-      this.activeResourceId = r.resource.id;
       if (jumpImmediately) {
-        this.isSearchActive = false;
-        this.isWorkingTableActive = false;
-        this.isUseCasesDiscoveryActive = false;
+        this.jumpToResource(r.resource.id);
       }
     },
     closeResource: function (id) {
