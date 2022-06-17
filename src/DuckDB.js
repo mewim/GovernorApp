@@ -8,8 +8,12 @@ const ALIAS_PREFIX = "alias_";
 const COLUMN_PREFIX = "column_";
 const ROW_ID = "__row_id";
 const TABLE_ID = "__table_id";
-const GC_ENABLED = true;
-const NO_CACHE_MODE = false;
+
+const CONFIG = {
+  GC_ENABLED: true,
+  NO_CACHE: false,
+  PRESERVE_TABLE_ORDER: true,
+};
 
 class DuckDB {
   constructor() {
@@ -78,7 +82,7 @@ class DuckDB {
     }
     try {
       const query = `DROP ${
-        NO_CACHE_MODE ? "VIEW" : "TABLE"
+        CONFIG.NO_CACHE ? "VIEW" : "TABLE"
       } IF EXISTS "${uuid}" CASCADE`;
       console.debug(query);
       await conn.query(query);
@@ -92,7 +96,7 @@ class DuckDB {
   }
 
   async collectGarbage() {
-    if (!GC_ENABLED) {
+    if (!CONFIG.GC_ENABLED) {
       return;
     }
     const db = await this.getDb();
@@ -119,8 +123,12 @@ class DuckDB {
           .registerFileURL(`parquet_${uuid}`, url)
           .then(() => {
             const query = `CREATE ${
-              NO_CACHE_MODE ? "VIEW" : "TABLE"
-            } "${uuid}" AS SELECT *, ROW_NUMBER() OVER() as "${ROW_ID}" FROM "${url}"`;
+              CONFIG.NO_CACHE ? "VIEW" : "TABLE"
+            } "${uuid}" AS SELECT *${
+              CONFIG.PRESERVE_TABLE_ORDER
+                ? `, ROW_NUMBER() OVER() as "${ROW_ID}"`
+                : ""
+            } FROM "${url}"`;
             console.debug(query);
             return conn.query(query);
           })
@@ -389,7 +397,7 @@ class DuckDB {
       .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}" FROM "${
       sourceColumnMapping.alias
     }"${joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""} ${
-      orderByRowId ? `ORDER BY ${ROW_ID}` : ""
+      orderByRowId && CONFIG.PRESERVE_TABLE_ORDER ? `ORDER BY ${ROW_ID}` : ""
     }`;
   }
 
@@ -419,7 +427,9 @@ class DuckDB {
       }
       const projectionString = projections.join(", ");
       const currentWithClause = `"${alias}" AS (SELECT ${projectionString}${
-        currentMapping.isMain ? `, "${ROW_ID}"` : ""
+        currentMapping.isMain && CONFIG.PRESERVE_TABLE_ORDER
+          ? `, "${ROW_ID}"`
+          : ""
       } FROM "${uuid}"${
         currentMapping.isMain
           ? ""

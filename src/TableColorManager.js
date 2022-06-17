@@ -29,6 +29,11 @@ class TableColorManger {
   }
   addColor(tableId, color) {
     this.colors[tableId] = color;
+    const colorPaletteIndex = this.colorPalette.indexOf(color);
+    if (colorPaletteIndex === -1) {
+      return;
+    }
+    this.colorPalette.splice(colorPaletteIndex, 1);
   }
 }
 
