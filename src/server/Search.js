@@ -20,6 +20,7 @@ router.get("/metadata", async (req, res) => {
   }
   let isUUID = false;
   // If the query is a UUID, we use it directly without performing a search
+  q = q.trim();
   if (q.length === 32 && /[0-9A-Fa-f]{32}/g.test(q)) {
     q = adddashestouuid(q);
   }
@@ -142,10 +143,11 @@ router.get("/metadata", async (req, res) => {
 
 router.get("/", async (req, res) => {
   const db = await mongoUtil.getDb();
-  const keyword = req.query.q.toLowerCase();
+  let keyword = req.query.q;
   if (!keyword) {
     return res.sendStatus(400);
   }
+  keyword = keyword.toLowerCase().trim();
   const splittedKeywords = keyword.split(" ");
   const must = [];
   splittedKeywords.forEach((k) => {
