@@ -3,7 +3,6 @@ const router = express.Router();
 const elasticclient = require("@elastic/elasticsearch").Client;
 const adddashestouuid = require("add-dashes-to-uuid");
 const mongoUtil = require("./MongoUtil");
-const axios = require("axios");
 const uuid = require("uuid");
 
 const client = new elasticclient({
@@ -31,20 +30,21 @@ router.get("/metadata", async (req, res) => {
   let openCanadaResults = [];
   let resourceIdMatch;
   if (!isUUID) {
-    try {
-      const apiRes = await axios.get(
-        "https://open.canada.ca/data/api/action/package_search",
+    const textSearchResult = await db
+      .collection("metadata")
+      .find(
         {
-          params: {
-            q,
-            rows: 1000,
+          $text: {
+            $search: q
+              .split(/\s+/)
+              .map((kw) => `"${kw}"`)
+              .join(" "),
           },
-        }
-      );
-      openCanadaResults = apiRes.data.result.results.map((r) => r.id);
-    } catch (err) {
-      return res.sendStatus(500);
-    }
+        },
+        { _id: false, id: true }
+      )
+      .toArray();
+    openCanadaResults = textSearchResult.map((r) => r.id);
   } else {
     const dbQueryResult = await db.collection("metadata").findOne({
       $or: [{ id: q }, { "resources.id": q }],
