@@ -257,7 +257,7 @@ export default {
       this.inferredstats = await axios
         .get(`/api/inferredstats/${this.tableId}`)
         .then((res) => res.data);
-      if (this.isInitialLoading) {
+      if (this.isInitialLoading && !this.keyword) {
         let topColumnIndexes;
         await axios
           .get(`/api/inferredcolumnstats/${this.tableId}/topuniquecolumns`)
@@ -267,15 +267,9 @@ export default {
           .catch(() => {
             topColumnIndexes = new Set();
           });
-        this.inferredstats.schema.fields.forEach((f, i) => {
-          if (topColumnIndexes.has(i)) {
+        this.inferredstats.schema.fields.forEach((_, i) => {
+          if (topColumnIndexes && topColumnIndexes.has(i)) {
             this.selectedFields.push(i);
-          } else {
-            this.resource.matches.columns.forEach((c) => {
-              if (c === f.name) {
-                this.selectedFields.push(i);
-              }
-            });
           }
         });
       }
