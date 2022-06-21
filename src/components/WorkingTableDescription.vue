@@ -153,7 +153,11 @@
       >[{{ isJoinableTablesVisible ? "Hide" : "Show" }}]</a
     >
     <p></p>
-    <joinable-tables v-show="isJoinableTablesVisible" :histories="histories" />
+    <joinable-tables
+      v-show="isJoinableTablesVisible"
+      :histories="histories"
+      :focusedComponentId="focusedComponentId"
+    />
 
     <hr />
     <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
@@ -203,6 +207,11 @@ export default {
   computed: {
     allTableIds: function () {
       return this.histories.map((h) => h.table.id);
+    },
+    focusedComponentId: function () {
+      return !isNaN(parseInt(this.focusedComponentIndex))
+        ? this.histories[this.focusedComponentIndex].table.id
+        : null;
     },
   },
 

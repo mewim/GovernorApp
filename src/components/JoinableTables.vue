@@ -1,5 +1,14 @@
 <template>
   <div>
+    <div
+      v-show="joinableTables.length > 0 && !isLoading"
+      class="joinable-view-filter-container"
+    >
+      <b-form-input
+        v-model.lazy="filterText"
+        placeholder="Filter by dataset / column / table name..."
+      ></b-form-input>
+    </div>
     <b-list-group v-show="this.joinableTables.length === 0 || isLoading">
       <b-list-group-item
         v-if="joinableTables.length === 0 && !isLoading"
@@ -160,6 +169,7 @@ export default {
       type: Array,
       required: true,
     },
+    focusedComponentId: String,
   },
   data: function () {
     return {
@@ -171,6 +181,7 @@ export default {
       joinedColumn: null,
       isLoading: false,
       loadingPromise: null,
+      filterText: "",
     };
   },
   watch: {
@@ -302,6 +313,12 @@ export default {
         }
       });
       const joinableSources = joinables.map((j) => j.source_resource.id);
+      if (
+        this.focusedComponentId &&
+        !joinableSources.includes(this.focusedComponentId)
+      ) {
+        return [];
+      }
       const targerFieldNameSet = new Set(
         joinables.map((j) => j.target_field_name)
       );
@@ -334,9 +351,41 @@ export default {
         .name;
     },
     getFilteredResourcesHash: function () {
+      const filterKeywords = this.filterText
+        ? this.filterText.toLowerCase().split(" ")
+        : null;
       const result = {};
       for (let k in this.resourcesHash) {
         const resource = this.resourcesHash[k];
+        const datasetName = this.datasetNameHash[resource.id];
+        let shouldInclude = !filterKeywords;
+        if (!shouldInclude) {
+          for (let f of filterKeywords) {
+            if (
+              resource.name.toLowerCase().includes(f) ||
+              datasetName.toLowerCase().includes(f)
+            ) {
+              shouldInclude = true;
+              break;
+            }
+          }
+        }
+        if (!shouldInclude) {
+          const resourceStats = this.resourceStatsHash[resource.id];
+          for (let kw of filterKeywords) {
+            if (
+              resourceStats.schema.fields.find((f) =>
+                f.name.toLowerCase().includes(kw)
+              )
+            ) {
+              shouldInclude = true;
+              break;
+            }
+          }
+        }
+        if (!shouldInclude) {
+          continue;
+        }
         const filteredColumns = this.filterColumns(resource);
         if (filteredColumns.length > 0) {
           result[k] = {
@@ -364,5 +413,11 @@ export default {
 }
 .float-right {
   float: right;
+}
+.joinable-view-filter-container {
+  > input.form-control {
+    width: 100%;
+    margin-bottom: 8px;
+  }
 }
 </style>
