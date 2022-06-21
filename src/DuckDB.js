@@ -469,7 +469,7 @@ class DuckDB {
 
   async dropDataView(uuid, triggerGc = true) {
     const viewName = `${VIEW_PREFIX}${uuid}`;
-    const dropQuery = `DROP VIEW "${viewName}"`;
+    const dropQuery = `DROP VIEW IF EXISTS "${viewName}"`;
     console.debug(dropQuery);
     const db = await this.getDb();
     const conn = await db.connect();

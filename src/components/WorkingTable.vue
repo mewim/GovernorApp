@@ -69,6 +69,20 @@
         {{ tooltipText }}
       </div>
     </div>
+
+    <b-modal
+      title="Database Error"
+      ok-only
+      hide-header-close
+      ref="duckdbErrorModal"
+      size="lg"
+    >
+      <p>
+        Sorry, the operation failed due to a database error. The working table
+        is reset automatically.
+      </p>
+      <p class="duckdb-error-message">Error message: {{ duckDBErrorMessage }}</p>
+    </b-modal>
   </div>
 </template>
 
@@ -134,6 +148,7 @@ export default {
         : {},
       dismissCountDown: 0,
       alertMessage: "",
+      duckDBErrorMessage: "",
     };
   },
   props: {
@@ -202,7 +217,17 @@ export default {
       console.time("Load data for page " + this.pageIndex);
       this.tableData.splice(0, this.tableData.length);
       const columnsToEnable = new Set();
-      (await DuckDB.getFullTable(this.viewName, this.pageIndex, this.pageSize))
+      let duckDBResult;
+      try {
+        duckDBResult = await DuckDB.getFullTable(
+          this.viewName,
+          this.pageIndex,
+          this.pageSize
+        );
+      } catch (err) {
+        this.handleDuckDBError(err);
+      }
+      duckDBResult
         .toArray()
         .map((d) => d.toJSON())
         .forEach((d, i) => {
@@ -263,8 +288,8 @@ export default {
             this.addSelectedColumn(c.title);
           }
         });
+        this.showAlert(`Added rows from table: "${metadata.table.name}" `);
       });
-      this.showAlert(`Added rows from table: "${metadata.table.name}" `);
     },
     reloadColumns() {
       const columns = [];
@@ -336,13 +361,20 @@ export default {
         this.isPaginationLoading = false;
         return;
       }
-      const { viewName, columnsMapping, workingTableColumns } =
-        await DuckDB.createWorkingTable(
+      let viewName, columnsMapping, workingTableColumns;
+      try {
+        const duckDBResult = await DuckDB.createWorkingTable(
           this.histories,
           this.keywords,
           this.sortConfig,
           focusedIds
         );
+        viewName = duckDBResult.viewName;
+        columnsMapping = duckDBResult.columnsMapping;
+        workingTableColumns = duckDBResult.workingTableColumns;
+      } catch (err) {
+        this.handleDuckDBError(err);
+      }
       this.viewName = viewName;
       this.columnsMapping = columnsMapping;
       this.workingTableColumns = workingTableColumns;
@@ -364,7 +396,11 @@ export default {
       if (this.pageIndex === 1 && this.tableData.length < this.pageSize) {
         this.totalCount = this.tableData.length;
       } else {
-        this.totalCount = await DuckDB.getTotalCount(this.viewName);
+        try {
+          this.totalCount = await DuckDB.getTotalCount(this.viewName);
+        } catch (err) {
+          this.handleDuckDBError(err);
+        }
       }
       console.timeEnd("Reloading count");
     },
@@ -552,8 +588,12 @@ export default {
         this.visibleColumns.map((c) => c.title),
         this.visibleColumns.map((c) => c.key)
       );
-      await this.loadingPromise;
-      this.loadingPromise = null;
+      try {
+        await this.loadingPromise;
+        this.loadingPromise = null;
+      } catch (err) {
+        this.handleDuckDBError(err);
+      }
     },
     async openSharedTable(id) {
       const result = await axios
@@ -673,6 +713,13 @@ export default {
     countDownChanged(dismissCountDown) {
       this.dismissCountDown = dismissCountDown;
     },
+    handleDuckDBError(err) {
+      this.isPaginationLoading = false;
+      this.loadingPromise = null;
+      this.duckDBErrorMessage = err.message;
+      this.$refs.duckdbErrorModal.show();
+      this.resetTable();
+    },
   },
   async mounted() {
     this.loadingInstance = VeLoading({
@@ -738,5 +785,8 @@ div.working-table-alert-container {
 }
 .table-tooltip {
   position: absolute;
+}
+.duckdb-error-message{
+  color: red;
 }
 </style>

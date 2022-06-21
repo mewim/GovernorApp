@@ -44,6 +44,23 @@
     >
       <div class="tooltip-inner" v-html="tooltipText"></div>
     </div>
+
+    <b-modal
+      title="Database Error"
+      ok-only
+      hide-header-close
+      ref="duckdbErrorModal"
+      size="lg"
+      @ok="handleDuckdbErrorModalOk"
+    >
+      <p>
+        Sorry, the operation failed due to a database error. The current table
+        will be closed automatically.
+      </p>
+      <p class="duckdb-error-message">
+        Error message: {{ duckDBErrorMessage }}
+      </p>
+    </b-modal>
   </div>
 </template>
 
@@ -116,6 +133,7 @@ export default {
       tooltipVisible: false,
       tooltipText: "",
       dataDictionary: null,
+      duckDBErrorMessage: "",
     };
   },
   props: {
@@ -278,7 +296,11 @@ export default {
         .then((res) => res.data)
         .catch(() => {});
       console.time("DuckDB Load");
-      await DuckDB.loadParquet(this.tableId);
+      try {
+        await DuckDB.loadParquet(this.tableId);
+      } catch (err) {
+        this.handleDuckDBError(err);
+      }
       console.timeEnd("DuckDB Load");
       await this.createDataView();
       this.loadingPromise = this.loadDataForCurrentPage();
@@ -288,12 +310,17 @@ export default {
       this.isInitialLoading = false;
     },
     async createDataView() {
-      const viewResult = await DuckDB.createDataTableView(
-        this.tableId,
-        this.keywords,
-        null,
-        this.sortConfig.key && this.sortConfig.order ? this.sortConfig : null
-      );
+      let viewResult;
+      try {
+        viewResult = await DuckDB.createDataTableView(
+          this.tableId,
+          this.keywords,
+          null,
+          this.sortConfig.key && this.sortConfig.order ? this.sortConfig : null
+        );
+      } catch (err) {
+        this.handleDuckDBError(err);
+      }
       this.viewId = viewResult;
       this.totalCount = 0;
     },
@@ -349,7 +376,11 @@ export default {
       if (this.pageIndex === 1 && this.tableData.length < this.pageSize) {
         this.totalCount = this.tableData.length;
       } else {
-        this.totalCount = await DuckDB.getTotalCount(this.viewId);
+        try {
+          this.totalCount = await DuckDB.getTotalCount(this.viewId);
+        } catch (err) {
+          this.handleDuckDBError(err);
+        }
       }
     },
     async loadDataForCurrentPage() {
@@ -359,11 +390,16 @@ export default {
       this.tableData.splice(0);
       const tableId = this.viewId;
       console.time(`DuckDB Query ${tableId}`);
-      const arrowTable = await DuckDB.getFullTable(
-        tableId,
-        this.pageIndex,
-        this.pageSize
-      );
+      let arrowTable;
+      try {
+        arrowTable = await DuckDB.getFullTable(
+          tableId,
+          this.pageIndex,
+          this.pageSize
+        );
+      } catch (err) {
+        this.handleDuckDBError(err);
+      }
       console.timeEnd(`DuckDB Query ${tableId}`);
       console.time(`Post-process ${tableId}`);
       const columnsToEnable = new Set();
@@ -416,8 +452,12 @@ export default {
         this.visibleColumns.map((c) => c.title),
         this.visibleColumns.map((c) => c.key)
       );
-      await this.loadingPromise;
-      this.loadingPromise = null;
+      try {
+        await this.loadingPromise;
+        this.loadingPromise = null;
+      } catch (err) {
+        this.handleDuckDBError(err);
+      }
     },
     mouseEnterCell(event, row, column) {
       const value = row[column.key].value;
@@ -495,6 +535,16 @@ export default {
         });
       }
       return descriptionText.join(delimiter);
+    },
+    handleDuckDBError(err) {
+      this.isPaginationLoading = false;
+      this.loadingPromise = null;
+      this.duckDBErrorMessage = err.message;
+      this.$refs.duckdbErrorModal.show();
+    },
+    handleDuckdbErrorModalOk() {
+      this.$refs.duckdbErrorModal.hide();
+      this.$parent.closeResource(this.tableId);
     },
   },
   mounted() {

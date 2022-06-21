@@ -163,6 +163,7 @@
       ok-only
       hide-header-close
       ref="sharedLinkModal"
+      size="lg"
     >
       <p>{{ sharedLink }}</p>
     </b-modal>
