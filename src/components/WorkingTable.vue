@@ -81,7 +81,9 @@
         Sorry, the operation failed due to a database error. The working table
         is reset automatically.
       </p>
-      <p class="duckdb-error-message">Error message: {{ duckDBErrorMessage }}</p>
+      <p class="duckdb-error-message">
+        Error message: {{ duckDBErrorMessage }}
+      </p>
     </b-modal>
   </div>
 </template>
@@ -94,6 +96,7 @@ import axios from "axios";
 import { createPopper } from "@popperjs/core";
 const TABLE_ID = "__table_id";
 const NULL_TEXT = "NULL";
+const UNDEFINED_TEXT = "UNFILLED";
 const DEFAULT_COUNT_DOWN = 2;
 export default {
   data() {
@@ -239,7 +242,13 @@ export default {
             }
             const value = d[k];
             d[k] = {
-              value: /^[;\s]*$/.test(value) || !value ? null : value,
+              value: value
+                ? value
+                : /^[;\s]*$/.test(value) || value === ""
+                ? // Table does not contain the value
+                  null
+                : // The value is not filled by the current join plan
+                  undefined,
             };
             keywords.forEach((kw) => {
               if (d[k].value && d[k].value.toLowerCase().includes(kw)) {
@@ -341,7 +350,11 @@ export default {
       if (row[column.key].isHighlighted) {
         style.fontWeight = "bold";
       }
-      return h("span", { style }, value ? value : NULL_TEXT);
+      return h(
+        "span",
+        { style },
+        value ? value : value === null ? NULL_TEXT : UNDEFINED_TEXT
+      );
     },
     async reloadData(preventReloadColumns = false) {
       let focusedIds;
@@ -786,7 +799,7 @@ div.working-table-alert-container {
 .table-tooltip {
   position: absolute;
 }
-.duckdb-error-message{
+.duckdb-error-message {
   color: red;
 }
 </style>
