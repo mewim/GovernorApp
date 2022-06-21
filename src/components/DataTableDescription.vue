@@ -55,17 +55,9 @@
 
           <template #cell(name)="row">
             <span
-              v-if="!!dataDictionary"
               v-b-tooltip.hover.html
               :title="getColumnDescription(row.item)"
             >
-              <div
-                class="inline-color-block"
-                :style="{ 'background-color': row.item.color }"
-              ></div>
-              <span>&nbsp; {{ row.item.name }}</span>
-            </span>
-            <span v-else>
               <div
                 class="inline-color-block"
                 :style="{ 'background-color': row.item.color }"

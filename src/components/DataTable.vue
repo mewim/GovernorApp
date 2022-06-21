@@ -46,7 +46,7 @@
     </div>
 
     <b-modal
-      title="Database Error"
+      title="Error"
       ok-only
       hide-header-close
       ref="duckdbErrorModal"
@@ -54,7 +54,7 @@
       @ok="handleDuckdbErrorModalOk"
     >
       <p>
-        Sorry, the operation failed due to a database error. The current table
+        Sorry, the operation failed due to an error. The current table
         will be closed automatically.
       </p>
       <p class="duckdb-error-message">
@@ -70,6 +70,7 @@ import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 import { createPopper } from "@popperjs/core";
 import TableColorManger from "../TableColorManager";
+import Common from "../Common";
 
 const FIRST_TABLE_NAME = "T1";
 const NULL_TEXT = "NULL";
@@ -499,9 +500,6 @@ export default {
       this.tooltipText = "";
     },
     mouseEnterHeader(event, column) {
-      if (!this.dataDictionary) {
-        return;
-      }
       createPopper(event.target, this.$refs.tableToolTip, {
         placement: "bottom",
         modifiers: [
@@ -517,30 +515,7 @@ export default {
       this.tooltipVisible = true;
     },
     getColumnDescription: function (name, delimiter = "<br/>") {
-      const NO_DESCRIPTION = "(No description available)";
-      if (!this.dataDictionary.fields) {
-        return NO_DESCRIPTION;
-      }
-      const field = this.dataDictionary.fields.find(
-        (f) => f.field_name === name
-      );
-      if (!field) {
-        return NO_DESCRIPTION;
-      }
-      const descriptionText = [];
-      if (field.field_desc) {
-        descriptionText.push(field.field_desc);
-      }
-      if (field.values && field.values.length > 0) {
-        if (descriptionText.length > 0) {
-          descriptionText.push("");
-        }
-        descriptionText.push("Possible values:");
-        field.values.forEach((v) => {
-          descriptionText.push(`- ${v.value_name}: ${v.value_desc}`);
-        });
-      }
-      return descriptionText.join(delimiter);
+      return Common.getColumnDescription(this.dataDictionary, name, delimiter);
     },
     handleDuckDBError(err) {
       this.isPaginationLoading = false;

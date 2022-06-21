@@ -19,7 +19,8 @@ except:
 uuid = os.path.splitext(os.path.basename(file_path))[0]
 
 csv_stream = pd.read_csv(file_path, encoding=encoding,
-                         chunksize=chunksize, on_bad_lines='skip', dtype=str)
+                         chunksize=chunksize, on_bad_lines='skip',
+                         dtype=str, low_memory=False)
 for i, chunk in enumerate(csv_stream):
     chunk.fillna('', inplace=True)
     if field_names is not None and len(chunk.columns) == len(field_names):

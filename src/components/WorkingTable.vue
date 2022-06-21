@@ -65,21 +65,19 @@
       v-if="isEllipsisEnabled"
       v-show="tooltipVisible"
     >
-      <div class="tooltip-inner">
-        {{ tooltipText }}
-      </div>
+      <div class="tooltip-inner" v-html="tooltipText"></div>
     </div>
 
     <b-modal
-      title="Database Error"
+      title="Error"
       ok-only
       hide-header-close
       ref="duckdbErrorModal"
       size="lg"
     >
       <p>
-        Sorry, the operation failed due to a database error. The working table
-        is reset automatically.
+        Sorry, the operation failed due to an error. The working table is reset
+        automatically.
       </p>
       <p class="duckdb-error-message">
         Error message: {{ duckDBErrorMessage }}
@@ -94,6 +92,7 @@ import DuckDB from "../DuckDB";
 import TableColorManger from "../TableColorManager";
 import axios from "axios";
 import { createPopper } from "@popperjs/core";
+import Common from "../Common";
 const TABLE_ID = "__table_id";
 const NULL_TEXT = "NULL";
 const DEFAULT_COUNT_DOWN = 3.5;
@@ -136,20 +135,31 @@ export default {
         isNumeric: false,
       },
       isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
-      eventCustomOption: IS_ELLIPSIS_ENABLED
-        ? {
-            bodyCellEvents: ({ row, column }) => {
+      eventCustomOption: {
+        bodyCellEvents: IS_ELLIPSIS_ENABLED
+          ? ({ row, column }) => {
               return {
                 mouseenter: (event) => {
                   this.mouseEnterCell(event, row, column);
                 },
-                mouseleave: (event) => {
-                  this.mouseLeaveCell(event, row, column);
+                mouseleave: () => {
+                  this.mouseLeaveCell();
                 },
               };
+            }
+          : undefined,
+        headerCellEvents: ({ column }) => {
+          return {
+            mouseenter: (event) => {
+              this.mouseEnterHeader(event, column);
             },
-          }
-        : {},
+            mouseleave: () => {
+              this.mouseLeaveCell();
+            },
+          };
+        },
+      },
+      dataDictionary: null,
       dismissCountDown: 0,
       alertMessage: "",
       duckDBErrorMessage: "",
@@ -388,6 +398,11 @@ export default {
       if (!preventReloadColumns) {
         this.reloadColumns();
       }
+      const tableIds = Object.keys(this.columnsMapping);
+      this.dataDictionary = await axios
+        .get(`api/datadictionaries/${tableIds.join(",")}`, {})
+        .then((res) => res.data)
+        .catch(() => {});
       await this.loadDataForCurrentPage();
       this.reloadCount().then(() => {
         this.isPaginationLoading = false;
@@ -460,6 +475,8 @@ export default {
         order: null,
         isNumeric: false,
       };
+      this.dataDictionary = null;
+      this.duckDBErrorMessage = "";
       await DuckDB.resetWorkingTable(true);
     },
     addSelectedColumn(item) {
@@ -647,7 +664,7 @@ export default {
             {
               name: "offset",
               options: {
-                offset: [0, 0],
+                offset: [-50, 0],
               },
             },
           ],
@@ -659,6 +676,21 @@ export default {
     mouseLeaveCell() {
       this.tooltipVisible = false;
       this.tooltipText = "";
+    },
+    mouseEnterHeader(event, column) {
+      createPopper(event.target, this.$refs.tableToolTip, {
+        placement: "bottom",
+        modifiers: [
+          {
+            name: "offset",
+            options: {
+              offset: [-50, 0],
+            },
+          },
+        ],
+      });
+      this.tooltipText = this.getColumnDescription(column.title);
+      this.tooltipVisible = true;
     },
     async undoJoinLog(log) {
       const sourcesSet = new Set(log.sources.map((s) => s.id));
@@ -722,6 +754,9 @@ export default {
     },
     countDownChanged(dismissCountDown) {
       this.dismissCountDown = dismissCountDown;
+    },
+    getColumnDescription: function (name, delimiter = "<br/>") {
+      return Common.getColumnDescription(this.dataDictionary, name, delimiter);
     },
     handleDuckDBError(err) {
       this.isPaginationLoading = false;

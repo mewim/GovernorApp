@@ -132,6 +132,14 @@
               <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
             </template>
           </template>
+          <template #cell(title)="row">
+            <span
+              v-b-tooltip.hover.html
+              :title="getColumnDescription(row.item)"
+            >
+              {{ row.item.title }}
+            </span>
+          </template>
           <template #cell(tables)="row">
             <div
               v-for="id in row.item.tables"
@@ -296,6 +304,9 @@ export default {
     },
     focusComponent(i) {
       this.$parent.focusComponent(i);
+    },
+    getColumnDescription(item) {
+      return this.$parent.getColumnDescription(item.title);
     },
   },
 };

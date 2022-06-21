@@ -54,7 +54,7 @@ router.get("/usecases", async (req, res) => {
 
 router.get("/:uuids", async (req, res) => {
   const db = await mongoUtil.getDb();
-  const uuidArray = req.params.uuids.split(",");
+  const uuidArray = req.params.uuids.split(",").map((uuid) => uuid.trim());
   const uuidSet = new Set(uuidArray);
 
   const found = await db
