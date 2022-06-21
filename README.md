@@ -1,4 +1,4 @@
-# opencanadadatacrawler
+# Governor App
 
 ## Project setup
 ```
