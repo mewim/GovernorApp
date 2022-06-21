@@ -18,7 +18,7 @@
           variant="primary"
           @dismiss-count-down="countDownChanged"
         >
-          <span>
+          <span style="font-size: large">
             <b-icon icon="check2" />
             &nbsp;
             <span>
@@ -96,8 +96,9 @@ import axios from "axios";
 import { createPopper } from "@popperjs/core";
 const TABLE_ID = "__table_id";
 const NULL_TEXT = "NULL";
-const UNDEFINED_TEXT = "UNFILLED";
-const DEFAULT_COUNT_DOWN = 2;
+const DEFAULT_COUNT_DOWN = 3.5;
+const UNFILLED_TEXT = "UNFILLED";
+
 export default {
   data() {
     const IS_ELLIPSIS_ENABLED = true;
@@ -229,6 +230,7 @@ export default {
         );
       } catch (err) {
         this.handleDuckDBError(err);
+        return;
       }
       duckDBResult
         .toArray()
@@ -242,13 +244,7 @@ export default {
             }
             const value = d[k];
             d[k] = {
-              value: value
-                ? value
-                : /^[;\s]*$/.test(value) || value === ""
-                ? // Table does not contain the value
-                  null
-                : // The value is not filled by the current join plan
-                  undefined,
+              value: !value || /^[;\s]*$/.test(value) ? null : value,
             };
             keywords.forEach((kw) => {
               if (d[k].value && d[k].value.toLowerCase().includes(kw)) {
@@ -342,19 +338,16 @@ export default {
       const value = row[column.key].value;
       const tableId = row[column.key].tableId;
       if (this.isColorEnabled) {
-        const color = value
-          ? TableColorManger.getColor(tableId)
-          : TableColorManger.nullColor;
+        const color =
+          value && value !== UNFILLED_TEXT
+            ? TableColorManger.getColor(tableId)
+            : TableColorManger.nullColor;
         style.color = color;
       }
       if (row[column.key].isHighlighted) {
         style.fontWeight = "bold";
       }
-      return h(
-        "span",
-        { style },
-        value ? value : value === null ? NULL_TEXT : UNDEFINED_TEXT
-      );
+      return h("span", { style }, value ? value : NULL_TEXT);
     },
     async reloadData(preventReloadColumns = false) {
       let focusedIds;
@@ -387,6 +380,7 @@ export default {
         workingTableColumns = duckDBResult.workingTableColumns;
       } catch (err) {
         this.handleDuckDBError(err);
+        return;
       }
       this.viewName = viewName;
       this.columnsMapping = columnsMapping;
@@ -413,6 +407,7 @@ export default {
           this.totalCount = await DuckDB.getTotalCount(this.viewName);
         } catch (err) {
           this.handleDuckDBError(err);
+          return;
         }
       }
       console.timeEnd("Reloading count");
@@ -599,13 +594,15 @@ export default {
       this.loadingPromise = DuckDB.dumpCsv(
         this.viewId ? this.viewId : this.viewName,
         this.visibleColumns.map((c) => c.title),
-        this.visibleColumns.map((c) => c.key)
+        this.visibleColumns.map((c) => c.key),
+        "WorkingTable"
       );
       try {
         await this.loadingPromise;
         this.loadingPromise = null;
       } catch (err) {
         this.handleDuckDBError(err);
+        return;
       }
     },
     async openSharedTable(id) {

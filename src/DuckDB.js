@@ -8,6 +8,7 @@ const ALIAS_PREFIX = "alias_";
 const COLUMN_PREFIX = "column_";
 const ROW_ID = "__row_id";
 const TABLE_ID = "__table_id";
+const UNFILLED_TEXT = "UNFILLED";
 
 const CONFIG = {
   GC_ENABLED: true,
@@ -413,7 +414,7 @@ class DuckDB {
           currentProjection = `${
             currentMapping.mappedToColumnIndex[column] !== null
               ? `"${currentMapping.mappedToColumnIndex[column]}"`
-              : "NULL"
+              : `'${UNFILLED_TEXT}'`
           } AS "${column}"`;
         } else {
           currentProjection = `${
@@ -708,29 +709,48 @@ class DuckDB {
     };
   }
 
-  async dumpCsv(tableId, header, columnIndexes = null, chunkSize = 10000) {
-    let handle, writable;
-    try {
-      const options = {
-        types: [
-          {
-            description: "CSV File",
-            accept: {
-              "text/csv": [".csv"],
+  async dumpCsv(
+    tableId,
+    header,
+    columnIndexes = null,
+    // `name` is only used for browser that does not support file system API
+    name = "table",
+    chunkSize = 10000
+  ) {
+    const isFileSystemSupported = !!window.showSaveFilePicker;
+    let handle, writable, buffer;
+    // If the browser supports the new file system API, we use it to reduce
+    // memory consumption
+    if (isFileSystemSupported) {
+      try {
+        const options = {
+          types: [
+            {
+              description: "CSV File",
+              accept: {
+                "text/csv": [".csv"],
+              },
             },
-          },
-        ],
-      };
-      handle = await window.showSaveFilePicker(options);
-      writable = await handle.createWritable();
-    } catch (err) {
-      console.debug("User cancelled operation or there is an error:", err);
+          ],
+        };
+        handle = await window.showSaveFilePicker(options);
+        writable = await handle.createWritable();
+      } catch (err) {
+        console.debug("User cancelled operation or there is an error:", err);
+      }
+      if (!handle || !writable) {
+        return;
+      }
+    } else {
+      // Otherwise, we have to buffer the entire CSV file in memory
+      buffer = "";
     }
-    if (!handle || !writable) {
-      return;
+    const headerContent = papaparse.unparse([header]) + "\n";
+    if (writable) {
+      await writable.write(headerContent);
+    } else {
+      buffer += headerContent;
     }
-    await writable.write(papaparse.unparse([header]));
-    await writable.write("\n");
     const totalCount = await this.getTotalCount(tableId);
     for (let i = 0; i < totalCount / chunkSize; ++i) {
       const chunk = await this.getFullTable(tableId, i + 1, chunkSize);
@@ -750,10 +770,32 @@ class DuckDB {
           return /^[;\s]*$/.test(r) ? "" : r;
         });
       });
-      await writable.write(papaparse.unparse(rows));
-      await writable.write("\n");
+      const content = papaparse.unparse(rows) + "\n";
+      if (writable) {
+        await writable.write(content);
+      } else {
+        buffer += content;
+      }
     }
-    writable.close();
+    if (writable) {
+      writable.close();
+      return;
+    }
+
+    // Simulate a download
+    const element = document.createElement("a");
+    element.setAttribute(
+      "href",
+      "data:text/plain;charset=utf-8," + encodeURIComponent(buffer)
+    );
+    element.setAttribute("download", `${name}.csv`);
+
+    element.style.display = "none";
+    document.body.appendChild(element);
+
+    element.click();
+
+    document.body.removeChild(element);
   }
 }
 

@@ -300,6 +300,7 @@ export default {
         await DuckDB.loadParquet(this.tableId);
       } catch (err) {
         this.handleDuckDBError(err);
+        return;
       }
       console.timeEnd("DuckDB Load");
       await this.createDataView();
@@ -320,6 +321,7 @@ export default {
         );
       } catch (err) {
         this.handleDuckDBError(err);
+        return;
       }
       this.viewId = viewResult;
       this.totalCount = 0;
@@ -380,6 +382,7 @@ export default {
           this.totalCount = await DuckDB.getTotalCount(this.viewId);
         } catch (err) {
           this.handleDuckDBError(err);
+          return;
         }
       }
     },
@@ -399,6 +402,7 @@ export default {
         );
       } catch (err) {
         this.handleDuckDBError(err);
+        return;
       }
       console.timeEnd(`DuckDB Query ${tableId}`);
       console.time(`Post-process ${tableId}`);
@@ -450,13 +454,15 @@ export default {
       this.loadingPromise = DuckDB.dumpCsv(
         this.viewId ? this.viewId : this.tableId,
         this.visibleColumns.map((c) => c.title),
-        this.visibleColumns.map((c) => c.key)
+        this.visibleColumns.map((c) => c.key),
+        this.resource.name
       );
       try {
         await this.loadingPromise;
         this.loadingPromise = null;
       } catch (err) {
         this.handleDuckDBError(err);
+        return;
       }
     },
     mouseEnterCell(event, row, column) {
