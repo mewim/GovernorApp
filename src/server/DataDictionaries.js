@@ -26,7 +26,10 @@ router.get("/:uuids", async (req, res) => {
   const foundHash = {};
   for (let currentRecord of found) {
     for (let f of currentRecord.fields) {
-      if (!f.field_name) {
+      if (
+        !f.field_name ||
+        (!f.field_desc && (!f.values || f.values.length === 0))
+      ) {
         continue;
       }
       if (!foundHash[f.field_name]) {
