@@ -6,7 +6,7 @@
           class="inline-color-block"
           :style="{ 'background-color': resource.color }"
         ></div>
-        Table: {{ resource.name }}
+        Original Table: {{ resource.name }}
       </h5>
       <a href="#" @click="isTableDetailsVisible = !isTableDetailsVisible"
         >[{{ isTableDetailsVisible ? "Hide" : "Show" }} Dataset Details]</a

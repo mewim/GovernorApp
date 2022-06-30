@@ -32,6 +32,7 @@ import UnionableTables from "./components/UnionableTables.vue";
 import WorkingTable from "./components/WorkingTable.vue";
 import WorkingTableDescription from "./components/WorkingTableDescription.vue";
 import UseCasesDiscovery from "./components/UseCasesDiscovery.vue";
+import WorkingTableComponents from "./components/WorkingTableComponents.vue";
 
 Vue.component("search-view", SearchView);
 Vue.component("data-table", DataTable);
@@ -45,6 +46,7 @@ Vue.component("unionable-tables", UnionableTables);
 Vue.component("working-table", WorkingTable);
 Vue.component("working-table-description", WorkingTableDescription);
 Vue.component("use-cases-discovery", UseCasesDiscovery);
+Vue.component("working-table-components", WorkingTableComponents);
 
 Vue.config.productionTip = false;
 

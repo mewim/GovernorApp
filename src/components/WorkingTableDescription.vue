@@ -22,7 +22,12 @@
       </div>
       <hr />
       <h5>Components</h5>
-      <b-list-group>
+      <working-table-components
+        :histories="histories"
+        :selectedColumns="selectedColumns"
+        :columns="columns"
+      />
+      <b-list-group v-if="false">
         <b-list-group-item v-for="(h, i) in histories" :key="i">
           <div class="d-flex w-100 justify-content-between">
             <span>
@@ -107,7 +112,7 @@
         </b-list-group-item>
       </b-list-group>
       <hr />
-      <h5>Columns</h5>
+      <h5>Add Columns From Unioned Tables</h5>
       <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
         >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
       >
@@ -118,7 +123,7 @@
       >
         <b-table
           ref="schemaFieldsTable"
-          :items="columns"
+          :items="filteredColumns"
           :fields="schemaFields"
           no-select-on-click
           selectable
@@ -156,7 +161,7 @@
     </div>
     <hr />
 
-    <h5>Add Columns from Other Tables</h5>
+    <h5>Add Columns from Other Tables (Join)</h5>
     <a href="#" @click="isJoinableTablesVisible = !isJoinableTablesVisible"
       >[{{ isJoinableTablesVisible ? "Hide" : "Show" }}]</a
     >
@@ -165,6 +170,7 @@
       v-show="isJoinableTablesVisible"
       :histories="histories"
       :focusedComponentId="focusedComponentId"
+      ref="joinableTables"
     />
 
     <hr />
@@ -187,7 +193,6 @@ import axios from "axios";
 import TableColorManger from "../TableColorManager";
 export default {
   name: "WorkingTableDescription",
-
   props: {
     histories: Array,
     logs: Array,
@@ -206,7 +211,7 @@ export default {
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "title", label: "Column" },
-        { key: "tables", label: "Tables" },
+        // { key: "tables", label: "Tables" },
       ],
       sharedLink: "",
     };
@@ -220,6 +225,18 @@ export default {
       return !isNaN(parseInt(this.focusedComponentIndex))
         ? this.histories[this.focusedComponentIndex].table.id
         : null;
+    },
+    filteredColumns: function () {
+      return this.columns.filter((c) => {
+        let isUnionedColumn = false;
+        for (let h of this.histories) {
+          if (h.resourceStats.schema.fields.find((f) => f.name === c.title)) {
+            isUnionedColumn = true;
+            break;
+          }
+        }
+        return isUnionedColumn;
+      });
     },
   },
 
@@ -280,6 +297,18 @@ export default {
     },
     undoLog: function (log) {
       this.$parent.undoLog(log);
+    },
+    undoJoin: function (targetResource, column) {
+      const log = this.logs.find(
+        (log) =>
+          log.type === "join" &&
+          log.table.id === targetResource.id &&
+          log.column === column.name
+      );
+      if (!log) {
+        return;
+      }
+      this.undoLog(log);
     },
     async share() {
       axios

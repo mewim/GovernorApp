@@ -581,6 +581,8 @@ export default {
       this.showAlert(
         `Added column "${column.name}" from "${joinables[0].target_resource.name}"`
       );
+      // Hack to forcefully trigger rerender
+      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
     },
     async sortChange(params) {
       let isSortByColumn = false;
@@ -721,6 +723,8 @@ export default {
         return false;
       });
       this.showAlert(alertMessage);
+      // Hack to forcefully trigger rerender
+      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
     },
     async undoLog(log) {
       switch (log.type) {

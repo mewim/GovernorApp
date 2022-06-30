@@ -24,7 +24,7 @@
       </b-list-group-item>
     </b-list-group>
     <b-list-group>
-      <b-list-group-item v-for="(r, k) in getFilteredResourcesHash()" :key="k">
+      <b-list-group-item v-for="(r, k) in filteredResourcesHash" :key="k">
         <div
           class="
             d-flex
@@ -62,19 +62,18 @@
         </div>
 
         <b-list-group v-show="r.resource.isColumnsVisiable">
-          <b-list-group-item v-for="(column, i) in r.filteredColumns" :key="i">
-            <div class="d-flex w-100 justify-content-between">
+          <b-list-group-item
+            v-for="(column, i) in r.filteredColumns"
+            :key="i"
+            :class="
+              column.isSelected ? 'column-table-selected' : 'column-table'
+            "
+          >
+            <div class="d-flex w-100" @click="toggleJoin(r.resource, column)">
+              <span style="width: 40px">{{
+                column.isSelected ? "✓" : ""
+              }}</span>
               <span>{{ column.name }}</span>
-              <span>
-                <span>
-                  <b-button
-                    size="sm"
-                    variant="primary"
-                    @click="showJoinConfigModal(r.resource, column)"
-                    >Add Column
-                  </b-button>
-                </span>
-              </span>
             </div>
           </b-list-group-item>
         </b-list-group>
@@ -104,6 +103,14 @@
             >
             </b-form-checkbox>
           </span>
+        </div>
+        <div>
+          <small>
+            From: <i>{{ datasetNameHash[joinable.source_resource.id] }}</i>
+          </small>
+        </div>
+        <div>
+          <small> Key: {{ joinable.target_field_name }} </small>
         </div>
       </b-list-group-item>
 
@@ -182,6 +189,7 @@ export default {
       isLoading: false,
       loadingPromise: null,
       filterText: "",
+      filteredResourcesHash: {},
     };
   },
   watch: {
@@ -212,6 +220,7 @@ export default {
       this.datasetNameHash = {};
       this.joinableTables.splice(0);
       for (let h of this.histories) {
+        this.datasetNameHash[h.table.id] = h.dataset.title;
         const url = `api/keyjoinscores/${h.table.id}`;
         const data = await axios.get(url).then((res) => res.data);
 
@@ -237,7 +246,9 @@ export default {
           });
         });
       }
+      console.log(this.datasetNameHash);
       this.isLoading = false;
+      this.updateFilteredResourcesHash();
     },
     openTable: async function (resource) {
       const resourceStats = await axios
@@ -252,6 +263,12 @@ export default {
         resourceStats,
       };
       this.$parent.$parent.$parent.openResource(openedResource, true);
+    },
+    toggleJoin: function (targetResource, column) {
+      if (!column.isSelected) {
+        this.showJoinConfigModal(targetResource, column);
+      }
+      this.$parent.undoJoin(targetResource, column);
     },
     showJoinConfigModal: function (targetResource, column) {
       this.joinedColumn = column;
@@ -299,6 +316,7 @@ export default {
     filterColumns: function (resource) {
       let joinables = this.findJoinables(resource.id);
       const joinedColumnsHash = {};
+      const targetTojoinedColumnsHash = {};
       this.histories.forEach((h) => {
         if (!joinedColumnsHash[h.table.id]) {
           joinedColumnsHash[h.table.id] = new Set();
@@ -307,9 +325,13 @@ export default {
           return;
         }
         for (let j in h.joinedTables) {
-          h.joinedTables[j].columns.forEach((c) =>
-            joinedColumnsHash[h.table.id].add(c)
-          );
+          h.joinedTables[j].columns.forEach((c) => {
+            joinedColumnsHash[h.table.id].add(c);
+            if (!targetTojoinedColumnsHash[j]) {
+              targetTojoinedColumnsHash[j] = new Set();
+            }
+            targetTojoinedColumnsHash[j].add(c);
+          });
         }
       });
       const joinableSources = joinables.map((j) => j.source_resource.id);
@@ -329,21 +351,32 @@ export default {
           sourceColumnNames.add(f.name);
         });
       }
-      const results = targetResourceStats.schema.fields.filter((c) => {
-        let joinableNameConflict = true;
-        for (let j of joinableSources) {
-          // If we find at least one source without this column, we can stil join this column, so it should not be removed.
-          if (!joinedColumnsHash[j].has(c.name)) {
-            joinableNameConflict = false;
-            break;
+      const results = targetResourceStats.schema.fields
+        .map((c) => {
+          c.isSelected =
+            targetTojoinedColumnsHash[targetResourceStats.uuid] &&
+            targetTojoinedColumnsHash[targetResourceStats.uuid].has(c.name);
+          return c;
+        })
+        .filter((c) => {
+          if (c.isSelected) {
+            return true;
           }
-        }
-        return (
-          !targerFieldNameSet.has(c.name) &&
-          !sourceColumnNames.has(c.name) &&
-          !joinableNameConflict
-        );
-      });
+          let joinableNameConflict = true;
+          for (let j of joinableSources) {
+            // If we find at least one source without this column, we can stil join this column, so it should not be removed.
+            if (!joinedColumnsHash[j].has(c.name)) {
+              joinableNameConflict = false;
+              break;
+            }
+          }
+          return (
+            !targerFieldNameSet.has(c.name) &&
+            !sourceColumnNames.has(c.name) &&
+            !joinableNameConflict
+          );
+        });
+
       return results;
     },
     getJoinedColumnName: function (joinable) {
@@ -397,6 +430,9 @@ export default {
       }
       return result;
     },
+    updateFilteredResourcesHash: function () {
+      this.filteredResourcesHash = this.getFilteredResourcesHash();
+    },
     toggleJoinConfigModalSelections: function (isSelected) {
       const selected = isSelected ? "selected" : "";
       this.joinConfigModalComponentTables.forEach((j) => {
@@ -413,6 +449,13 @@ export default {
 }
 .float-right {
   float: right;
+}
+.column-table-selected {
+  cursor: pointer;
+  background-color: #cccccc;
+}
+.column-table {
+  cursor: pointer;
 }
 .joinable-view-filter-container {
   > input.form-control {

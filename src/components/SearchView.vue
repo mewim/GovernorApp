@@ -18,7 +18,7 @@
             variant="success"
             class="search-button"
             v-on:click="searchButtonClicked(true)"
-            >Search Metadata</b-button
+            >Search Description</b-button
           >
           <b-button
             variant="success"
@@ -45,7 +45,7 @@
       >
         <b-card v-for="(r, i) in results" :key="i">
           <template #header>
-            <b>{{ r.title }}</b>
+            <b>Dataset: {{ r.title }}</b>
           </template>
           <b-card-text
             v-if="searchResultFields.matched_count && !searchMetadata"
@@ -85,7 +85,7 @@
                 <b-card-text
                   class="file-description-card-title"
                   :id="res.id + '-title'"
-                  ><a href="#" @click="fileSelected(r.id, res.id)">{{
+                  ><a href="#" @click="fileSelected(r.id, res.id)">Table: {{
                     res.name
                   }}</a></b-card-text
                 >
