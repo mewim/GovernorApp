@@ -1,6 +1,14 @@
 <template>
   <div class="working-table-description-container">
     <div>
+      <h5>Working Table Structure</h5>
+      <working-table-components
+        :histories="histories"
+        :selectedColumns="selectedColumns"
+        :focusedComponentIndex="focusedComponentIndex"
+        :columns="columns"
+      />
+      <hr />
       <div>
         <table-filters
           :keywords="keywords"
@@ -20,61 +28,6 @@
 
         <b-button size="sm" @click="share()">Share</b-button>
       </div>
-      <hr />
-      <h5>Components</h5>
-      <working-table-components
-        :histories="histories"
-        :selectedColumns="selectedColumns"
-        :columns="columns"
-      />
-      <b-list-group v-if="false">
-        <b-list-group-item v-for="(h, i) in histories" :key="i">
-          <div class="d-flex w-100 justify-content-between">
-            <span>
-              <div>
-                <span>
-                  <div
-                    class="inline-color-block"
-                    :style="{ 'background-color': h.table.color }"
-                  ></div>
-                  &nbsp;
-                  {{ h.table.name }}</span
-                >
-              </div>
-              <small>
-                <div class="inline-color-block"></div>
-                &nbsp; From: <i>{{ h.dataset.title }}</i>
-              </small>
-            </span>
-            <span class="history-buttons-span" style="min-width: 122px">
-              <b-button
-                size="sm"
-                :variant="focusedComponentIndex === i ? 'danger' : 'primary'"
-                style="width: 72px !important"
-                @click="focusComponent(i)"
-              >
-                {{ focusedComponentIndex === i ? "Unfocus" : "Focus" }}
-              </b-button>
-              &nbsp;
-              <b-button size="sm" variant="danger" @click="removeTable(h)"
-                ><b-icon icon="trash"></b-icon
-              ></b-button>
-            </span>
-          </div>
-
-          <div v-if="h.joinedTables">
-            <div v-for="(j, k) in h.joinedTables" :key="k">
-              <small>
-                <div
-                  class="inline-color-block"
-                  :style="{ 'background-color': j.targetResource.color }"
-                ></div>
-                &nbsp; Joined Table: {{ j.targetResource.name }}
-              </small>
-            </div>
-          </div>
-        </b-list-group-item>
-      </b-list-group>
       <hr />
       <h5>History</h5>
       <a href="#" @click="isLogsVisible = !isLogsVisible"
@@ -123,7 +76,7 @@
       >
         <b-table
           ref="schemaFieldsTable"
-          :items="filteredColumns"
+          :items="columns"
           :fields="schemaFields"
           no-select-on-click
           selectable
@@ -211,7 +164,7 @@ export default {
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "title", label: "Column" },
-        // { key: "tables", label: "Tables" },
+        { key: "tables", label: "Tables" },
       ],
       sharedLink: "",
     };
