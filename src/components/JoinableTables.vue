@@ -79,7 +79,6 @@
         </b-list-group>
       </b-list-group-item>
     </b-list-group>
-    <br />
     <b-modal size="xl" ref="joinConfigModal" hide-header centered>
       <p>The column will be added to the following component tables:</p>
 
@@ -246,7 +245,6 @@ export default {
           });
         });
       }
-      console.log(this.datasetNameHash);
       this.isLoading = false;
       this.updateFilteredResourcesHash();
     },
@@ -262,13 +260,13 @@ export default {
         dataset,
         resourceStats,
       };
-      this.$parent.$parent.$parent.openResource(openedResource, true);
+      this.$parent.$parent.$parent.$parent.openResource(openedResource, true);
     },
     toggleJoin: function (targetResource, column) {
       if (!column.isSelected) {
         this.showJoinConfigModal(targetResource, column);
       }
-      this.$parent.undoJoin(targetResource, column);
+      this.$parent.$parent.undoJoin(targetResource, column);
     },
     showJoinConfigModal: function (targetResource, column) {
       this.joinedColumn = column;
@@ -306,7 +304,7 @@ export default {
         );
       }
       this.closeJoinConfigModal();
-      this.$parent.$parent.addColumn(joinables, column);
+      this.$parent.$parent.$parent.addColumn(joinables, column);
     },
     findJoinables: function (resourceId) {
       return this.joinableTables.filter((joinable) => {

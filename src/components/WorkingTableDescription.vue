@@ -1,6 +1,6 @@
 <template>
   <div class="working-table-description-container">
-    <div>
+    <div ref="topPanel">
       <h5>Working Table Structure</h5>
       <working-table-components
         :histories="histories"
@@ -29,106 +29,151 @@
         <b-button size="sm" @click="share()">Share</b-button>
       </div>
       <hr />
-      <h5>History</h5>
-      <a href="#" @click="isLogsVisible = !isLogsVisible"
-        >[{{ isLogsVisible ? "Hide" : "Show" }}]</a
-      >
-      <p></p>
-      <b-list-group v-show="isLogsVisible">
-        <b-list-group-item v-for="(log, i) in logs" :key="i">
-          <div class="d-flex w-100 justify-content-between">
-            <span style="width: 350px" v-if="log.type === 'keyword'"
-              >Add filter keyword: {{ log.keyword }}
-            </span>
-            <span style="width: 350px" v-else>
-              Add
-              {{
-                log.type === "union" ? " rows" : " column" + `"${log.column}"`
-              }}
-              from table:
-            </span>
-            <span class="history-buttons-span">
-              <b-button size="sm" variant="danger" @click="undoLog(log)"
-                >Undo
-              </b-button>
-            </span>
-          </div>
-
-          <small v-if="log.type !== 'keyword'">
-            <div
-              class="inline-color-block"
-              :style="{ 'background-color': log.table.color }"
-            ></div>
-            &nbsp;
-            {{ log.table.name }}
-          </small>
-        </b-list-group-item>
-      </b-list-group>
-      <hr />
-      <h5>Add Columns From Unioned Tables</h5>
-      <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
-        >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
-      >
-      <p></p>
-      <div
-        class="schema-fields-table-container"
-        v-show="isColumnDetailsVisible"
-      >
-        <b-table
-          ref="schemaFieldsTable"
-          :items="columns"
-          :fields="schemaFields"
-          no-select-on-click
-          selectable
-          @row-clicked="schemaFieldsTableRowClicked"
-        >
-          <template #cell(selected)="{ rowSelected }">
-            <template v-if="rowSelected">
-              <span class="schema-table-span" aria-hidden="true">&check;</span>
-            </template>
-            <template v-else>
-              <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
-            </template>
-          </template>
-          <template #cell(title)="row">
-            <span
-              v-b-tooltip.hover.html
-              :title="getColumnDescription(row.item)"
-            >
-              {{ row.item.title }}
-            </span>
-          </template>
-          <template #cell(tables)="row">
-            <div
-              v-for="id in row.item.tables"
-              :key="id"
-              class="inline-color-block"
-              :style="{
-                'background-color': getColor(id),
-                'margin-right': '4px',
-              }"
-            ></div>
-          </template>
-        </b-table>
-      </div>
     </div>
-    <hr />
 
-    <h5>Add Columns from Other Tables (Join)</h5>
-    <a href="#" @click="isJoinableTablesVisible = !isJoinableTablesVisible"
-      >[{{ isJoinableTablesVisible ? "Hide" : "Show" }}]</a
-    >
-    <p></p>
-    <joinable-tables
-      v-show="isJoinableTablesVisible"
-      :histories="histories"
-      :focusedComponentId="focusedComponentId"
-      ref="joinableTables"
-    />
+    <div class="accordion">
+      <b-card no-body class="mb-1">
+        <b-button block v-b-toggle.accordion-history variant="outline-primary"
+          >History</b-button
+        >
+        <b-collapse
+          id="accordion-history"
+          visible
+          accordion="working-table-description__accordion"
+          role="tabpanel"
+        >
+          <b-card-body :style="accordionPanelStyle">
+            <b-list-group>
+              <b-list-group-item v-for="(log, i) in logs" :key="i">
+                <div class="d-flex w-100 justify-content-between">
+                  <span style="width: 350px" v-if="log.type === 'keyword'"
+                    >Add filter keyword: {{ log.keyword }}
+                  </span>
+                  <span style="width: 350px" v-else>
+                    Add
+                    {{
+                      log.type === "union"
+                        ? " rows"
+                        : " column" + `"${log.column}"`
+                    }}
+                    from table:
+                  </span>
+                  <span class="history-buttons-span">
+                    <b-button size="sm" variant="danger" @click="undoLog(log)"
+                      >Undo
+                    </b-button>
+                  </span>
+                </div>
 
-    <hr />
-    <unionable-tables :resourceIds="allTableIds" :showUnionButton="true" />
+                <small v-if="log.type !== 'keyword'">
+                  <div
+                    class="inline-color-block"
+                    :style="{ 'background-color': log.table.color }"
+                  ></div>
+                  &nbsp;
+                  {{ log.table.name }}
+                </small>
+              </b-list-group-item>
+            </b-list-group>
+          </b-card-body>
+        </b-collapse>
+      </b-card>
 
+      <b-card no-body class="mb-1">
+        <b-button block v-b-toggle.accordion-columns variant="outline-primary"
+          >Hide / Unhide Columns</b-button
+        >
+        <b-collapse
+          id="accordion-columns"
+          accordion="working-table-description__accordion"
+          role="tabpanel"
+        >
+          <b-card-body :style="accordionPanelStyle">
+            <div class="schema-fields-table-container">
+              <b-table
+                ref="schemaFieldsTable"
+                :items="columns"
+                :fields="schemaFields"
+                no-select-on-click
+                selectable
+                @row-clicked="schemaFieldsTableRowClicked"
+              >
+                <template #cell(selected)="{ rowSelected }">
+                  <template v-if="rowSelected">
+                    <span class="schema-table-span" aria-hidden="true"
+                      >&check;</span
+                    >
+                  </template>
+                  <template v-else>
+                    <span class="schema-table-span" aria-hidden="true"
+                      >&nbsp;</span
+                    >
+                  </template>
+                </template>
+                <template #cell(title)="row">
+                  <span
+                    v-b-tooltip.hover.html
+                    :title="getColumnDescription(row.item)"
+                  >
+                    {{ row.item.title }}
+                  </span>
+                </template>
+                <template #cell(tables)="row">
+                  <div
+                    v-for="id in row.item.tables"
+                    :key="id"
+                    class="inline-color-block"
+                    :style="{
+                      'background-color': getColor(id),
+                      'margin-right': '4px',
+                    }"
+                  ></div>
+                </template>
+              </b-table>
+            </div>
+          </b-card-body>
+        </b-collapse>
+      </b-card>
+
+      <b-card no-body class="mb-1">
+        <b-button block v-b-toggle.accordion-join variant="outline-primary"
+          >Add Columns from Other Tables (Join)</b-button
+        >
+        <b-collapse
+          id="accordion-join"
+          accordion="working-table-description__accordion"
+          role="tabpanel"
+        >
+          <b-card-body :style="accordionPanelStyle">
+            <div>
+              <joinable-tables
+                :histories="histories"
+                :focusedComponentId="focusedComponentId"
+                ref="joinableTables"
+              />
+            </div>
+          </b-card-body>
+        </b-collapse>
+      </b-card>
+
+      <b-card no-body class="mb-1">
+        <b-button block v-b-toggle.accordion-union variant="outline-primary"
+          >Add Rows from Other Tables (Union)</b-button
+        >
+        <b-collapse
+          id="accordion-union"
+          accordion="working-table-description__accordion"
+          role="tabpanel"
+        >
+          <b-card-body :style="accordionPanelStyle">
+            <unionable-tables
+              :resourceIds="allTableIds"
+              :showUnionButton="true"
+            />
+          </b-card-body>
+        </b-collapse>
+      </b-card>
+    </div>
     <b-modal
       title="Shared Link Created"
       ok-only
@@ -142,6 +187,7 @@
 </template>
 
 <script>
+const ACCORDION_BUTTONS_HEIGHT = 210;
 import axios from "axios";
 import TableColorManger from "../TableColorManager";
 export default {
@@ -157,9 +203,7 @@ export default {
   data: function () {
     return {
       isHistoriesShown: true,
-      isColumnDetailsVisible: false,
-      isJoinableTablesVisible: false,
-      isLogsVisible: false,
+      resizeObserver: null,
       primaryColumn: null,
       schemaFields: [
         { key: "selected", label: "✓" },
@@ -167,9 +211,23 @@ export default {
         { key: "tables", label: "Tables" },
       ],
       sharedLink: "",
+      accordionPanelMaxHeight: null,
     };
   },
-  mounted: function () {},
+  mounted: function () {
+    this.resizeObserver = new ResizeObserver(() => {
+      this.accordionPanelMaxHeight =
+        this.$el.clientHeight -
+        this.$refs.topPanel.clientHeight -
+        ACCORDION_BUTTONS_HEIGHT;
+    });
+    this.resizeObserver.observe(this.$refs.topPanel);
+    this.resizeObserver.observe(this.$el);
+  },
+  unmounted() {
+    this.resizeObserver.unobserve(this.$refs.topPanel);
+    this.resizeObserver.unobserve(this.$el);
+  },
   computed: {
     allTableIds: function () {
       return this.histories.map((h) => h.table.id);
@@ -190,6 +248,12 @@ export default {
         }
         return isUnionedColumn;
       });
+    },
+    accordionPanelStyle: function () {
+      return {
+        maxHeight: this.accordionPanelMaxHeight + "px",
+        overflow: "scroll",
+      };
     },
   },
 
@@ -299,7 +363,7 @@ export default {
   background-color: var(--bs-gray-100);
   width: 500px;
   padding: 10px;
-  overflow-y: scroll;
+  overflow-y: hidden;
 }
 .inline-color-block {
   height: 12px;
