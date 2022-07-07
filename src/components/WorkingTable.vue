@@ -119,7 +119,11 @@ export default {
       tableData: [],
       loadingPromise: null,
       selectedColumns: [],
-      cellStyleOption: {},
+      cellStyleOption: {
+        headerCellClass: () => {
+          return "working-table-header-cell";
+        },
+      },
       histories: [],
       logs: [],
       keywords: [],
@@ -155,6 +159,9 @@ export default {
             },
             mouseleave: () => {
               this.mouseLeaveCell();
+            },
+            click: () => {
+              this.headerCellClicked(column);
             },
           };
         },
@@ -694,6 +701,9 @@ export default {
       this.tooltipText = this.getColumnDescription(column.title);
       this.tooltipVisible = true;
     },
+    headerCellClicked(column) {
+      this.$refs.workingTableDescription.showColumnComposition(column);
+    },
     async undoJoinLog(log) {
       const sourcesSet = new Set(log.sources.map((s) => s.id));
       for (let h of this.histories) {
@@ -874,5 +884,8 @@ div.working-table-alert-container {
 }
 .duckdb-error-message {
   color: red;
+}
+.working-table-header-cell {
+  cursor: pointer;
 }
 </style>

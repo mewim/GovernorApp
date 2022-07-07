@@ -182,6 +182,44 @@
     >
       <p>{{ sharedLink }}</p>
     </b-modal>
+
+    <b-modal
+      :title="`Column Composition: ${columnComposition.title}`"
+      ok-only
+      hide-header-close
+      ref="columnCompositionModal"
+      size="lg"
+    >
+      <b-list-group>
+        <b-list-group-item
+          v-for="(table, i) in columnComposition.tables"
+          :key="i"
+        >
+          <div class="d-flex w-100">
+            <span>
+              <div>
+                <span>
+                  <div
+                    class="inline-color-block"
+                    :style="{ 'background-color': table.color }"
+                  ></div>
+                  &nbsp;
+                  {{ table.name }}</span
+                >
+              </div>
+              <small>
+                <div class="inline-color-block"></div>
+                &nbsp; From: <i>{{ table.datasetName }}</i>
+              </small>
+            </span>
+          </div>
+        </b-list-group-item>
+      </b-list-group>
+      <div v-if="columnComposition.hasUnfilled">
+        <br />
+        This column has unfilled cells.
+      </div>
+    </b-modal>
   </div>
 </template>
 
@@ -211,6 +249,11 @@ export default {
       ],
       sharedLink: "",
       accordionPanelMaxHeight: null,
+      columnComposition: {
+        title: null,
+        tables: [],
+        hasUnfilled: false,
+      },
     };
   },
   mounted: function () {
@@ -359,6 +402,39 @@ export default {
     },
     getColumnDescription(item) {
       return this.$parent.getColumnDescription(item.title);
+    },
+    showColumnComposition(column) {
+      const uuids = column.tables;
+      const tableHash = {};
+      const datasetNameHash = {};
+      const columnTitle = column.title;
+      const hasUnfilled = !uuids || uuids.length < this.histories.length;
+      uuids.forEach((u) => {
+        for (let h of this.histories) {
+          if (h.table.id === u) {
+            tableHash[u] = h.table;
+            datasetNameHash[u] = h.dataset.title;
+            break;
+          }
+          if (h.joinedTables && u in h.joinedTables) {
+            tableHash[u] = h.joinedTables[u].targetResource;
+            datasetNameHash[u] = h.dataset.title;
+            break;
+          }
+        }
+      });
+      const data = uuids.map((u) => {
+        return {
+          id: u,
+          color: TableColorManger.getColor(u),
+          datasetName: datasetNameHash[u],
+          name: tableHash[u].name,
+        };
+      });
+      this.columnComposition.tables = data;
+      this.columnComposition.title = columnTitle;
+      this.columnComposition.hasUnfilled = hasUnfilled;
+      this.$refs.columnCompositionModal.show();
     },
   },
 };
