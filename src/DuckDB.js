@@ -503,6 +503,18 @@ class DuckDB {
     }
   }
 
+  async getWorkingTableFirstRowOffset(componentIds) {
+    const id = this.encodeTableIds(componentIds);
+    const db = await this.getDb();
+    const query = `SELECT "offset" FROM (SELECT ROW_NUMBER() OVER() as "offset", "${TABLE_ID}" FROM "${WORKING_TABLE_NAME}") WHERE "${TABLE_ID}" = '${id}' LIMIT 1`;
+    console.debug(query);
+    const conn = await db.connect();
+    const result = await conn.query(query);
+    const offset = Number(Object.values(result.toArray()[0].toJSON())[0]);
+    await conn.close();
+    return offset - 1;
+  }
+
   resolveSchemas(schemas) {
     if (schemas.length === 0) {
       return [];

@@ -38,7 +38,6 @@
         >
         <b-collapse
           id="accordion-history"
-          visible
           accordion="working-table-description__accordion"
           role="tabpanel"
         >
@@ -216,10 +215,14 @@ export default {
   },
   mounted: function () {
     this.resizeObserver = new ResizeObserver(() => {
-      this.accordionPanelMaxHeight =
-        this.$el.clientHeight -
-        this.$refs.topPanel.clientHeight -
-        ACCORDION_BUTTONS_HEIGHT;
+      try {
+        this.accordionPanelMaxHeight =
+          this.$el.clientHeight -
+          this.$refs.topPanel.clientHeight -
+          ACCORDION_BUTTONS_HEIGHT;
+      } catch (e) {
+        this.accordionPanelMaxHeight = null;
+      }
     });
     this.resizeObserver.observe(this.$refs.topPanel);
     this.resizeObserver.observe(this.$el);
@@ -350,6 +353,9 @@ export default {
     },
     focusComponent(i) {
       this.$parent.focusComponent(i);
+    },
+    jumpToFirstRow(i) {
+      this.$parent.jumpToFirstRow(i);
     },
     getColumnDescription(item) {
       return this.$parent.getColumnDescription(item.title);

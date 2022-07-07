@@ -751,6 +751,43 @@ export default {
       this.loadingPromise = this.reloadData(true);
       await this.loadingPromise;
       this.loadingPromise = null;
+      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+    },
+    async jumpToFirstRow(i) {
+      const h = this.histories[i];
+      const componentIds = new Set([h.table.id]);
+      if (h.joinedTables) {
+        for (let id in h.joinedTables) {
+          componentIds.add(id);
+        }
+      }
+      this.focusedComponentIndex = null;
+      this.sortConfig = {
+        key: null,
+        order: null,
+        isNumeric: false,
+      };
+      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+      this.loadingPromise = this.reloadData(true);
+      await this.loadingPromise;
+      this.loadingPromise = DuckDB.getWorkingTableFirstRowOffset(componentIds);
+      const offset = await this.loadingPromise;
+      let pageIndex = Math.ceil(offset / this.pageSize);
+      if (pageIndex === 0) {
+        pageIndex = 1;
+      }
+      const indexOnPage = offset % this.pageSize;
+      this.pageIndex = pageIndex;
+      this.loadingPromise = this.loadDataForCurrentPage();
+      await this.loadingPromise;
+      this.loadingPromise = null;
+      const rowOnPage = this.tableData[indexOnPage];
+      if (rowOnPage && rowOnPage.column_0) {
+        this.$refs.table.setCellSelection({
+          rowKey: rowOnPage.rowKey,
+          colKey: "column_0",
+        });
+      }
     },
     showAlert(message) {
       this.alertMessage = message;

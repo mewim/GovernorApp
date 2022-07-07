@@ -1,24 +1,22 @@
 <template>
   <div class="working-table-components-container">
-    <table ref="blocksTable">
-      <tr v-for="(row, i) in blockMapping" :key="i">
-        <th
-          v-for="(uuid, j) in row"
-          :key="j"
-          :style="{
-            'background-color': getBlockColor(uuid),
-            cursor: 'pointer',
-            'user-select': 'none',
-          }"
-          v-b-tooltip.hover
-          :title="getTableTitle(uuid, i, j)"
-          @click="onBlockClick(uuid, i, j)"
-        ></th>
-      </tr>
-    </table>
+    <div style="background-color: white">
+      <table ref="blocksTable">
+        <tr v-for="(row, i) in blockMapping" :key="i">
+          <th
+            v-for="(uuid, j) in row"
+            :key="j"
+            :style="getBlockStyle(uuid, i)"
+            v-b-tooltip.hover
+            :title="getTableTitle(uuid, i, j)"
+            @click="onBlockClick(uuid, i, j)"
+          ></th>
+        </tr>
+      </table>
+    </div>
 
     <b-modal
-      title="Component Detail"
+      title="Working Table Component Detail"
       ok-only
       hide-header-close
       size="lg"
@@ -59,13 +57,33 @@
         <div class="w-100">
           <span>
             <span>
-              <b-button size="sm" variant="danger"> Remove </b-button>
+              <b-button
+                size="sm"
+                variant="danger"
+                @click="removeComponent(componentDetailIndex)"
+              >
+                Remove Component
+              </b-button>
             </span>
             <span>
-              <b-button size="sm" variant="success"> Focus </b-button>
+              <b-button
+                size="sm"
+                variant="success"
+                @click="focusOnComponent(componentDetailIndex)"
+              >
+                {{
+                  focusedComponentIndex === componentDetailIndex
+                    ? "Unfocus"
+                    : "Focus"
+                }}
+              </b-button>
             </span>
             <span>
-              <b-button size="sm" variant="success">
+              <b-button
+                size="sm"
+                variant="success"
+                @click="jumpToFirstRow(componentDetailIndex)"
+              >
                 Jump to First Row
               </b-button>
             </span>
@@ -159,14 +177,39 @@ export default {
       this.$refs.componentDetailModal.show();
     },
     getTableTitle(uuid, i) {
-      try{
       if (this.histories[i].table.id === uuid) {
         return this.histories[i].table.name;
+      } else if (
+        this.histories[i].joinedTables &&
+        this.histories[i].joinedTables[uuid]
+      ) {
+        return this.histories[i].joinedTables[uuid].targetResource.name;
       }
-      return this.histories[i].joinedTables[uuid].targetResource.name;
-      }catch(e){
-        return '';
-      }
+      return;
+    },
+    getBlockStyle(uuid, i) {
+      const isFocused =
+        isNaN(parseInt(this.focusedComponentIndex)) ||
+        this.focusedComponentIndex === i;
+      const color = this.getBlockColor(uuid);
+      return {
+        "background-color": color,
+        cursor: "pointer",
+        "user-select": "none",
+        opacity: isFocused ? 1 : 0.7,
+      };
+    },
+    removeComponent(i) {
+      this.$parent.removeTable(this.histories[i]);
+      this.closeComponentDetailModal();
+    },
+    focusOnComponent(i) {
+      this.$parent.focusComponent(i);
+      this.closeComponentDetailModal();
+    },
+    jumpToFirstRow(i) {
+      this.$parent.jumpToFirstRow(i);
+      this.closeComponentDetailModal();
     },
     closeComponentDetailModal() {
       this.h = null;
