@@ -40,10 +40,11 @@
           </b-list-group-item>
         </b-list-group>
         <br />
-        The values of this cell {{ positions.length > 1 ? "are" : "is" }} from
-        the following cell in the original table{{
+        The value{{ positions.length > 1 ? "s" : "" }} of this cell
+        {{ positions.length > 1 ? "are" : "is" }} from the following cell{{
           positions.length > 1 ? "s" : ""
-        }}:
+        }}
+        in the original table:
         <b-table :items="positions" :fields="fields" sticky-header bordered>
           <template #cell(actions)="row">
             <b-button
