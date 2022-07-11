@@ -939,6 +939,10 @@ export default {
       await this.loadingPromise;
       this.loadingPromise = DuckDB.getWorkingTableFirstRowOffset(componentIds);
       const offset = await this.loadingPromise;
+      if (offset === null) {
+        this.loadingPromise = null;
+        return;
+      }
       let pageIndex = Math.ceil(offset / this.pageSize);
       if (pageIndex === 0) {
         pageIndex = 1;
@@ -950,9 +954,8 @@ export default {
       this.loadingPromise = null;
       const rowOnPage = this.tableData[indexOnPage];
       if (rowOnPage && rowOnPage.column_0) {
-        this.$refs.table.setCellSelection({
+        this.$refs.table.setHighlightRow({
           rowKey: rowOnPage.rowKey,
-          colKey: "column_0",
         });
       }
     },

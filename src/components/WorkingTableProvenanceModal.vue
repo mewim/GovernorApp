@@ -45,29 +45,35 @@
           positions.length > 1 ? "s" : ""
         }}
         in the original table:
-        <b-table :items="positions" :fields="fields" sticky-header bordered>
-          <template #cell(actions)="row">
-            <b-button
-              variant="primary"
-              size="sm"
-              @click="locateInOriginal(row)"
-              title="Locate in Original Table"
-              v-b-tooltip.hover
-            >
-              <b-icon icon="ui-checks-grid"></b-icon>
-            </b-button>
-            &nbsp;
-            <b-button
-              variant="primary"
-              size="sm"
-              @click="filterByValue(row)"
-              title="Filter by Value"
-              v-b-tooltip.hover
-            >
-              <b-icon icon="filter"></b-icon>
-            </b-button>
-          </template>
-        </b-table>
+        <div class="table-container">
+          <b-table :items="positions" :fields="fields" sticky-header bordered>
+            <template #cell(actions)="row">
+              <div style="min-width: 110px">
+                <b-button
+                  variant="primary"
+                  size="sm"
+                  @click="
+                    locateInOriginal(table, dataset, resourceStats, row.item)
+                  "
+                  title="Locate in Original Table"
+                  v-b-tooltip.hover
+                >
+                  <b-icon icon="ui-checks-grid"></b-icon>
+                </b-button>
+                &nbsp;
+                <b-button
+                  variant="primary"
+                  size="sm"
+                  @click="filterByValue(row)"
+                  title="Filter by Value"
+                  v-b-tooltip.hover
+                >
+                  <b-icon icon="filter"></b-icon>
+                </b-button>
+              </div>
+            </template>
+          </b-table>
+        </div>
       </div>
       <div v-else>Loading...</div>
 
@@ -126,8 +132,12 @@ export default {
         true
       );
     },
-    locateInOriginal(row) {
-      console.log(row);
+    locateInOriginal(resource, dataset, resourceStats, position) {
+      this.hideModal();
+      this.$parent.$parent.openResource(
+        { resource, dataset, resourceStats, selectedCell: position },
+        true
+      );
     },
     filterByValue(row) {
       const keyword = row.item.value;
@@ -141,8 +151,5 @@ export default {
 <style lang="scss" scoped>
 .float-right {
   float: right;
-}
-table {
-  max-height: 300px !important;
 }
 </style>

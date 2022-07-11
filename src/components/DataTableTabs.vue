@@ -78,6 +78,7 @@
         :keyword="item.keyword"
         :dataset="item.dataset"
         :tableId="item.resource.id"
+        :selectedCell="item.selectedCell"
         :height="tableAreaHeight"
         :isActive="
           !isSearchActive &&
@@ -169,6 +170,7 @@ export default {
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
           this.openedResources[i].keyword = r.keyword;
+          this.openedResources[i].selectedCell = r.selectedCell;
           if (jumpImmediately) {
             this.jumpToResource(r.resource.id);
           }

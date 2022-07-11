@@ -247,9 +247,11 @@ class DuckDB {
           .join(" OR ")
       : "";
 
-    const query = `CREATE VIEW "${viewName}" AS SELECT ${selectClause} FROM "${uuid}" ${
-      whereClause ? `WHERE ${whereClause}` : ""
-    } ${orderByClause ? orderByClause : ""}`;
+    const query = `CREATE VIEW "${viewName}" AS SELECT ${selectClause}${
+      CONFIG.ROW_ID_ENABLED ? `,"${ROW_ID}"` : ""
+    } FROM "${uuid}" ${whereClause ? `WHERE ${whereClause}` : ""} ${
+      orderByClause ? orderByClause : ""
+    }`;
     console.debug(query);
     await conn.query(query);
     await conn.close();
@@ -512,8 +514,27 @@ class DuckDB {
     console.debug(query);
     const conn = await db.connect();
     const result = await conn.query(query);
-    const offset = Number(Object.values(result.toArray()[0].toJSON())[0]);
     await conn.close();
+    const resultArray = result.toArray();
+    if (resultArray.length === 0) {
+      return null;
+    }
+    const offset = Number(Object.values(result.toArray()[0].toJSON())[0]);
+    return offset - 1;
+  }
+
+  async getDataTableRowIdOffset(viewName, rowId) {
+    const db = await this.getDb();
+    const query = `SELECT "offset" FROM (SELECT ROW_NUMBER() OVER() as "offset",  "${ROW_ID}" FROM "${viewName}") WHERE "${ROW_ID}" = ${rowId} LIMIT 1`;
+    console.debug(query);
+    const conn = await db.connect();
+    const result = await conn.query(query);
+    await conn.close();
+    const resultArray = result.toArray();
+    if (resultArray.length === 0) {
+      return null;
+    }
+    const offset = Number(Object.values(result.toArray()[0].toJSON())[0]);
     return offset - 1;
   }
 
