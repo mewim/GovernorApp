@@ -25,7 +25,9 @@ class Common {
     }
     return descriptionText.join(delimiter);
   }
-  
+  getDatasetUrl(uuid) {
+    return "https://open.canada.ca/data/en/dataset/" + uuid;
+  }
 }
 
 // Singleton instance

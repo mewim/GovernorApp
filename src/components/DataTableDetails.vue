@@ -38,6 +38,8 @@
 </template>
 
 <script>
+import Common from "../Common";
+
 export default {
   name: "DataTableDetails",
   data: function () {
@@ -47,7 +49,7 @@ export default {
   },
   methods: {
     getUrl: function (uuid) {
-      return "https://open.canada.ca/data/en/dataset/" + uuid;
+      return Common.getDatasetUrl(uuid);
     },
   },
   props: {

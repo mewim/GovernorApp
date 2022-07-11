@@ -34,7 +34,7 @@
         v-if="keywords.length === 0 && !this.isAddingNewFilter"
         class="d-flex justify-content-between align-items-center"
       >
-        There is no filter. Please click on "Add" button to apply a new filter.
+        There is no filter. Click "Add" to apply a new filter.
       </b-list-group-item>
 
       <b-list-group-item

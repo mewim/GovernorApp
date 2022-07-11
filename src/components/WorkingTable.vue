@@ -83,6 +83,15 @@
         Error message: {{ duckDBErrorMessage }}
       </p>
     </b-modal>
+    <working-table-provenance-modal
+      :isLoading="provenanceModalInformation.isLoading"
+      :dataset="provenanceModalInformation.dataset"
+      :table="provenanceModalInformation.table"
+      :resourceStats="provenanceModalInformation.resourceStats"
+      :positions="provenanceModalInformation.positions"
+      ref="workingTableProvenanceModal"
+      @modal-closed="provenanceModalClosed()"
+    />
   </div>
 </template>
 
@@ -92,8 +101,10 @@ import DuckDB from "../DuckDB";
 import TableColorManger from "../TableColorManager";
 import axios from "axios";
 import { createPopper } from "@popperjs/core";
+import ExcelColumnName from "excel-column-name";
 import Common from "../Common";
 const TABLE_ID = "__table_id";
+const ROW_ID = "__row_id";
 const NULL_TEXT = "NULL";
 const DEFAULT_COUNT_DOWN = 3.5;
 const UNFILLED_TEXT = "UNFILLED";
@@ -101,6 +112,7 @@ const UNFILLED_TEXT = "UNFILLED";
 export default {
   data() {
     const IS_ELLIPSIS_ENABLED = true;
+    const IS_PROVENANCE_ENABLED = true;
     return {
       pageIndex: 1,
       pageSize: 25,
@@ -121,8 +133,13 @@ export default {
       selectedColumns: [],
       cellStyleOption: {
         headerCellClass: () => {
-          return "working-table-header-cell";
+          return "working-table-cell-pointer";
         },
+        bodyCellClass: IS_PROVENANCE_ENABLED
+          ? () => {
+              return "working-table-cell-pointer";
+            }
+          : undefined,
       },
       histories: [],
       logs: [],
@@ -140,18 +157,25 @@ export default {
       },
       isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
       eventCustomOption: {
-        bodyCellEvents: IS_ELLIPSIS_ENABLED
-          ? ({ row, column }) => {
-              return {
-                mouseenter: (event) => {
+        bodyCellEvents: ({ row, column }) => {
+          return {
+            mouseenter: IS_ELLIPSIS_ENABLED
+              ? (event) => {
                   this.mouseEnterCell(event, row, column);
-                },
-                mouseleave: () => {
+                }
+              : undefined,
+            mouseleave: IS_ELLIPSIS_ENABLED
+              ? () => {
                   this.mouseLeaveCell();
-                },
-              };
-            }
-          : undefined,
+                }
+              : undefined,
+            click: IS_PROVENANCE_ENABLED
+              ? () => {
+                  this.cellClicked(row, column);
+                }
+              : undefined,
+          };
+        },
         headerCellEvents: ({ column }) => {
           return {
             mouseenter: (event) => {
@@ -161,7 +185,7 @@ export default {
               this.mouseLeaveCell();
             },
             click: () => {
-              this.headerCellClicked(column);
+              this.headerCellClicked(event, column);
             },
           };
         },
@@ -170,6 +194,13 @@ export default {
       dismissCountDown: 0,
       alertMessage: "",
       duckDBErrorMessage: "",
+      provenanceModalInformation: {
+        isLoading: true,
+        dataset: null,
+        table: null,
+        resourceStats: null,
+        positions: [],
+      },
     };
   },
   props: {
@@ -263,12 +294,14 @@ export default {
             d[k] = {
               value: !value || /^[;\s]*$/.test(value) ? null : value,
             };
-            keywords.forEach((kw) => {
-              if (d[k].value && d[k].value.toLowerCase().includes(kw)) {
-                columnsToEnable.add(k);
-                d[k].isHighlighted = true;
-              }
-            });
+            if (k !== ROW_ID && k !== TABLE_ID) {
+              keywords.forEach((kw) => {
+                if (d[k].value && d[k].value.toLowerCase().includes(kw)) {
+                  columnsToEnable.add(k);
+                  d[k].isHighlighted = true;
+                }
+              });
+            }
             for (let tableId of tableIds) {
               if (
                 this.columnsMapping[tableId] &&
@@ -701,7 +734,131 @@ export default {
       this.tooltipText = this.getColumnDescription(column.title);
       this.tooltipVisible = true;
     },
-    headerCellClicked(column) {
+    async getOriginalIndexes(row, column) {
+      const tableIds = row[TABLE_ID];
+      const value = row[column.key].value;
+      if (value === null || value === UNFILLED_TEXT) {
+        return;
+      }
+      let columnIndex, tableId, isMainTable, mainTableId;
+      tableIds.forEach((uuid) => {
+        const currColumnIndex =
+          this.columnsMapping[uuid].mappedToColumnIndex[column.key];
+        if (!isNaN(parseInt(currColumnIndex))) {
+          columnIndex = currColumnIndex;
+          tableId = uuid;
+          isMainTable = this.columnsMapping[uuid].isMain;
+          return;
+        }
+      });
+      if (!row[ROW_ID]) {
+        throw Error(
+          "This feature is not avaliable when ROW_ID_ENABLED is set to false"
+        );
+      }
+      const rowId = row[ROW_ID].value;
+      const history = this.histories.find(
+        (h) =>
+          h.table.id === tableId || (h.joinedTables && h.joinedTables[tableId])
+      );
+      mainTableId = history.table.id;
+      if (isMainTable) {
+        const inferedStats = history.resourceStats;
+        const originalRowIndex = inferedStats.header + 1 + Number(rowId);
+        const excelPosition =
+          ExcelColumnName.intToExcelCol(columnIndex + 1) + originalRowIndex;
+        return {
+          table: history.table,
+          dataset: history.dataset,
+          resourceStats: inferedStats,
+          positions: [
+            {
+              columnIndex,
+              rowId,
+              originalRowIndex,
+              excelPosition,
+              value,
+            },
+          ],
+        };
+      } else {
+        const sourceKey = history.joinedTables[tableId].sourceKey;
+        const sourceKeyIndex = history.resourceStats.schema.fields.findIndex(
+          (f) => f.name === sourceKey
+        );
+        const targetKeyIndex = history.joinedTables[
+          tableId
+        ].targetResourceStats.schema.fields.findIndex(
+          (f) => f.name === history.joinedTables[tableId].targetKey
+        );
+        const inferedStats = history.joinedTables[tableId].targetResourceStats;
+        const duckDBResults = await DuckDB.getOriginalRowIdsForJoinedTable(
+          mainTableId,
+          tableId,
+          sourceKeyIndex,
+          targetKeyIndex,
+          columnIndex,
+          rowId
+        );
+        return {
+          table: history.joinedTables[tableId].targetResource,
+          dataset: history.dataset,
+          resourceStats: inferedStats,
+          positions: duckDBResults.map((result) => {
+            const rowId = result.rowId;
+            const cellValue = result.value;
+            const originalRowIndex = inferedStats.header + 1 + Number(rowId);
+            const excelPosition =
+              ExcelColumnName.intToExcelCol(columnIndex + 1) + originalRowIndex;
+            return {
+              columnIndex,
+              originalRowIndex,
+              excelPosition,
+              rowId,
+              value: cellValue,
+            };
+          }),
+        };
+      }
+    },
+    async cellClicked(row, column) {
+      const value = row[column.key].value;
+      if (value === null || value === UNFILLED_TEXT) {
+        return;
+      }
+      this.$refs.workingTableProvenanceModal.showModal();
+      await this.$nextTick();
+      let result;
+      try {
+        result = await this.getOriginalIndexes(row, column);
+        if (!result || result.length === 0) {
+          return;
+        }
+      } catch (err) {
+        return;
+      }
+      this.provenanceModalInformation.isLoading = false;
+      this.provenanceModalInformation.positions = result.positions;
+      this.provenanceModalInformation.table = result.table;
+      this.provenanceModalInformation.dataset = result.dataset;
+      this.provenanceModalInformation.resourceStats = result.resourceStats;
+    },
+    provenanceModalClosed() {
+      this.provenanceModalInformation.isLoading = true;
+      this.provenanceModalInformation.positions = [];
+      this.provenanceModalInformation.table = null;
+      this.provenanceModalInformation.dataset = null;
+      this.provenanceModalInformation.resourceStats = null;
+    },
+    headerCellClicked(event, column) {
+      // Ignore click on sort icon
+      const eventTargetClassName = event.target.className;
+      if (
+        eventTargetClassName &&
+        eventTargetClassName.includes("ve-table-sort")
+      ) {
+        return;
+      }
       this.$refs.workingTableDescription.showColumnComposition(column);
     },
     async undoJoinLog(log) {
@@ -885,7 +1042,7 @@ div.working-table-alert-container {
 .duckdb-error-message {
   color: red;
 }
-.working-table-header-cell {
+.working-table-cell-pointer {
   cursor: pointer;
 }
 </style>

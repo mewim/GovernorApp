@@ -23,6 +23,18 @@
       ref="componentDetailModal"
     >
       <b-list-group-item v-if="!!h">
+        <b
+          >Dataset:
+          <a
+            target="_blank"
+            :href="getDatasetUrl(h.dataset)"
+            v-b-tooltip.hover
+            title="Jump to dataset on open.canada.ca"
+          >
+            <i>{{ h.dataset.title }}</i></a
+          >
+        </b>
+
         <div class="d-flex w-100">
           <span>
             <div>
@@ -32,13 +44,15 @@
                   :style="{ 'background-color': h.table.color }"
                 ></div>
                 &nbsp;
-                {{ h.table.name }}</span
+                <a
+                  href="#"
+                  @click="openResource(h.table, h.dataset, h.resourceStats)"
+                  v-b-tooltip.hover
+                  title="Open table"
+                  >{{ h.table.name }}</a
+                ></span
               >
             </div>
-            <small>
-              <div class="inline-color-block"></div>
-              &nbsp; From: <i>{{ h.dataset.title }}</i>
-            </small>
           </span>
         </div>
         <div v-if="h.joinedTables">
@@ -48,11 +62,35 @@
                 class="inline-color-block"
                 :style="{ 'background-color': j.targetResource.color }"
               ></div>
-              &nbsp; Joined Table: {{ j.targetResource.name }}
+              &nbsp; Joined Table:
+              <a
+                href="#"
+                v-b-tooltip.hover
+                title="Open table"
+                @click="
+                  openResource(
+                    j.targetResource,
+                    h.dataset,
+                    j.targetResourceStats
+                  )
+                "
+                >{{ j.targetResource.name }}</a
+              >
+              <span class="float-right">
+                {{
+                  j.sourceKey === j.targetKey
+                    ? `(Join Key: ${j.sourceKey})`
+                    : `(Primary Key: ${j.sourceKey}; Foreign Key: ${j.targetKey})`
+                }}
+              </span>
             </small>
           </div>
         </div>
       </b-list-group-item>
+      <div v-if="hasUnfilled">
+        <br />
+        This component has unfilled cells.
+      </div>
       <template #modal-footer>
         <div class="w-100">
           <span>
@@ -104,6 +142,7 @@
 
 <script>
 import TableColorManger from "../TableColorManager";
+import Common from "../Common";
 
 export default {
   name: "WorkingTableComponents",
@@ -112,6 +151,7 @@ export default {
       displayWidth: null,
       h: null,
       componentDetailIndex: null,
+      hasUnfilled: false,
     };
   },
   props: {
@@ -174,6 +214,13 @@ export default {
     onBlockClick(_, i) {
       this.h = this.histories[i];
       this.componentDetailIndex = i;
+      this.hasUnfilled = false;
+      for (let b of this.blockMapping[i]) {
+        if (!b) {
+          this.hasUnfilled = true;
+          break;
+        }
+      }
       this.$refs.componentDetailModal.show();
     },
     getTableTitle(uuid, i) {
@@ -215,6 +262,16 @@ export default {
       this.h = null;
       this.componentDetailIndex = null;
       this.$refs.componentDetailModal.hide();
+    },
+    getDatasetUrl(dataset) {
+      return Common.getDatasetUrl(dataset.id);
+    },
+    openResource(resource, dataset, resourceStats) {
+      this.closeComponentDetailModal();
+      this.$parent.$parent.$parent.openResource(
+        { resource, dataset, resourceStats },
+        true
+      );
     },
   },
   async mounted() {},

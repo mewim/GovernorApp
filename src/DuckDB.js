@@ -13,7 +13,7 @@ const UNFILLED_TEXT = "UNFILLED";
 const CONFIG = {
   GC_ENABLED: true,
   NO_CACHE: false,
-  PRESERVE_TABLE_ORDER: true,
+  ROW_ID_ENABLED: true,
 };
 
 class DuckDB {
@@ -126,7 +126,7 @@ class DuckDB {
             const query = `CREATE ${
               CONFIG.NO_CACHE ? "VIEW" : "TABLE"
             } "${uuid}" AS SELECT *${
-              CONFIG.PRESERVE_TABLE_ORDER
+              CONFIG.ROW_ID_ENABLED
                 ? `, ROW_NUMBER() OVER() as "${ROW_ID}"`
                 : ""
             } FROM "${url}"`;
@@ -314,13 +314,17 @@ class DuckDB {
           sortConfig.key
         }" SIMILAR TO '[+-]?([0-9]*[.])?[0-9]+' THEN "${
           sortConfig.key
-        }"::FLOAT ELSE NULL END) ${
+        }"::FLOAT WHEN "${
+          sortConfig.key
+        }" = '${UNFILLED_TEXT}' THEN NULL ELSE NULL END) ${
           sortConfig.order === "asc" ? "ASC" : "DESC"
-        } NULLS LAST`;
+        } NULLS LAST, "${sortConfig.key}" ASC NULLS LAST`;
       } else {
-        orderByClause = `ORDER BY "${sortConfig.key}" ${
+        orderByClause = `ORDER BY (CASE WHEN "${
+          sortConfig.key
+        }" != '${UNFILLED_TEXT}' THEN "${sortConfig.key}" ELSE NULL END) ${
           sortConfig.order === "asc" ? "ASC" : "DESC"
-        } NULLS LAST`;
+        } NULLS LAST, "${sortConfig.key}" ASC NULLS LAST`;
       }
     }
     const unionCaluse = `${withClause} SELECT * FROM (${joinCaluses
@@ -395,11 +399,11 @@ class DuckDB {
     const tableIdsString = this.encodeTableIds(tableIds);
     return `SELECT ${Object.keys(workingTableColumns)
       .map((c) => `"${c}"`)
-      .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}" FROM "${
-      sourceColumnMapping.alias
-    }"${joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""} ${
-      orderByRowId && CONFIG.PRESERVE_TABLE_ORDER ? `ORDER BY ${ROW_ID}` : ""
-    }`;
+      .join(", ")}, '${tableIdsString}' AS "${TABLE_ID}"${
+      CONFIG.ROW_ID_ENABLED ? `,"${ROW_ID}"` : ""
+    }  FROM "${sourceColumnMapping.alias}"${
+      joinCaluses.length > 0 ? ` ${joinCaluses.join(" ")}` : ""
+    } ${orderByRowId && CONFIG.ROW_ID_ENABLED ? `ORDER BY ${ROW_ID}` : ""}`;
   }
 
   createWithClauseForWorkingTable(columnsMapping) {
@@ -428,9 +432,7 @@ class DuckDB {
       }
       const projectionString = projections.join(", ");
       const currentWithClause = `"${alias}" AS (SELECT ${projectionString}${
-        currentMapping.isMain && CONFIG.PRESERVE_TABLE_ORDER
-          ? `, "${ROW_ID}"`
-          : ""
+        currentMapping.isMain && CONFIG.ROW_ID_ENABLED ? `, "${ROW_ID}"` : ""
       } FROM "${uuid}"${
         currentMapping.isMain
           ? ""
@@ -513,6 +515,27 @@ class DuckDB {
     const offset = Number(Object.values(result.toArray()[0].toJSON())[0]);
     await conn.close();
     return offset - 1;
+  }
+
+  async getOriginalRowIdsForJoinedTable(
+    mainTableId,
+    tableId,
+    sourceKeyIndex,
+    targetKeyIndex,
+    targetIndex,
+    mainTableRowId
+  ) {
+    const db = await this.getDb();
+    const query = `SELECT "${ROW_ID}", "${targetIndex}" FROM "${tableId}" WHERE "${targetKeyIndex}" IN (SELECT "${sourceKeyIndex}" FROM "${mainTableId}" WHERE "${ROW_ID}" = ${mainTableRowId})`;
+    console.debug(query);
+    const conn = await db.connect();
+    const result = await conn.query(query);
+    await conn.close();
+    const rowIds = result.toArray().map((r) => {
+      const parsedR = r.toJSON();
+      return { rowId: parsedR[ROW_ID], value: parsedR[targetIndex] };
+    });
+    return rowIds;
   }
 
   resolveSchemas(schemas) {

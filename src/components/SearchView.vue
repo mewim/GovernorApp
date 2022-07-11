@@ -85,9 +85,9 @@
                 <b-card-text
                   class="file-description-card-title"
                   :id="res.id + '-title'"
-                  ><a href="#" @click="fileSelected(r.id, res.id)">Table: {{
-                    res.name
-                  }}</a></b-card-text
+                  ><a href="#" @click="fileSelected(r.id, res.id)"
+                    >Table: {{ res.name }}</a
+                  ></b-card-text
                 >
                 <b-tooltip
                   placement="right"
@@ -173,6 +173,7 @@ import axios from "axios";
 import adddashestouuid from "add-dashes-to-uuid";
 import { VeLoading } from "vue-easytable";
 const uuid = require("uuid");
+import Common from "../Common";
 
 export default {
   name: "Search",
@@ -294,7 +295,7 @@ export default {
       );
     },
     getUrl: function (uuid) {
-      return "https://open.canada.ca/data/en/dataset/" + uuid;
+      return Common.getDatasetUrl(uuid);
     },
   },
   mounted() {

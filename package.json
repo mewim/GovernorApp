@@ -24,6 +24,7 @@
     "csv-stringify": "^6.0.4",
     "csvtojson": "^2.0.10",
     "es6-promise-pool": "^2.5.0",
+    "excel-column-name": "^1.0.1",
     "express": "^4.17.1",
     "iconv": "^3.0.1",
     "mkdirp": "^1.0.4",

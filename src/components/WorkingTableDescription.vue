@@ -191,27 +191,33 @@
       size="lg"
     >
       <b-list-group>
-        <b-list-group-item
-          v-for="(table, i) in columnComposition.tables"
-          :key="i"
-        >
+        <b-list-group-item v-for="(r, i) in columnComposition.tables" :key="i">
+          <b
+            >Dataset:
+            <a
+              target="_blank"
+              :href="getDatasetUrl(r.dataset)"
+              v-b-tooltip.hover
+              title="Jump to dataset on open.canada.ca"
+            >
+              <i>{{ r.dataset.title }}</i></a
+            >
+          </b>
           <div class="d-flex w-100">
             <span>
-              <div>
-                <span>
-                  <div
-                    class="inline-color-block"
-                    :style="{ 'background-color': table.color }"
-                  ></div>
-                  &nbsp;
-                  {{ table.name }}</span
-                >
-              </div>
-              <small>
-                <div class="inline-color-block"></div>
-                &nbsp; From: <i>{{ table.datasetName }}</i>
-              </small>
-            </span>
+              <div
+                class="inline-color-block"
+                :style="{ 'background-color': r.table.color }"
+              ></div>
+              &nbsp;
+              <a
+                href="#"
+                @click="openResource(r.table, r.dataset, r.resourceStats)"
+                v-b-tooltip.hover
+                title="Open table"
+                >{{ r.table.name }}</a
+              ></span
+            >
           </div>
         </b-list-group-item>
       </b-list-group>
@@ -226,6 +232,7 @@
 <script>
 const ACCORDION_BUTTONS_HEIGHT = 210;
 import axios from "axios";
+import Common from "../Common";
 import TableColorManger from "../TableColorManager";
 export default {
   name: "WorkingTableDescription",
@@ -406,19 +413,23 @@ export default {
     showColumnComposition(column) {
       const uuids = column.tables;
       const tableHash = {};
-      const datasetNameHash = {};
+      const datasetHash = {};
+      const resourceStatsHash = {};
       const columnTitle = column.title;
       const hasUnfilled = !uuids || uuids.length < this.histories.length;
       uuids.forEach((u) => {
         for (let h of this.histories) {
           if (h.table.id === u) {
             tableHash[u] = h.table;
-            datasetNameHash[u] = h.dataset.title;
+            datasetHash[u] = h.dataset;
+            resourceStatsHash[u] = h.resourceStats;
             break;
           }
           if (h.joinedTables && u in h.joinedTables) {
             tableHash[u] = h.joinedTables[u].targetResource;
-            datasetNameHash[u] = h.dataset.title;
+            resourceStatsHash[u] = h.joinedTables[u].targetResourceStats;
+
+            datasetHash[u] = h.dataset;
             break;
           }
         }
@@ -427,14 +438,25 @@ export default {
         return {
           id: u,
           color: TableColorManger.getColor(u),
-          datasetName: datasetNameHash[u],
-          name: tableHash[u].name,
+          dataset: datasetHash[u],
+          table: tableHash[u],
+          resourceStats: resourceStatsHash[u],
         };
       });
       this.columnComposition.tables = data;
       this.columnComposition.title = columnTitle;
       this.columnComposition.hasUnfilled = hasUnfilled;
       this.$refs.columnCompositionModal.show();
+    },
+    getDatasetUrl(dataset) {
+      return Common.getDatasetUrl(dataset.id);
+    },
+    openResource(resource, dataset, resourceStats) {
+      this.$refs.columnCompositionModal.hide();
+      this.$parent.$parent.openResource(
+        { resource, dataset, resourceStats },
+        true
+      );
     },
   },
 };
