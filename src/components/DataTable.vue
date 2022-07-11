@@ -552,14 +552,12 @@ export default {
           this.viewId,
           cellPosition.rowId
         );
-        console.log(offset);
         // If still not found, we cannot jump to the cell
         if (Number.isNaN(parseInt(offset))) {
           this.forceRerender();
           return;
         }
       }
-      console.log(offset);
       let pageIndex = Math.floor(offset / this.pageSize) + 1;
       if (pageIndex === 0) {
         pageIndex = 1;
