@@ -1,6 +1,6 @@
 import randomcolor from "randomcolor";
 
-class TableColorManger {
+class TableColorManager {
   constructor() {
     this.colorPalette = [
       "#4e79a7",
@@ -40,5 +40,5 @@ class TableColorManger {
   }
 }
 
-const instance = new TableColorManger();
+const instance = new TableColorManager();
 export default instance;

@@ -1,15 +1,15 @@
 <template>
   <div class="working-table-components-container">
     <div style="background-color: white">
-      <table ref="blocksTable">
+      <table ref="blocksTable" class="working-table-components-table">
         <tr v-for="(row, i) in blockMapping" :key="i">
           <th
-            v-for="(uuid, j) in row"
+            v-for="(block, j) in row"
             :key="j"
-            :style="getBlockStyle(uuid, i)"
-            v-b-tooltip.hover
-            :title="getTableTitle(uuid, i, j)"
-            @click="onBlockClick(uuid, i, j)"
+            :style="getBlockStyle(block.tableId, i)"
+            v-b-tooltip.hover.lefttop
+            :title="getTableTitle(block.tableId, i, j)"
+            @click="onBlockClick(block.tableId, i, j)"
           ></th>
         </tr>
       </table>
@@ -22,74 +22,71 @@
       size="lg"
       ref="componentDetailModal"
     >
-      <b-list-group-item v-if="!!h">
-        <b
-          >Dataset:
-          <a
-            target="_blank"
-            :href="getDatasetUrl(h.dataset)"
-            v-b-tooltip.hover
-            title="Jump to dataset on open.canada.ca"
-          >
-            <i>{{ h.dataset.title }}</i></a
-          >
-        </b>
+      <working-table-component-table-item
+        :h="selectedHistory"
+        v-if="!!selectedHistory"
+        @open-resource="openResource"
+      />
+      <div>
+        <br />
+        <table
+          v-if="!!selectedRow"
+          class="
+            working-table-components-table working-table-components-detail-table
+          "
+        >
+          <tr>
+            <th
+              v-for="(block, j) in selectedRow"
+              :key="j"
+              :style="
+                getBlockStyle(
+                  block.tableId,
+                  componentDetailIndex,
+                  componentDetailHoveredId
+                    ? block.tableId === componentDetailHoveredId
+                    : block.tableId === componentDetailSelectedId
+                )
+              "
+              v-b-tooltip.hover
+              :title="getTableTitle(block.tableId, componentDetailIndex, j)"
+              @click="onComponentDetailBlockClick(block.tableId)"
+              @mouseover="onComponentDetailBlockHover(block.tableId)"
+              @mouseleave="onComponentDetailBlockMouseLeave()"
+            ></th>
+          </tr>
+        </table>
 
-        <div class="d-flex w-100">
-          <span>
-            <div>
-              <span>
-                <div
-                  class="inline-color-block"
-                  :style="{ 'background-color': h.table.color }"
-                ></div>
-                &nbsp;
-                <a
-                  href="#"
-                  @click="openResource(h.table, h.dataset, h.resourceStats)"
-                  v-b-tooltip.hover
-                  title="Open table"
-                  >{{ h.table.name }}</a
-                ></span
-              >
-            </div>
-          </span>
-        </div>
-        <div v-if="h.joinedTables">
-          <div v-for="(j, k) in h.joinedTables" :key="k">
-            <small>
-              <div
-                class="inline-color-block"
-                :style="{ 'background-color': j.targetResource.color }"
-              ></div>
-              &nbsp; Joined Table:
-              <a
-                href="#"
-                v-b-tooltip.hover
-                title="Open table"
-                @click="
-                  openResource(
-                    j.targetResource,
-                    h.dataset,
-                    j.targetResourceStats
-                  )
-                "
-                >{{ j.targetResource.name }}</a
+        <div v-if="componentDetailSelectedId">
+          <br />
+          <b-list-group-item style="max-height: 240px; overflow-y: scroll">
+            <p v-if="componentDetailSelectedId !== unfilledText">
+              The selected block contains
+              {{ componentDetailColumns.length }} column{{
+                componentDetailColumns.length > 1 ? "s" : ""
+              }}:
+            </p>
+            <p v-else>
+              <span
+                >The selected block has
+                {{ componentDetailColumns.length }} unfilled column{{
+                  componentDetailColumns.length > 1 ? "s" : ""
+                }}:</span
               >
               <span class="float-right">
-                {{
-                  j.sourceKey === j.targetKey
-                    ? `(Join Key: ${j.sourceKey})`
-                    : `(Primary Key: ${j.sourceKey}; Foreign Key: ${j.targetKey})`
-                }}
+                <b-button
+                  size="sm"
+                  variant="primary"
+                  @click="getJoinSuggestions()"
+                  >Get Suggestions</b-button
+                >
               </span>
-            </small>
-          </div>
+            </p>
+            <ul>
+              <li v-for="(c, i) in componentDetailColumns" :key="i">{{ c }}</li>
+            </ul>
+          </b-list-group-item>
         </div>
-      </b-list-group-item>
-      <div v-if="hasUnfilled">
-        <br />
-        This component has unfilled cells.
       </div>
       <template #modal-footer>
         <div class="w-100">
@@ -141,17 +138,22 @@
 </template>
 
 <script>
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 import Common from "../Common";
+const UNFILLED_TEXT = "UNFILLED";
 
 export default {
   name: "WorkingTableComponents",
   data() {
     return {
       displayWidth: null,
-      h: null,
+      selectedHistory: null,
+      selectedRow: null,
+      componentDetailHoveredId: null,
+      componentDetailSelectedId: null,
       componentDetailIndex: null,
       hasUnfilled: false,
+      unfilledText: UNFILLED_TEXT,
     };
   },
   props: {
@@ -196,32 +198,68 @@ export default {
         });
         for (let j = 0; j < selectedColumns.length; ++j) {
           const c = selectedColumns[j];
-          blocks[i].push(
-            columnNameToTableMap[c] ? columnNameToTableMap[c] : null
-          );
+          blocks[i].push({
+            tableId: columnNameToTableMap[c]
+              ? columnNameToTableMap[c]
+              : UNFILLED_TEXT,
+            columnName: c,
+          });
         }
       }
       return blocks;
     },
+    componentDetailColumns() {
+      if (
+        !this.componentDetailSelectedId ||
+        !this.blockMapping[this.componentDetailIndex]
+      ) {
+        return [];
+      }
+      const blocks = this.blockMapping[this.componentDetailIndex];
+      const columns = [];
+      for (let i = 0; i < blocks.length; ++i) {
+        if (blocks[i].tableId === this.componentDetailSelectedId) {
+          columns.push(blocks[i].columnName);
+        }
+      }
+      return columns;
+    },
   },
   methods: {
     getBlockColor(uuid) {
-      return uuid ? TableColorManger.getColor(uuid) : "#ffffff";
+      return uuid !== UNFILLED_TEXT
+        ? TableColorManager.getColor(uuid)
+        : TableColorManager.nullColor;
     },
     getTableDisplayWidth() {
       return this.$refs.blocksTable.clientWidth;
     },
-    onBlockClick(_, i) {
-      this.h = this.histories[i];
+    onBlockClick(uuid, i) {
+      this.selectedHistory = this.histories[i];
+      this.selectedRow = this.blockMapping[i];
       this.componentDetailIndex = i;
+      this.componentDetailSelectedId = uuid;
       this.hasUnfilled = false;
       for (let b of this.blockMapping[i]) {
-        if (!b) {
+        if (!b.tableId || b.tableId === UNFILLED_TEXT) {
           this.hasUnfilled = true;
           break;
         }
       }
       this.$refs.componentDetailModal.show();
+    },
+    onComponentDetailBlockHover(uuid) {
+      this.componentDetailHoveredId = uuid;
+    },
+    onComponentDetailBlockMouseLeave() {
+      this.componentDetailHoveredId = null;
+    },
+    onComponentDetailBlockClick(uuid) {
+      if (this.componentDetailSelectedId === uuid) {
+        this.componentDetailSelectedId = null;
+        return;
+      }
+      this.componentDetailSelectedId = uuid;
     },
     getTableTitle(uuid, i) {
       if (this.histories[i].table.id === uuid) {
@@ -232,18 +270,22 @@ export default {
       ) {
         return this.histories[i].joinedTables[uuid].targetResource.name;
       }
-      return;
+      return "(Unfilled)";
     },
-    getBlockStyle(uuid, i) {
+    getBlockStyle(uuid, i, isBlockSelected = false) {
       const isFocused =
         isNaN(parseInt(this.focusedComponentIndex)) ||
         this.focusedComponentIndex === i;
       const color = this.getBlockColor(uuid);
       return {
         "background-color": color,
+        "border-color": color,
         cursor: "pointer",
         "user-select": "none",
         opacity: isFocused ? 1 : 0.7,
+        " border-style": isBlockSelected ? "solid" : "none",
+        "border-top-width": isBlockSelected ? "16px" : 0,
+        "border-bottom-width": isBlockSelected ? "16px" : 0,
       };
     },
     removeComponent(i) {
@@ -259,19 +301,27 @@ export default {
       this.closeComponentDetailModal();
     },
     closeComponentDetailModal() {
-      this.h = null;
+      this.selectedHistory = null;
       this.componentDetailIndex = null;
+      this.selectedRow = null;
+      this.componentDetailHoveredId = null;
+      this.componentDetailSelectedId = null;
       this.$refs.componentDetailModal.hide();
     },
     getDatasetUrl(dataset) {
       return Common.getDatasetUrl(dataset.id);
     },
-    openResource(resource, dataset, resourceStats) {
+    openResource(data) {
       this.closeComponentDetailModal();
+      const { resource, dataset, resourceStats } = data;
       this.$parent.$parent.$parent.openResource(
         { resource, dataset, resourceStats },
         true
       );
+    },
+    getJoinSuggestions() {
+      this.closeComponentDetailModal();
+      this.$parent.getJoinSuggestions();
     },
   },
   async mounted() {},
@@ -280,14 +330,18 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.working-table-components-container {
-  table {
-    width: 100%;
-    tr {
-      height: 40px;
-    }
+.working-table-components-table {
+  // &.working-table-components-detail-table {
+  //   tr {
+  //     height: 64px;
+  //   }
+  // }
+  width: 100%;
+  tr {
+    height: 40px;
   }
 }
+
 .float-right {
   float: right;
 }

@@ -148,6 +148,7 @@
               <joinable-tables
                 :histories="histories"
                 :focusedComponentId="focusedComponentId"
+                :columns="columns"
                 ref="joinableTables"
               />
             </div>
@@ -223,7 +224,12 @@
       </b-list-group>
       <div v-if="columnComposition.hasUnfilled">
         <br />
-        This column has unfilled cells.
+        <span> This column has unfilled cells. </span>
+        <span class="float-right">
+          <b-button size="sm" variant="primary" @click="getJoinSuggestions()">
+            Get Suggestions
+          </b-button>
+        </span>
       </div>
     </b-modal>
   </div>
@@ -233,7 +239,7 @@
 const ACCORDION_BUTTONS_HEIGHT = 210;
 import axios from "axios";
 import Common from "../Common";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 export default {
   name: "WorkingTableDescription",
   props: {
@@ -399,7 +405,7 @@ export default {
         });
     },
     getColor(id) {
-      return TableColorManger.getColor(id);
+      return TableColorManager.getColor(id);
     },
     focusComponent(i) {
       this.$parent.focusComponent(i);
@@ -437,7 +443,7 @@ export default {
       const data = uuids.map((u) => {
         return {
           id: u,
-          color: TableColorManger.getColor(u),
+          color: TableColorManager.getColor(u),
           dataset: datasetHash[u],
           table: tableHash[u],
           resourceStats: resourceStatsHash[u],
@@ -457,6 +463,10 @@ export default {
         { resource, dataset, resourceStats },
         true
       );
+    },
+    getJoinSuggestions() {
+      this.$refs.columnCompositionModal.hide();
+      this.$refs.joinableTables.showColumnSuggestionsModal();
     },
   },
 };
@@ -486,5 +496,8 @@ export default {
   svg {
     fill: var(--bs-white);
   }
+}
+.float-right {
+  float: right;
 }
 </style>

@@ -41,7 +41,7 @@
 
 <script>
 import axios from "axios";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 
 export default {
   name: "UnionableTables",
@@ -104,7 +104,7 @@ export default {
       const resourceStats = await axios
         .get(`/api/inferredstats/${resource.id}`)
         .then((res) => res.data);
-      resource.color = TableColorManger.getColor(resource.id);
+      resource.color = TableColorManager.getColor(resource.id);
       const unionable = {
         dataset: dataset,
         table: resource,

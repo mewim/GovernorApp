@@ -161,12 +161,54 @@
         </div>
       </template>
     </b-modal>
+
+    <b-modal size="xl" ref="columnSuggestionsModal" hide-header centered>
+      <div style="max-height: 600px; overflow-y: scroll">
+        <div v-for="(suggestion, i) in columnFillingSuggestions" :key="i">
+          <hr v-if="i > 0" />
+          <working-table-component-table-item
+            :h="suggestion.history"
+            @open-resource="openResource"
+          />
+          <ul>
+            <li v-for="(c, j) in suggestion.columns" :key="j">
+              <h6>Column: {{ c.name }}</h6>
+              <b-form-group>
+                <b-form-radio
+                  v-for="(joinPlan, k) in c.joinPlans"
+                  :key="k"
+                  v-model="joinPlan.selected"
+                >
+                  &nbsp; Join with: {{ joinPlan.target_resource.name }}
+                </b-form-radio>
+
+                <b-form-radio> &nbsp; Do not fill this column </b-form-radio>
+              </b-form-group>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <template #modal-footer>
+        <div class="w-100">
+          <span class="float-right">
+            <span>
+              <b-button size="sm" @click="closeColumnSuggestionsModal()">
+                Close
+              </b-button>
+            </span>
+            <span>
+              <b-button size="sm" variant="primary"> OK </b-button>
+            </span>
+          </span>
+        </div>
+      </template>
+    </b-modal>
   </div>
 </template>
 
 <script>
 import axios from "axios";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 
 export default {
   name: "JoinableTables",
@@ -176,6 +218,10 @@ export default {
       required: true,
     },
     focusedComponentId: String,
+    columns: {
+      type: Array,
+      required: true,
+    },
   },
   data: function () {
     return {
@@ -189,6 +235,7 @@ export default {
       loadingPromise: null,
       filterText: "",
       filteredResourcesHash: {},
+      columnFillingSuggestions: [],
     };
   },
   watch: {
@@ -299,7 +346,7 @@ export default {
       const column = this.joinedColumn;
       const joinables = this.joinConfigModalSelectedComponentTables;
       for (let j of joinables) {
-        j.target_resource.color = TableColorManger.getColor(
+        j.target_resource.color = TableColorManager.getColor(
           j.target_resource.id
         );
       }
@@ -374,7 +421,6 @@ export default {
             !joinableNameConflict
           );
         });
-
       return results;
     },
     getJoinedColumnName: function (joinable) {
@@ -428,6 +474,86 @@ export default {
       }
       return result;
     },
+    getColumnFillingSuggestions() {
+      const columnTitles = this.columns.map((c) => c.title);
+      const suggestionsHash = {};
+      const unfilledColumnsForHistory = {};
+      const historiesHash = {};
+      this.histories.forEach((h) => {
+        historiesHash[h.table.id] = h;
+        const currentColumnSet = new Set(
+          h.resourceStats.schema.fields.map((f) => f.name)
+        );
+        if (h.joinedTables) {
+          for (const uuid in h.joinedTables) {
+            h.joinedTables[uuid].columns.forEach((c) => {
+              currentColumnSet.add(c);
+            });
+          }
+        }
+        const unfilledColumns = columnTitles.filter(
+          (c) => !currentColumnSet.has(c)
+        );
+        if (unfilledColumns.length > 0) {
+          unfilledColumnsForHistory[h.resourceStats.uuid] = unfilledColumns;
+        }
+      });
+      for (const uuid in unfilledColumnsForHistory) {
+        const unfilledColumns = unfilledColumnsForHistory[uuid];
+        for (let joinPlan of this.joinableTables) {
+          if (joinPlan.source_resource.id === uuid) {
+            const targerResourceStats = joinPlan.target_resourcestats;
+            const targetColumns = targerResourceStats.schema.fields.map(
+              (f) => f.name
+            );
+            const intersection = unfilledColumns.filter((c) =>
+              targetColumns.includes(c)
+            );
+            if (intersection.length > 0) {
+              intersection.forEach((c) => {
+                if (!suggestionsHash[uuid]) {
+                  suggestionsHash[uuid] = {};
+                }
+                if (!suggestionsHash[uuid][c]) {
+                  suggestionsHash[uuid][c] = [];
+                }
+                suggestionsHash[uuid][c].push(joinPlan);
+              });
+            }
+          }
+        }
+      }
+      const suggetionsFlattened = [];
+      for (const uuid in suggestionsHash) {
+        const currentHistory = historiesHash[uuid];
+        const currentResult = {
+          history: currentHistory,
+          columns: [],
+        };
+        for (const column in suggestionsHash[uuid]) {
+          const joinPlans = suggestionsHash[uuid][column].sort(
+            (a, b) => b.score - a.score
+          );
+          currentResult.columns.push({
+            name: column,
+            joinPlans,
+          });
+        }
+        suggetionsFlattened.push(currentResult);
+      }
+      return suggetionsFlattened;
+    },
+    async showColumnSuggestionsModal() {
+      if (this.loadingPromise) {
+        await this.loadingPromise;
+      }
+      this.columnFillingSuggestions = this.getColumnFillingSuggestions();
+      this.$refs.columnSuggestionsModal.show();
+    },
+    closeColumnSuggestionsModal() {
+      this.columnFillingSuggestions = [];
+      this.$refs.columnSuggestionsModal.hide();
+    },
     updateFilteredResourcesHash: function () {
       this.filteredResourcesHash = this.getFilteredResourcesHash();
     },
@@ -436,6 +562,14 @@ export default {
       this.joinConfigModalComponentTables.forEach((j) => {
         j.selected = selected;
       });
+    },
+    openResource(data) {
+      this.closeColumnSuggestionsModal();
+      const { resource, dataset, resourceStats } = data;
+      this.$parent.$parent.$parent.$parent.openResource(
+        { resource, dataset, resourceStats },
+        true
+      );
     },
   },
 };

@@ -95,7 +95,7 @@
 
 <script>
 import DuckDB from "../DuckDB";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 export default {
   data() {
     return {
@@ -165,7 +165,7 @@ export default {
     },
     openResource: function (r, jumpImmediately) {
       if (!r.resource.color) {
-        r.resource.color = TableColorManger.getColor(r.resource.id);
+        r.resource.color = TableColorManager.getColor(r.resource.id);
       }
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {

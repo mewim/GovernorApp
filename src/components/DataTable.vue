@@ -69,7 +69,7 @@ import axios from "axios";
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 import { createPopper } from "@popperjs/core";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 import Common from "../Common";
 
 const FIRST_TABLE_NAME = "T1";
@@ -236,7 +236,7 @@ export default {
           if (this.isColorEnabled) {
             const color = text
               ? this.resource.color
-              : TableColorManger.nullColor;
+              : TableColorManager.nullColor;
             style.color = color;
           }
           if (row[column.field].isHighlighted) {

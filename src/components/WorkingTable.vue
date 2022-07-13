@@ -98,7 +98,7 @@
 <script>
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 import axios from "axios";
 import { createPopper } from "@popperjs/core";
 import ExcelColumnName from "excel-column-name";
@@ -390,8 +390,8 @@ export default {
       if (this.isColorEnabled) {
         const color =
           value && value !== UNFILLED_TEXT
-            ? TableColorManger.getColor(tableId)
-            : TableColorManger.nullColor;
+            ? TableColorManager.getColor(tableId)
+            : TableColorManager.nullColor;
         style.color = color;
       }
       if (row[column.key].isHighlighted) {
@@ -674,10 +674,10 @@ export default {
       this.logs = result.logs;
       this.selectedColumns = result.selectedColumns;
       for (let h of this.histories) {
-        TableColorManger.addColor(h.table.id, h.table.color);
+        TableColorManager.addColor(h.table.id, h.table.color);
         if (h.joinedTables) {
           for (let j in h.joinedTables) {
-            TableColorManger.addColor(
+            TableColorManager.addColor(
               j,
               h.joinedTables[j].targetResource.color
             );
