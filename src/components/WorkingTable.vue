@@ -573,7 +573,42 @@ export default {
       this.isColorEnabled = !this.isColorEnabled;
       this.forceRerender();
     },
-    async addColumn(joinables, column) {
+    async bulkAddColumns(data, fastMode = true) {
+      if (fastMode) {
+        const columnSet = new Set();
+        for (let d of data) {
+          const joinable = d.joinable;
+          const column = d.column;
+          columnSet.add(column);
+          await this.addColumn([joinable], column, true);
+        }
+        this.loadingPromise = this.reloadData();
+        await this.loadingPromise;
+        this.loadingPromise = null;
+        this.columns.forEach((c) => {
+          if (columnSet.has(c.title)) {
+            this.addSelectedColumn(c.title);
+          }
+        });
+        this.showAlert(
+          `Added ${columnSet.size} column${
+            columnSet.size > 1 ? "s" : ""
+          } by applying the suggestions`
+        );
+        // Hack to forcefully trigger rerender
+        const historiesTemp = this.histories;
+        this.histories = [];
+        this.histories = historiesTemp;
+        this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+      } else {
+        for (let d of data) {
+          const joinable = d.joinable;
+          const column = d.column;
+          await this.addColumn([joinable], column);
+        }
+      }
+    },
+    async addColumn(joinables, column, skipReloading = false) {
       for (let joinable of joinables) {
         const sourceResourceId = joinable.source_resource.id;
         const history = this.histories.find(
@@ -603,14 +638,16 @@ export default {
         }
         history.joinedTables[targetId].columns.push(column.name);
       }
-      this.loadingPromise = this.reloadData();
-      await this.loadingPromise;
-      this.loadingPromise = null;
-      this.columns.forEach((c) => {
-        if (c.title === column.name) {
-          this.addSelectedColumn(c.title);
-        }
-      });
+      if (!skipReloading) {
+        this.loadingPromise = this.reloadData();
+        await this.loadingPromise;
+        this.loadingPromise = null;
+        this.columns.forEach((c) => {
+          if (c.title === column.name) {
+            this.addSelectedColumn(c.title);
+          }
+        });
+      }
       this.logs.push({
         type: "join",
         column: column.name,
@@ -618,11 +655,14 @@ export default {
         sources: joinables.map((j) => j.source_resource),
         time: new Date(),
       });
-      this.showAlert(
-        `Added column "${column.name}" from "${joinables[0].target_resource.name}"`
-      );
+
       // Hack to forcefully trigger rerender
-      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+      if (!skipReloading) {
+        this.showAlert(
+          `Added column "${column.name}" from "${joinables[0].target_resource.name}"`
+        );
+        this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+      }
     },
     async sortChange(params) {
       let isSortByColumn = false;

@@ -226,7 +226,11 @@
         <br />
         <span> This column has unfilled cells. </span>
         <span class="float-right">
-          <b-button size="sm" variant="primary" @click="getJoinSuggestions()">
+          <b-button
+            size="sm"
+            variant="primary"
+            @click="getJoinSuggestions(columnComposition.title)"
+          >
             Get Suggestions
           </b-button>
         </span>
@@ -464,9 +468,12 @@ export default {
         true
       );
     },
-    getJoinSuggestions() {
+    getJoinSuggestions(columnNameFilter, componentIdFilter) {
       this.$refs.columnCompositionModal.hide();
-      this.$refs.joinableTables.showColumnSuggestionsModal();
+      this.$refs.joinableTables.showColumnSuggestionsModal(
+        columnNameFilter,
+        componentIdFilter
+      );
     },
   },
 };
