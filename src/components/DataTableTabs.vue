@@ -78,6 +78,7 @@
         :keyword="item.keyword"
         :dataset="item.dataset"
         :tableId="item.resource.id"
+        :selectedCell="item.selectedCell"
         :height="tableAreaHeight"
         :isActive="
           !isSearchActive &&
@@ -94,7 +95,7 @@
 
 <script>
 import DuckDB from "../DuckDB";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 export default {
   data() {
     return {
@@ -164,11 +165,12 @@ export default {
     },
     openResource: function (r, jumpImmediately) {
       if (!r.resource.color) {
-        r.resource.color = TableColorManger.getColor(r.resource.id);
+        r.resource.color = TableColorManager.getColor(r.resource.id);
       }
       for (let i = 0; i < this.openedResources.length; ++i) {
         if (this.openedResources[i].resource.id === r.resource.id) {
           this.openedResources[i].keyword = r.keyword;
+          this.openedResources[i].selectedCell = r.selectedCell;
           if (jumpImmediately) {
             this.jumpToResource(r.resource.id);
           }

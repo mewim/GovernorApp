@@ -5,19 +5,13 @@ import {
   BadgePlugin,
   LayoutPlugin,
 } from "bootstrap-vue";
+
+import "vue-easytable/libs/theme-default/index.css";
 import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap-vue/dist/bootstrap-vue.css";
-import "vue-easytable/libs/theme-default/index.css";
+
 import VueEasytable from "vue-easytable";
 import { VePagination } from "vue-easytable";
-
-Vue.use(VePagination);
-Vue.use(VueEasytable);
-Vue.use(BootstrapVue);
-Vue.use(IconsPlugin);
-Vue.use(BadgePlugin);
-Vue.use(LayoutPlugin);
-
 import App from "./App.vue";
 import { store } from "./store/store";
 import SearchView from "./components/SearchView.vue";
@@ -32,6 +26,9 @@ import UnionableTables from "./components/UnionableTables.vue";
 import WorkingTable from "./components/WorkingTable.vue";
 import WorkingTableDescription from "./components/WorkingTableDescription.vue";
 import UseCasesDiscovery from "./components/UseCasesDiscovery.vue";
+import WorkingTableComponents from "./components/WorkingTableComponents.vue";
+import WorkingTableProvenanceModal from "./components/WorkingTableProvenanceModal.vue";
+import WorkingTableComponentTableItem from "./components/WorkingTableComponentTableItem.vue";
 
 Vue.component("search-view", SearchView);
 Vue.component("data-table", DataTable);
@@ -45,6 +42,19 @@ Vue.component("unionable-tables", UnionableTables);
 Vue.component("working-table", WorkingTable);
 Vue.component("working-table-description", WorkingTableDescription);
 Vue.component("use-cases-discovery", UseCasesDiscovery);
+Vue.component("working-table-components", WorkingTableComponents);
+Vue.component("working-table-provenance-modal", WorkingTableProvenanceModal);
+Vue.component(
+  "working-table-component-table-item",
+  WorkingTableComponentTableItem
+);
+
+Vue.use(VePagination);
+Vue.use(VueEasytable);
+Vue.use(BootstrapVue);
+Vue.use(IconsPlugin);
+Vue.use(BadgePlugin);
+Vue.use(LayoutPlugin);
 
 Vue.config.productionTip = false;
 

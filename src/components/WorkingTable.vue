@@ -83,17 +83,28 @@
         Error message: {{ duckDBErrorMessage }}
       </p>
     </b-modal>
+    <working-table-provenance-modal
+      :isLoading="provenanceModalInformation.isLoading"
+      :dataset="provenanceModalInformation.dataset"
+      :table="provenanceModalInformation.table"
+      :resourceStats="provenanceModalInformation.resourceStats"
+      :positions="provenanceModalInformation.positions"
+      ref="workingTableProvenanceModal"
+      @modal-closed="provenanceModalClosed()"
+    />
   </div>
 </template>
 
 <script>
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 import axios from "axios";
 import { createPopper } from "@popperjs/core";
+import ExcelColumnName from "excel-column-name";
 import Common from "../Common";
 const TABLE_ID = "__table_id";
+const ROW_ID = "__row_id";
 const NULL_TEXT = "NULL";
 const DEFAULT_COUNT_DOWN = 3.5;
 const UNFILLED_TEXT = "UNFILLED";
@@ -101,6 +112,7 @@ const UNFILLED_TEXT = "UNFILLED";
 export default {
   data() {
     const IS_ELLIPSIS_ENABLED = true;
+    const IS_PROVENANCE_ENABLED = true;
     return {
       pageIndex: 1,
       pageSize: 25,
@@ -119,7 +131,16 @@ export default {
       tableData: [],
       loadingPromise: null,
       selectedColumns: [],
-      cellStyleOption: {},
+      cellStyleOption: {
+        headerCellClass: () => {
+          return "working-table-cell-pointer";
+        },
+        bodyCellClass: IS_PROVENANCE_ENABLED
+          ? () => {
+              return "working-table-cell-pointer";
+            }
+          : undefined,
+      },
       histories: [],
       logs: [],
       keywords: [],
@@ -136,18 +157,25 @@ export default {
       },
       isEllipsisEnabled: IS_ELLIPSIS_ENABLED,
       eventCustomOption: {
-        bodyCellEvents: IS_ELLIPSIS_ENABLED
-          ? ({ row, column }) => {
-              return {
-                mouseenter: (event) => {
+        bodyCellEvents: ({ row, column }) => {
+          return {
+            mouseenter: IS_ELLIPSIS_ENABLED
+              ? (event) => {
                   this.mouseEnterCell(event, row, column);
-                },
-                mouseleave: () => {
+                }
+              : undefined,
+            mouseleave: IS_ELLIPSIS_ENABLED
+              ? () => {
                   this.mouseLeaveCell();
-                },
-              };
-            }
-          : undefined,
+                }
+              : undefined,
+            click: IS_PROVENANCE_ENABLED
+              ? () => {
+                  this.cellClicked(row, column);
+                }
+              : undefined,
+          };
+        },
         headerCellEvents: ({ column }) => {
           return {
             mouseenter: (event) => {
@@ -156,6 +184,9 @@ export default {
             mouseleave: () => {
               this.mouseLeaveCell();
             },
+            click: () => {
+              this.headerCellClicked(event, column);
+            },
           };
         },
       },
@@ -163,6 +194,13 @@ export default {
       dismissCountDown: 0,
       alertMessage: "",
       duckDBErrorMessage: "",
+      provenanceModalInformation: {
+        isLoading: true,
+        dataset: null,
+        table: null,
+        resourceStats: null,
+        positions: [],
+      },
     };
   },
   props: {
@@ -256,12 +294,14 @@ export default {
             d[k] = {
               value: !value || /^[;\s]*$/.test(value) ? null : value,
             };
-            keywords.forEach((kw) => {
-              if (d[k].value && d[k].value.toLowerCase().includes(kw)) {
-                columnsToEnable.add(k);
-                d[k].isHighlighted = true;
-              }
-            });
+            if (k !== ROW_ID && k !== TABLE_ID) {
+              keywords.forEach((kw) => {
+                if (d[k].value && d[k].value.toLowerCase().includes(kw)) {
+                  columnsToEnable.add(k);
+                  d[k].isHighlighted = true;
+                }
+              });
+            }
             for (let tableId of tableIds) {
               if (
                 this.columnsMapping[tableId] &&
@@ -350,8 +390,8 @@ export default {
       if (this.isColorEnabled) {
         const color =
           value && value !== UNFILLED_TEXT
-            ? TableColorManger.getColor(tableId)
-            : TableColorManger.nullColor;
+            ? TableColorManager.getColor(tableId)
+            : TableColorManager.nullColor;
         style.color = color;
       }
       if (row[column.key].isHighlighted) {
@@ -533,7 +573,42 @@ export default {
       this.isColorEnabled = !this.isColorEnabled;
       this.forceRerender();
     },
-    async addColumn(joinables, column) {
+    async bulkAddColumns(data, fastMode = true) {
+      if (fastMode) {
+        const columnSet = new Set();
+        for (let d of data) {
+          const joinable = d.joinable;
+          const column = d.column;
+          columnSet.add(column);
+          await this.addColumn([joinable], column, true);
+        }
+        this.loadingPromise = this.reloadData();
+        await this.loadingPromise;
+        this.loadingPromise = null;
+        this.columns.forEach((c) => {
+          if (columnSet.has(c.title)) {
+            this.addSelectedColumn(c.title);
+          }
+        });
+        this.showAlert(
+          `Added ${columnSet.size} column${
+            columnSet.size > 1 ? "s" : ""
+          } by applying the suggestions`
+        );
+        // Hack to forcefully trigger rerender
+        const historiesTemp = this.histories;
+        this.histories = [];
+        this.histories = historiesTemp;
+        this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+      } else {
+        for (let d of data) {
+          const joinable = d.joinable;
+          const column = d.column;
+          await this.addColumn([joinable], column);
+        }
+      }
+    },
+    async addColumn(joinables, column, skipReloading = false) {
       for (let joinable of joinables) {
         const sourceResourceId = joinable.source_resource.id;
         const history = this.histories.find(
@@ -563,14 +638,16 @@ export default {
         }
         history.joinedTables[targetId].columns.push(column.name);
       }
-      this.loadingPromise = this.reloadData();
-      await this.loadingPromise;
-      this.loadingPromise = null;
-      this.columns.forEach((c) => {
-        if (c.title === column.name) {
-          this.addSelectedColumn(c.title);
-        }
-      });
+      if (!skipReloading) {
+        this.loadingPromise = this.reloadData();
+        await this.loadingPromise;
+        this.loadingPromise = null;
+        this.columns.forEach((c) => {
+          if (c.title === column.name) {
+            this.addSelectedColumn(c.title);
+          }
+        });
+      }
       this.logs.push({
         type: "join",
         column: column.name,
@@ -578,9 +655,14 @@ export default {
         sources: joinables.map((j) => j.source_resource),
         time: new Date(),
       });
-      this.showAlert(
-        `Added column "${column.name}" from "${joinables[0].target_resource.name}"`
-      );
+
+      // Hack to forcefully trigger rerender
+      if (!skipReloading) {
+        this.showAlert(
+          `Added column "${column.name}" from "${joinables[0].target_resource.name}"`
+        );
+        this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+      }
     },
     async sortChange(params) {
       let isSortByColumn = false;
@@ -632,10 +714,10 @@ export default {
       this.logs = result.logs;
       this.selectedColumns = result.selectedColumns;
       for (let h of this.histories) {
-        TableColorManger.addColor(h.table.id, h.table.color);
+        TableColorManager.addColor(h.table.id, h.table.color);
         if (h.joinedTables) {
           for (let j in h.joinedTables) {
-            TableColorManger.addColor(
+            TableColorManager.addColor(
               j,
               h.joinedTables[j].targetResource.color
             );
@@ -692,8 +774,144 @@ export default {
       this.tooltipText = this.getColumnDescription(column.title);
       this.tooltipVisible = true;
     },
+    async getOriginalIndexes(row, column) {
+      const tableIds = row[TABLE_ID];
+      const value = row[column.key].value;
+      if (value === null || value === UNFILLED_TEXT) {
+        return;
+      }
+      let columnIndex, tableId, isMainTable, mainTableId;
+      tableIds.forEach((uuid) => {
+        const currColumnIndex =
+          this.columnsMapping[uuid].mappedToColumnIndex[column.key];
+        if (!isNaN(parseInt(currColumnIndex))) {
+          columnIndex = currColumnIndex;
+          tableId = uuid;
+          isMainTable = this.columnsMapping[uuid].isMain;
+          return;
+        }
+      });
+      if (!row[ROW_ID]) {
+        throw Error(
+          "This feature is not avaliable when ROW_ID_ENABLED is set to false"
+        );
+      }
+      const rowId = row[ROW_ID].value;
+      const history = this.histories.find(
+        (h) =>
+          h.table.id === tableId || (h.joinedTables && h.joinedTables[tableId])
+      );
+      mainTableId = history.table.id;
+      if (isMainTable) {
+        const inferedStats = history.resourceStats;
+        const originalRowIndex = inferedStats.header + 1 + Number(rowId);
+        const excelPosition =
+          ExcelColumnName.intToExcelCol(columnIndex + 1) + originalRowIndex;
+        return {
+          table: history.table,
+          dataset: history.dataset,
+          resourceStats: inferedStats,
+          positions: [
+            {
+              columnIndex,
+              rowId,
+              originalRowIndex,
+              excelPosition,
+              value,
+            },
+          ],
+        };
+      } else {
+        const sourceKey = history.joinedTables[tableId].sourceKey;
+        const sourceKeyIndex = history.resourceStats.schema.fields.findIndex(
+          (f) => f.name === sourceKey
+        );
+        const targetKeyIndex = history.joinedTables[
+          tableId
+        ].targetResourceStats.schema.fields.findIndex(
+          (f) => f.name === history.joinedTables[tableId].targetKey
+        );
+        const inferedStats = history.joinedTables[tableId].targetResourceStats;
+        const duckDBResults = await DuckDB.getOriginalRowIdsForJoinedTable(
+          mainTableId,
+          tableId,
+          sourceKeyIndex,
+          targetKeyIndex,
+          columnIndex,
+          rowId
+        );
+        return {
+          table: history.joinedTables[tableId].targetResource,
+          dataset: history.dataset,
+          resourceStats: inferedStats,
+          positions: duckDBResults.map((result) => {
+            const rowId = result.rowId;
+            const cellValue = result.value;
+            const originalRowIndex = inferedStats.header + 1 + Number(rowId);
+            const excelPosition =
+              ExcelColumnName.intToExcelCol(columnIndex + 1) + originalRowIndex;
+            return {
+              columnIndex,
+              originalRowIndex,
+              excelPosition,
+              rowId,
+              value: cellValue,
+            };
+          }),
+        };
+      }
+    },
+    async cellClicked(row, column) {
+      const value = row[column.key].value;
+      if (value === null || value === UNFILLED_TEXT) {
+        return;
+      }
+      this.$refs.workingTableProvenanceModal.showModal();
+      await this.$nextTick();
+      let result;
+      try {
+        result = await this.getOriginalIndexes(row, column);
+        if (!result || result.length === 0) {
+          return;
+        }
+      } catch (err) {
+        return;
+      }
+      this.provenanceModalInformation.isLoading = false;
+      this.provenanceModalInformation.positions = result.positions;
+      this.provenanceModalInformation.table = result.table;
+      this.provenanceModalInformation.dataset = result.dataset;
+      this.provenanceModalInformation.resourceStats = result.resourceStats;
+    },
+    provenanceModalClosed() {
+      this.provenanceModalInformation.isLoading = true;
+      this.provenanceModalInformation.positions = [];
+      this.provenanceModalInformation.table = null;
+      this.provenanceModalInformation.dataset = null;
+      this.provenanceModalInformation.resourceStats = null;
+    },
+    headerCellClicked(event, column) {
+      // Ignore click on sort icon
+      const eventTargetClassName = event.target.className;
+      if (
+        eventTargetClassName &&
+        eventTargetClassName.includes("ve-table-sort")
+      ) {
+        return;
+      }
+      this.$refs.workingTableDescription.showColumnComposition(column);
+    },
     async undoJoinLog(log) {
       const sourcesSet = new Set(log.sources.map((s) => s.id));
+      const columnToDelete = this.columns.find((c) => c.title === log.column);
+      // Cancel sorting if it is sorting on the column that is being deleted
+      if (columnToDelete.key === this.sortConfig.key) {
+        this.sortConfig = {
+          key: null,
+          order: null,
+          isNumeric: false,
+        };
+      }
       for (let h of this.histories) {
         if (sourcesSet.has(h.table.id)) {
           if (h.joinedTables && h.joinedTables[log.table.id]) {
@@ -721,6 +939,8 @@ export default {
         return false;
       });
       this.showAlert(alertMessage);
+      // Hack to forcefully trigger rerender
+      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
     },
     async undoLog(log) {
       switch (log.type) {
@@ -747,6 +967,46 @@ export default {
       this.loadingPromise = this.reloadData(true);
       await this.loadingPromise;
       this.loadingPromise = null;
+      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+    },
+    async jumpToFirstRow(i) {
+      const h = this.histories[i];
+      const componentIds = new Set([h.table.id]);
+      if (h.joinedTables) {
+        for (let id in h.joinedTables) {
+          componentIds.add(id);
+        }
+      }
+      this.focusedComponentIndex = null;
+      this.sortConfig = {
+        key: null,
+        order: null,
+        isNumeric: false,
+      };
+      this.$refs.workingTableDescription.$refs.joinableTables.updateFilteredResourcesHash();
+      this.loadingPromise = this.reloadData(true);
+      await this.loadingPromise;
+      this.loadingPromise = DuckDB.getWorkingTableFirstRowOffset(componentIds);
+      const offset = await this.loadingPromise;
+      if (offset === null) {
+        this.loadingPromise = null;
+        return;
+      }
+      let pageIndex = Math.ceil(offset / this.pageSize);
+      if (pageIndex === 0) {
+        pageIndex = 1;
+      }
+      const indexOnPage = offset % this.pageSize;
+      this.pageIndex = pageIndex;
+      this.loadingPromise = this.loadDataForCurrentPage();
+      await this.loadingPromise;
+      this.loadingPromise = null;
+      const rowOnPage = this.tableData[indexOnPage];
+      if (rowOnPage && rowOnPage.column_0) {
+        this.$refs.table.setHighlightRow({
+          rowKey: rowOnPage.rowKey,
+        });
+      }
     },
     showAlert(message) {
       this.alertMessage = message;
@@ -764,6 +1024,7 @@ export default {
       this.duckDBErrorMessage = err.message;
       this.$refs.duckdbErrorModal.show();
       this.resetTable();
+      throw err;
     },
   },
   async mounted() {
@@ -833,5 +1094,8 @@ div.working-table-alert-container {
 }
 .duckdb-error-message {
   color: red;
+}
+.working-table-cell-pointer {
+  cursor: pointer;
 }
 </style>

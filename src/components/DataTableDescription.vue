@@ -26,55 +26,68 @@
     </div>
     <hr />
     <div>
-      <p></p>
-      <h5>Columns</h5>
-      <a href="#" @click="isColumnDetailsVisible = !isColumnDetailsVisible"
-        >[{{ isColumnDetailsVisible ? "Hide" : "Show" }}]</a
-      >
-      <p></p>
-      <div
-        class="schema-fields-table-container"
-        v-show="isColumnDetailsVisible"
-      >
-        <b-table
-          ref="schemaFieldsTable"
-          :items="schemaFieldsTableItems"
-          :fields="schemaFields"
-          no-select-on-click
-          selectable
-          @row-clicked="schemaFieldsTableRowClicked"
-        >
-          <template #cell(selected)="{ rowSelected }">
-            <template v-if="rowSelected">
-              <span class="schema-table-span" aria-hidden="true">&check;</span>
-            </template>
-            <template v-else>
-              <span class="schema-table-span" aria-hidden="true">&nbsp;</span>
-            </template>
-          </template>
+      <div class="accordion">
+        <b-card no-body class="mb-1">
+          <b-button block v-b-toggle="accordionId" variant="outline-primary"
+            >Hide / Unhide Columns</b-button
+          >
+          <b-collapse
+            :id="accordionId"
+            accordion="working-table-description__accordion"
+            role="tabpanel"
+          >
+            <b-card-body>
+              <div class="schema-fields-table-container">
+                <b-table
+                  ref="schemaFieldsTable"
+                  :items="schemaFieldsTableItems"
+                  :fields="schemaFields"
+                  no-select-on-click
+                  selectable
+                  @row-clicked="schemaFieldsTableRowClicked"
+                >
+                  <template #cell(selected)="{ rowSelected }">
+                    <template v-if="rowSelected">
+                      <span class="schema-table-span" aria-hidden="true"
+                        >&check;</span
+                      >
+                    </template>
+                    <template v-else>
+                      <span class="schema-table-span" aria-hidden="true"
+                        >&nbsp;</span
+                      >
+                    </template>
+                  </template>
 
-          <template #cell(name)="row">
-            <span
-              v-b-tooltip.hover.html
-              :title="getColumnDescription(row.item)"
-            >
-              <div
-                class="inline-color-block"
-                :style="{ 'background-color': row.item.color }"
-              ></div>
-              <span>&nbsp; {{ row.item.name }}</span>
-            </span>
-          </template>
+                  <template #cell(name)="row">
+                    <span
+                      v-b-tooltip.hover.html
+                      :title="getColumnDescription(row.item)"
+                    >
+                      <div
+                        class="inline-color-block"
+                        :style="{ 'background-color': row.item.color }"
+                      ></div>
+                      <span>&nbsp; {{ row.item.name }}</span>
+                    </span>
+                  </template>
 
-          <template #cell(stats)="row">
-            <b-button variant="primary" size="sm" @click="showStats(row)">
-              <b-icon icon="bar-chart-line-fill"></b-icon>
-            </b-button>
-          </template>
-        </b-table>
+                  <template #cell(stats)="row">
+                    <b-button
+                      variant="primary"
+                      size="sm"
+                      @click="showStats(row)"
+                    >
+                      <b-icon icon="bar-chart-line-fill"></b-icon>
+                    </b-button>
+                  </template>
+                </b-table>
+              </div>
+            </b-card-body>
+          </b-collapse>
+        </b-card>
       </div>
     </div>
-    <hr />
     <div>
       <b-modal
         ref="columnStatsModal"
@@ -92,20 +105,24 @@
 </template>
 
 <script>
+import { ObjectID } from "bson";
+
 export default {
   name: "DataTableDescription",
   mounted: function () {
     this.syncSelectedFields();
+    this.accordionId = `accordion-${ObjectID().toString()}`;
   },
   data: function () {
     return {
       schemaFields: [
         { key: "selected", label: "✓" },
         { key: "name", label: "Column" },
-        { key: "type", label: "Type" },
+        { key: "type", label: "Type", class: "text-nowrap" },
         { key: "stats", label: "Stats" },
       ],
       isColumnDetailsVisible: false,
+      accordionId: null,
     };
   },
   computed: {

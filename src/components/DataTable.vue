@@ -54,8 +54,8 @@
       @ok="handleDuckdbErrorModalOk"
     >
       <p>
-        Sorry, the operation failed due to an error. The current table
-        will be closed automatically.
+        Sorry, the operation failed due to an error. The current table will be
+        closed automatically.
       </p>
       <p class="duckdb-error-message">
         Error message: {{ duckDBErrorMessage }}
@@ -69,11 +69,12 @@ import axios from "axios";
 import { VeLoading } from "vue-easytable";
 import DuckDB from "../DuckDB";
 import { createPopper } from "@popperjs/core";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 import Common from "../Common";
 
 const FIRST_TABLE_NAME = "T1";
 const NULL_TEXT = "NULL";
+const ROW_ID = "__row_id";
 
 export default {
   data() {
@@ -144,6 +145,7 @@ export default {
     resourceStats: Object,
     tableId: String,
     keyword: String,
+    selectedCell: Object,
     isActive: Boolean,
   },
   watch: {
@@ -165,6 +167,17 @@ export default {
             this.reloadData();
           }
         }
+      },
+    },
+    selectedCell: {
+      immediate: true,
+      handler: async function (newValue) {
+        if (this.isInitialLoading) {
+          return;
+        }
+        this.loadingPromise = this.jumpToCell(newValue);
+        await this.loadingPromise;
+        this.loadingPromise = null;
       },
     },
     isActive: {
@@ -223,7 +236,7 @@ export default {
           if (this.isColorEnabled) {
             const color = text
               ? this.resource.color
-              : TableColorManger.nullColor;
+              : TableColorManager.nullColor;
             style.color = color;
           }
           if (row[column.field].isHighlighted) {
@@ -308,6 +321,11 @@ export default {
       this.loadingPromise = this.loadDataForCurrentPage();
       await this.loadingPromise;
       await this.reloadCount();
+      if (this.isInitialLoading && this.selectedCell) {
+        this.loadingPromise = this.jumpToCell(this.selectedCell);
+        await this.loadingPromise;
+        this.loadingPromise = null;
+      }
       this.isLoading = false;
       this.isInitialLoading = false;
     },
@@ -413,12 +431,14 @@ export default {
         const rowObject = r.toJSON();
         Object.keys(rowObject).forEach((k) => {
           rowDict[k] = { value: rowObject[k] };
-          keywords.forEach((kw) => {
-            if (rowDict[k].value.toLowerCase().includes(kw)) {
-              columnsToEnable.add(k);
-              rowDict[k].isHighlighted = true;
-            }
-          });
+          if (k !== ROW_ID) {
+            keywords.forEach((kw) => {
+              if (rowDict[k].value.toLowerCase().includes(kw)) {
+                columnsToEnable.add(k);
+                rowDict[k].isHighlighted = true;
+              }
+            });
+          }
         });
         this.tableData.push(rowDict);
       });
@@ -517,8 +537,47 @@ export default {
     getColumnDescription: function (name, delimiter = "<br/>") {
       return Common.getColumnDescription(this.dataDictionary, name, delimiter);
     },
+    async jumpToCell(cellPosition) {
+      let offset = await DuckDB.getDataTableRowIdOffset(
+        this.viewId,
+        cellPosition.rowId
+      );
+      if (Number.isNaN(parseInt(offset))) {
+        // If row is not found, it might be filtered out, so we clear filter
+        // and try again
+        this.keywords = [];
+        await this.createDataView();
+        this.totalCount = await DuckDB.getTotalCount(this.viewId);
+        offset = await DuckDB.getDataTableRowIdOffset(
+          this.viewId,
+          cellPosition.rowId
+        );
+        // If still not found, we cannot jump to the cell
+        if (Number.isNaN(parseInt(offset))) {
+          this.forceRerender();
+          return;
+        }
+      }
+      let pageIndex = Math.floor(offset / this.pageSize) + 1;
+      if (pageIndex === 0) {
+        pageIndex = 1;
+      }
+      const indexOnPage = offset % this.pageSize;
+      this.pageIndex = pageIndex;
+      if (this.selectedFields.indexOf(cellPosition.columnIndex) === -1) {
+        this.selectedFields.push(cellPosition.columnIndex);
+      }
+      await this.loadDataForCurrentPage();
+      this.$refs.table.setHighlightRow({
+        rowKey: indexOnPage,
+      });
+      this.$refs.table.setCellSelection({
+        rowKey: indexOnPage,
+        colKey: this.columns[cellPosition.columnIndex].key,
+      });
+    },
     handleDuckDBError(err) {
-      this.isPaginationLoading = false;
+      this.isLoading = false;
       this.loadingPromise = null;
       this.duckDBErrorMessage = err.message;
       this.$refs.duckdbErrorModal.show();

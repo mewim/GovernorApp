@@ -1,14 +1,6 @@
 <template>
   <div>
-    <h5>Add Rows from Other Tables</h5>
-
-    <div v-show="this.unionableTables.length !== 0">
-      <a href="#" @click="isVisible = !isVisible"
-        >[{{ isVisible ? "Hide" : "Show" }}]</a
-      >
-      <p></p>
-    </div>
-    <b-list-group v-show="this.unionableTables.length === 0 || isVisible">
+    <b-list-group>
       <b-list-group-item v-for="(unionable, i) in unionableTables" :key="i">
         <div class="d-flex w-100 justify-content-between">
           <span>{{ unionable.name }}</span>
@@ -49,7 +41,7 @@
 
 <script>
 import axios from "axios";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 
 export default {
   name: "UnionableTables",
@@ -58,7 +50,6 @@ export default {
       data: [],
       datasetHash: {},
       isLoading: false,
-      isVisible: false,
     };
   },
   watch: {
@@ -106,20 +97,20 @@ export default {
         dataset,
         resourceStats,
       };
-      this.$parent.$parent.$parent.openResource(openedResource, true);
+      this.$parent.$parent.$parent.$parent.openResource(openedResource, true);
     },
     unionTable: async function (resource) {
       const dataset = this.datasetHash[resource.id];
       const resourceStats = await axios
         .get(`/api/inferredstats/${resource.id}`)
         .then((res) => res.data);
-      resource.color = TableColorManger.getColor(resource.id);
+      resource.color = TableColorManager.getColor(resource.id);
       const unionable = {
         dataset: dataset,
         table: resource,
         resourceStats,
       };
-      this.$parent.$parent.addData(unionable, []);
+      this.$parent.$parent.$parent.addData(unionable, []);
     },
   },
   props: {

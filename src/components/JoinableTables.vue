@@ -4,6 +4,16 @@
       v-show="joinableTables.length > 0 && !isLoading"
       class="joinable-view-filter-container"
     >
+      <div v-if="false">
+        <b-button
+          variant="primary"
+          @click="showColumnSuggestionsModal()"
+          style="width: 100%"
+        >
+          Try to Fill All Unfilled Columns Automatically
+        </b-button>
+        <p></p>
+      </div>
       <b-form-input
         v-model.lazy="filterText"
         placeholder="Filter by dataset / column / table name..."
@@ -24,7 +34,7 @@
       </b-list-group-item>
     </b-list-group>
     <b-list-group>
-      <b-list-group-item v-for="(r, k) in getFilteredResourcesHash()" :key="k">
+      <b-list-group-item v-for="(r, k) in filteredResourcesHash" :key="k">
         <div
           class="
             d-flex
@@ -62,25 +72,23 @@
         </div>
 
         <b-list-group v-show="r.resource.isColumnsVisiable">
-          <b-list-group-item v-for="(column, i) in r.filteredColumns" :key="i">
-            <div class="d-flex w-100 justify-content-between">
+          <b-list-group-item
+            v-for="(column, i) in r.filteredColumns"
+            :key="i"
+            :class="
+              column.isSelected ? 'column-table-selected' : 'column-table'
+            "
+          >
+            <div class="d-flex w-100" @click="toggleJoin(r.resource, column)">
+              <span style="width: 40px">{{
+                column.isSelected ? "✓" : ""
+              }}</span>
               <span>{{ column.name }}</span>
-              <span>
-                <span>
-                  <b-button
-                    size="sm"
-                    variant="primary"
-                    @click="showJoinConfigModal(r.resource, column)"
-                    >Add Column
-                  </b-button>
-                </span>
-              </span>
             </div>
           </b-list-group-item>
         </b-list-group>
       </b-list-group-item>
     </b-list-group>
-    <br />
     <b-modal size="xl" ref="joinConfigModal" hide-header centered>
       <p>The column will be added to the following component tables:</p>
 
@@ -104,6 +112,16 @@
             >
             </b-form-checkbox>
           </span>
+        </div>
+        <div>
+          <small>
+            From: <i>{{ datasetNameHash[joinable.source_resource.id] }}</i>
+          </small>
+        </div>
+        <div>
+          <small>
+            {{ getKeyDescription(joinable) }}
+          </small>
         </div>
       </b-list-group-item>
 
@@ -155,12 +173,104 @@
         </div>
       </template>
     </b-modal>
+
+    <b-modal size="xl" ref="columnSuggestionsModal" hide-header centered>
+      <div
+        style="max-height: 600px; overflow-y: scroll"
+        v-if="
+          columnFillingSuggestionsSelected &&
+          columnFillingSuggestionsSelected.length > 0
+        "
+      >
+        <b-list-group>
+          <b-list-group-item
+            v-for="(suggestion, i) in columnFillingSuggestions"
+            :key="i"
+          >
+            <div style="display: flex; flex-direction: row">
+              <div style="flex-basis: 40%">
+                <working-table-component-table-item
+                  :h="suggestion.history"
+                  @open-resource="openResource"
+                />
+              </div>
+              <div style="margin-left: 20px; flex-grow: 1">
+                <p v-if="false">
+                  There {{ suggestion.columns.length > 1 ? "are" : "is" }}
+                  {{ suggestion.columns.length }} unfilled column{{
+                    suggestion.columns.length > 1 ? "s" : ""
+                  }}
+                  in this component:
+                </p>
+                <ul style="width: 100%">
+                  <li v-for="(c, j) in suggestion.columns" :key="j">
+                    <hr v-if="j > 0" />
+                    <h6>Unfilled column: {{ c.name }}</h6>
+                    <b-form-group>
+                      <b-form-radio
+                        v-for="(joinPlan, k) in c.joinPlans"
+                        :key="k"
+                        :value="k"
+                        v-model="columnFillingSuggestionsSelected[i][j]"
+                        :name="`join-plan-suggestions-radio-${i}-${j}`"
+                      >
+                        &nbsp; Join with:
+                        <a
+                          href="#"
+                          @click="openTable(joinPlan.target_resource)"
+                        >
+                          {{ joinPlan.target_resource.name }}</a
+                        >
+                      </b-form-radio>
+
+                      <b-form-radio
+                        v-model="columnFillingSuggestionsSelected[i][j]"
+                        :name="`join-plan-suggestions-radio-${i}-${j}`"
+                      >
+                        &nbsp; Do not fill this column
+                      </b-form-radio>
+                    </b-form-group>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </b-list-group-item>
+        </b-list-group>
+      </div>
+      <div v-else>
+        <p>There is no suggestions for joining for the current selection.</p>
+      </div>
+      <template #modal-footer>
+        <div class="w-100">
+          <span class="float-right">
+            <span>
+              <b-button size="sm" @click="closeColumnSuggestionsModal()">
+                Close
+              </b-button>
+            </span>
+            <span>
+              <b-button
+                size="sm"
+                variant="primary"
+                @click="applyColumnSuggestions()"
+                v-if="
+                  columnFillingSuggestionsSelected &&
+                  columnFillingSuggestionsSelected.length > 0
+                "
+              >
+                OK
+              </b-button>
+            </span>
+          </span>
+        </div>
+      </template>
+    </b-modal>
   </div>
 </template>
 
 <script>
 import axios from "axios";
-import TableColorManger from "../TableColorManager";
+import TableColorManager from "../TableColorManager";
 
 export default {
   name: "JoinableTables",
@@ -170,6 +280,10 @@ export default {
       required: true,
     },
     focusedComponentId: String,
+    columns: {
+      type: Array,
+      required: true,
+    },
   },
   data: function () {
     return {
@@ -182,6 +296,9 @@ export default {
       isLoading: false,
       loadingPromise: null,
       filterText: "",
+      filteredResourcesHash: {},
+      columnFillingSuggestions: [],
+      columnFillingSuggestionsSelected: [],
     };
   },
   watch: {
@@ -212,6 +329,7 @@ export default {
       this.datasetNameHash = {};
       this.joinableTables.splice(0);
       for (let h of this.histories) {
+        this.datasetNameHash[h.table.id] = h.dataset.title;
         const url = `api/keyjoinscores/${h.table.id}`;
         const data = await axios.get(url).then((res) => res.data);
 
@@ -238,8 +356,22 @@ export default {
         });
       }
       this.isLoading = false;
+      this.updateFilteredResourcesHash();
+    },
+    getKeyDescription: function (joinable) {
+      const sourceResourceStats = this.histories.find(
+        (h) => h.table.id === joinable.source_resource.id
+      ).resourceStats;
+      const sourceKeyName =
+        sourceResourceStats.schema.fields[joinable.source_index].name;
+      if (sourceKeyName === joinable.target_field_name) {
+        return `Key: ${sourceKeyName}`;
+      } else {
+        return `Primary key: ${sourceKeyName}; Foreign key: ${joinable.target_field_name}`;
+      }
     },
     openTable: async function (resource) {
+      this.closeColumnSuggestionsModal();
       const resourceStats = await axios
         .get(`/api/inferredstats/${resource.id}`)
         .then((res) => res.data);
@@ -251,7 +383,13 @@ export default {
         dataset,
         resourceStats,
       };
-      this.$parent.$parent.$parent.openResource(openedResource, true);
+      this.$parent.$parent.$parent.$parent.openResource(openedResource, true);
+    },
+    toggleJoin: function (targetResource, column) {
+      if (!column.isSelected) {
+        this.showJoinConfigModal(targetResource, column);
+      }
+      this.$parent.$parent.undoJoin(targetResource, column);
     },
     showJoinConfigModal: function (targetResource, column) {
       this.joinedColumn = column;
@@ -284,12 +422,12 @@ export default {
       const column = this.joinedColumn;
       const joinables = this.joinConfigModalSelectedComponentTables;
       for (let j of joinables) {
-        j.target_resource.color = TableColorManger.getColor(
+        j.target_resource.color = TableColorManager.getColor(
           j.target_resource.id
         );
       }
       this.closeJoinConfigModal();
-      this.$parent.$parent.addColumn(joinables, column);
+      this.$parent.$parent.$parent.addColumn(joinables, column);
     },
     findJoinables: function (resourceId) {
       return this.joinableTables.filter((joinable) => {
@@ -299,6 +437,7 @@ export default {
     filterColumns: function (resource) {
       let joinables = this.findJoinables(resource.id);
       const joinedColumnsHash = {};
+      const targetTojoinedColumnsHash = {};
       this.histories.forEach((h) => {
         if (!joinedColumnsHash[h.table.id]) {
           joinedColumnsHash[h.table.id] = new Set();
@@ -307,9 +446,13 @@ export default {
           return;
         }
         for (let j in h.joinedTables) {
-          h.joinedTables[j].columns.forEach((c) =>
-            joinedColumnsHash[h.table.id].add(c)
-          );
+          h.joinedTables[j].columns.forEach((c) => {
+            joinedColumnsHash[h.table.id].add(c);
+            if (!targetTojoinedColumnsHash[j]) {
+              targetTojoinedColumnsHash[j] = new Set();
+            }
+            targetTojoinedColumnsHash[j].add(c);
+          });
         }
       });
       const joinableSources = joinables.map((j) => j.source_resource.id);
@@ -319,9 +462,6 @@ export default {
       ) {
         return [];
       }
-      const targerFieldNameSet = new Set(
-        joinables.map((j) => j.target_field_name)
-      );
       const targetResourceStats = this.resourceStatsHash[resource.id];
       const sourceColumnNames = new Set();
       for (let h of this.histories) {
@@ -329,21 +469,27 @@ export default {
           sourceColumnNames.add(f.name);
         });
       }
-      const results = targetResourceStats.schema.fields.filter((c) => {
-        let joinableNameConflict = true;
-        for (let j of joinableSources) {
-          // If we find at least one source without this column, we can stil join this column, so it should not be removed.
-          if (!joinedColumnsHash[j].has(c.name)) {
-            joinableNameConflict = false;
-            break;
+      const results = targetResourceStats.schema.fields
+        .map((c) => {
+          c.isSelected =
+            targetTojoinedColumnsHash[targetResourceStats.uuid] &&
+            targetTojoinedColumnsHash[targetResourceStats.uuid].has(c.name);
+          return c;
+        })
+        .filter((c) => {
+          if (c.isSelected) {
+            return true;
           }
-        }
-        return (
-          !targerFieldNameSet.has(c.name) &&
-          !sourceColumnNames.has(c.name) &&
-          !joinableNameConflict
-        );
-      });
+          let joinableNameConflict = true;
+          for (let j of joinableSources) {
+            // If we find at least one source without this column, we can stil join this column, so it should not be removed.
+            if (!joinedColumnsHash[j].has(c.name)) {
+              joinableNameConflict = false;
+              break;
+            }
+          }
+          return !sourceColumnNames.has(c.name) && !joinableNameConflict;
+        });
       return results;
     },
     getJoinedColumnName: function (joinable) {
@@ -397,11 +543,146 @@ export default {
       }
       return result;
     },
+    getColumnFillingSuggestions(columnNameFilter, componentIdFilter) {
+      const columnTitles = this.columns.map((c) => c.title);
+      const suggestionsHash = {};
+      const unfilledColumnsForHistory = {};
+      const historiesHash = {};
+      this.histories.forEach((h) => {
+        if (componentIdFilter && componentIdFilter !== h.table.id) {
+          return;
+        }
+        historiesHash[h.table.id] = h;
+        const currentColumnSet = new Set(
+          h.resourceStats.schema.fields.map((f) => f.name)
+        );
+        if (h.joinedTables) {
+          for (const uuid in h.joinedTables) {
+            h.joinedTables[uuid].columns.forEach((c) => {
+              currentColumnSet.add(c);
+            });
+          }
+        }
+        const unfilledColumns = columnTitles
+          .filter((c) => !currentColumnSet.has(c))
+          .filter((c) => (columnNameFilter ? columnNameFilter === c : true));
+        if (unfilledColumns.length > 0) {
+          unfilledColumnsForHistory[h.resourceStats.uuid] = unfilledColumns;
+        }
+      });
+      for (const uuid in unfilledColumnsForHistory) {
+        const unfilledColumns = unfilledColumnsForHistory[uuid];
+        for (let joinPlan of this.joinableTables) {
+          if (joinPlan.source_resource.id === uuid) {
+            const targerResourceStats = joinPlan.target_resourcestats;
+            const targetColumns = targerResourceStats.schema.fields.map(
+              (f) => f.name
+            );
+            const intersection = unfilledColumns.filter((c) =>
+              targetColumns.includes(c)
+            );
+            if (intersection.length > 0) {
+              intersection.forEach((c) => {
+                if (!suggestionsHash[uuid]) {
+                  suggestionsHash[uuid] = {};
+                }
+                if (!suggestionsHash[uuid][c]) {
+                  suggestionsHash[uuid][c] = [];
+                }
+                suggestionsHash[uuid][c].push(joinPlan);
+              });
+            }
+          }
+        }
+      }
+      const suggetionsFlattened = [];
+      for (const uuid in suggestionsHash) {
+        const currentHistory = historiesHash[uuid];
+        const currentResult = {
+          history: currentHistory,
+          columns: [],
+        };
+        for (const column in suggestionsHash[uuid]) {
+          const joinPlans = suggestionsHash[uuid][column].sort(
+            (a, b) => b.score - a.score
+          );
+          currentResult.columns.push({
+            name: column,
+            joinPlans,
+          });
+        }
+        suggetionsFlattened.push(currentResult);
+      }
+      return suggetionsFlattened;
+    },
+    async showColumnSuggestionsModal(
+      columnNameFilter = null,
+      componentIdFilter = null
+    ) {
+      if (this.loadingPromise) {
+        await this.loadingPromise;
+      }
+      this.columnFillingSuggestions = this.getColumnFillingSuggestions(
+        columnNameFilter,
+        componentIdFilter
+      );
+      this.columnFillingSuggestionsSelected = this.columnFillingSuggestions.map(
+        (c) => {
+          // Select the first by default (cause it has highest score)
+          return c.columns.map(() => 0);
+        }
+      );
+      this.$refs.columnSuggestionsModal.show();
+    },
+    applyColumnSuggestions() {
+      const appliedJoinPlans = [];
+      for (let i = 0; i < this.columnFillingSuggestionsSelected.length; ++i) {
+        for (
+          let j = 0;
+          j < this.columnFillingSuggestionsSelected[i].length;
+          ++j
+        ) {
+          const selectedIndex = this.columnFillingSuggestionsSelected[i][j];
+          if (isNaN(parseInt(selectedIndex))) {
+            continue;
+          }
+          const selectedColumn = this.columnFillingSuggestions[i].columns[j];
+          const selectedJoinPlan = selectedColumn.joinPlans[selectedIndex];
+          selectedJoinPlan.target_resource.color = TableColorManager.getColor(
+            selectedJoinPlan.target_resource.id
+          );
+          const selectedColumnName = selectedColumn.name;
+          appliedJoinPlans.push({
+            joinable: selectedJoinPlan,
+            column: selectedJoinPlan.target_resourcestats.schema.fields.find(
+              (f) => f.name === selectedColumnName
+            ),
+          });
+        }
+      }
+      this.closeColumnSuggestionsModal();
+      this.$parent.$parent.$parent.bulkAddColumns(appliedJoinPlans);
+    },
+    closeColumnSuggestionsModal() {
+      this.columnFillingSuggestions = [];
+      this.$refs.columnSuggestionsModal.hide();
+    },
+    updateFilteredResourcesHash: function () {
+      this.filteredResourcesHash = this.getFilteredResourcesHash();
+    },
     toggleJoinConfigModalSelections: function (isSelected) {
       const selected = isSelected ? "selected" : "";
       this.joinConfigModalComponentTables.forEach((j) => {
         j.selected = selected;
       });
+    },
+    openResource(data) {
+      this.closeColumnSuggestionsModal();
+      const { resource, dataset, resourceStats } = data;
+      this.$parent.$parent.$parent.$parent.openResource(
+        { resource, dataset, resourceStats },
+        true
+      );
     },
   },
 };
@@ -413,6 +694,13 @@ export default {
 }
 .float-right {
   float: right;
+}
+.column-table-selected {
+  cursor: pointer;
+  background-color: #cccccc;
+}
+.column-table {
+  cursor: pointer;
 }
 .joinable-view-filter-container {
   > input.form-control {

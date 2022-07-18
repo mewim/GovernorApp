@@ -125,6 +125,7 @@
 <script>
 import axios from "axios";
 import { VeLoading } from "vue-easytable";
+import Common from "../Common";
 
 export default {
   name: "UseCaseDiscovery",
@@ -214,10 +215,7 @@ export default {
       });
     },
     getDatasetUrl(resourceId) {
-      return (
-        "https://open.canada.ca/data/en/dataset/" +
-        this.resourcesHash[resourceId].dataset.id
-      );
+      return Common.getDatasetUrl(this.resourcesHash[resourceId].dataset.id);
     },
     openResource(resourceId) {
       const r = this.resourcesHash[resourceId];
