@@ -1,5 +1,5 @@
 <template>
-  <div class="working-table-description-container">
+  <div class="working-table-description-container" :style="containerStyle">
     <div ref="topPanel">
       <h5>Working Table Structure</h5>
       <working-table-components
@@ -241,6 +241,7 @@
 
 <script>
 const ACCORDION_BUTTONS_HEIGHT = 210;
+const ACCORDION_CONTENT_MIN_HEIGHT = 400;
 import axios from "axios";
 import Common from "../Common";
 import TableColorManager from "../TableColorManager";
@@ -313,9 +314,26 @@ export default {
       });
     },
     accordionPanelStyle: function () {
+      if (
+        !this.accordionPanelMaxHeight ||
+        this.accordionPanelMaxHeight < ACCORDION_CONTENT_MIN_HEIGHT
+      ) {
+        return {
+          overflow: "hidden",
+        };
+      }
       return {
         maxHeight: this.accordionPanelMaxHeight + "px",
         overflow: "scroll",
+      };
+    },
+    containerStyle: function () {
+      return {
+        "overflow-y":
+          !this.accordionPanelMaxHeight ||
+          this.accordionPanelMaxHeight < ACCORDION_CONTENT_MIN_HEIGHT
+            ? "scroll"
+            : "hidden",
       };
     },
   },
@@ -484,7 +502,6 @@ export default {
   background-color: var(--bs-gray-100);
   width: 500px;
   padding: 10px;
-  overflow-y: hidden;
 }
 .inline-color-block {
   height: 12px;

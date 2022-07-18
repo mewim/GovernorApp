@@ -34,28 +34,31 @@
     </div>
     <div v-if="h.joinedTables">
       <div v-for="(j, k) in h.joinedTables" :key="k">
-        <small>
+        <small style="display: flex; width: 100%; white-space: nowrap">
+          <div style="flex-grow: 1">
+            <div
+              class="inline-color-block"
+              :style="{ 'background-color': j.targetResource.color }"
+            ></div>
+            &nbsp; Joined Table:
+            <a
+              href="#"
+              v-b-tooltip.hover
+              title="Open table"
+              @click="
+                openResource(j.targetResource, h.dataset, j.targetResourceStats)
+              "
+              >{{ j.targetResource.name }}</a
+            >
+          </div>
           <div
-            class="inline-color-block"
-            :style="{ 'background-color': j.targetResource.color }"
-          ></div>
-          &nbsp; Joined Table:
-          <a
-            href="#"
-            v-b-tooltip.hover
-            title="Open table"
-            @click="
-              openResource(j.targetResource, h.dataset, j.targetResourceStats)
-            "
-            >{{ j.targetResource.name }}</a
+            style="overflow: hidden"
+            :title="getKeyDescription(j)"
+            v-b-tooltip.hover.html="getKeyDescriptionHTML(j)"
           >
-          <span class="float-right">
-            {{
-              j.sourceKey === j.targetKey
-                ? `(Join Key: ${j.sourceKey})`
-                : `(Primary Key: ${j.sourceKey}; Foreign Key: ${j.targetKey})`
-            }}
-          </span>
+            &emsp;&emsp;
+            {{ getKeyDescription(j) }}
+          </div>
         </small>
       </div>
     </div>
@@ -80,6 +83,20 @@ export default {
     },
     openResource(resource, dataset, resourceStats) {
       this.$emit("open-resource", { resource, dataset, resourceStats });
+    },
+    getKeyDescription(j) {
+      return j.sourceKey === j.targetKey
+        ? `(Join Key: ${j.sourceKey})`
+        : `(Primary Key: ${j.sourceKey}; Foreign Key: ${j.targetKey})`;
+    },
+    getKeyDescriptionHTML(j) {
+      return j.sourceKey === j.targetKey
+        ? `<b>Join Key:</b> ${j.sourceKey}`
+        : `
+            <b>Primary Key:</b> ${j.sourceKey} 
+            <br>
+            <b>Foreign Key:</b> ${j.targetKey}
+          `;
     },
   },
 };

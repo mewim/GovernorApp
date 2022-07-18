@@ -55,21 +55,24 @@
                   @click="
                     locateInOriginal(table, dataset, resourceStats, row.item)
                   "
-                  title="Locate in Original Table"
+                  :title="isAdvancedMode ? 'Locate in Original Table' : ''"
                   v-b-tooltip.hover
                 >
                   <b-icon icon="ui-checks-grid"></b-icon>
+                  {{ !isAdvancedMode ? "&nbsp;Locate in Original Table" : "" }}
                 </b-button>
-                &nbsp;
-                <b-button
-                  variant="primary"
-                  size="sm"
-                  @click="filterByValue(row)"
-                  title="Filter by Value"
-                  v-b-tooltip.hover
-                >
-                  <b-icon icon="filter"></b-icon>
-                </b-button>
+                <span v-if="isAdvancedMode">
+                  &nbsp;
+                  <b-button
+                    variant="primary"
+                    size="sm"
+                    @click="filterByValue(row)"
+                    title="Filter by Value"
+                    v-b-tooltip.hover
+                  >
+                    <b-icon icon="filter"></b-icon>
+                  </b-button>
+                </span>
               </div>
             </template>
           </b-table>
@@ -91,16 +94,23 @@
 </template>
 
 <script>
+const IS_ADVANCED_MODE_ENABLED = false;
 import Common from "../Common";
 
 export default {
   data() {
+    const fields = [{ key: "value", label: "Value" }];
+    if (IS_ADVANCED_MODE_ENABLED) {
+      fields.push({ key: "excelPosition", label: "Position in Excel" });
+    }
+    fields.push({
+      key: "actions",
+      label: IS_ADVANCED_MODE_ENABLED ? "Actions" : "Action",
+      class: "text-center",
+    });
     return {
-      fields: [
-        { key: "value", label: "Value" },
-        { key: "excelPosition", label: "Position in Excel" },
-        { key: "actions", label: "Actions", class: "text-center" },
-      ],
+      fields,
+      isAdvancedMode: IS_ADVANCED_MODE_ENABLED,
     };
   },
   props: {

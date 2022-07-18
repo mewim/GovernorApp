@@ -903,6 +903,15 @@ export default {
     },
     async undoJoinLog(log) {
       const sourcesSet = new Set(log.sources.map((s) => s.id));
+      const columnToDelete = this.columns.find((c) => c.title === log.column);
+      // Cancel sorting if it is sorting on the column that is being deleted
+      if (columnToDelete.key === this.sortConfig.key) {
+        this.sortConfig = {
+          key: null,
+          order: null,
+          isNumeric: false,
+        };
+      }
       for (let h of this.histories) {
         if (sourcesSet.has(h.table.id)) {
           if (h.joinedTables && h.joinedTables[log.table.id]) {
@@ -1015,6 +1024,7 @@ export default {
       this.duckDBErrorMessage = err.message;
       this.$refs.duckdbErrorModal.show();
       this.resetTable();
+      throw err;
     },
   },
   async mounted() {

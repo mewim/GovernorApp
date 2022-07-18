@@ -4,14 +4,16 @@
       v-show="joinableTables.length > 0 && !isLoading"
       class="joinable-view-filter-container"
     >
-      <b-button
-        variant="primary"
-        @click="showColumnSuggestionsModal()"
-        style="width: 100%"
-      >
-        Get Suggestions
-      </b-button>
-      <p></p>
+      <div v-if="false">
+        <b-button
+          variant="primary"
+          @click="showColumnSuggestionsModal()"
+          style="width: 100%"
+        >
+          Try to Fill All Unfilled Columns Automatically
+        </b-button>
+        <p></p>
+      </div>
       <b-form-input
         v-model.lazy="filterText"
         placeholder="Filter by dataset / column / table name..."
@@ -236,9 +238,7 @@
         </b-list-group>
       </div>
       <div v-else>
-        <p>
-          There is no suggestions for joining for the current working table.
-        </p>
+        <p>There is no suggestions for joining for the current selection.</p>
       </div>
       <template #modal-footer>
         <div class="w-100">

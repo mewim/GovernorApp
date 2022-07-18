@@ -7,8 +7,7 @@
             v-for="(block, j) in row"
             :key="j"
             :style="getBlockStyle(block.tableId, i)"
-            v-b-tooltip.hover.lefttop
-            :title="getTableTitle(block.tableId, i, j)"
+            v-b-tooltip.hover.html.lefttop="getTableTitle(block.tableId, i, j)"
             @click="onBlockClick(block.tableId, i, j)"
           ></th>
         </tr>
@@ -48,8 +47,9 @@
                     : block.tableId === componentDetailSelectedId
                 )
               "
-              v-b-tooltip.hover
-              :title="getTableTitle(block.tableId, componentDetailIndex, j)"
+              v-b-tooltip.hover.html="
+                getTableTitle(block.tableId, componentDetailIndex, j)
+              "
               @click="onComponentDetailBlockClick(block.tableId)"
               @mouseover="onComponentDetailBlockHover(block.tableId)"
               @mouseleave="onComponentDetailBlockMouseLeave()"
@@ -262,6 +262,19 @@ export default {
       this.componentDetailSelectedId = uuid;
     },
     getTableTitle(uuid, i) {
+      const tableTitle = this.getTableTitleText(uuid, i);
+      if (!tableTitle) {
+        return `(Unfilled)`;
+      }
+      const datasetTitle = this.histories[i].dataset.title;
+      return `
+        <b>${Common.escapeHtml(datasetTitle)}</b>
+        <br>
+        <i>${Common.escapeHtml(tableTitle)}</i>
+      `;
+    },
+
+    getTableTitleText(uuid, i) {
       if (this.histories[i].table.id === uuid) {
         return this.histories[i].table.name;
       } else if (
@@ -270,7 +283,7 @@ export default {
       ) {
         return this.histories[i].joinedTables[uuid].targetResource.name;
       }
-      return "(Unfilled)";
+      return null;
     },
     getBlockStyle(uuid, i, isBlockSelected = false) {
       const isFocused =
@@ -320,8 +333,9 @@ export default {
       );
     },
     getJoinSuggestions() {
+      const componentId = this.selectedHistory.table.id;
       this.closeComponentDetailModal();
-      this.$parent.getJoinSuggestions();
+      this.$parent.getJoinSuggestions(null, componentId);
     },
   },
   async mounted() {},
