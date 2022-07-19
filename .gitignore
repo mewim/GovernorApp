@@ -107,6 +107,7 @@ data/files
 data/converted_files
 data/sample*
 data/d3l*
+data/json
 
 glove.42B.300d.txt
 
