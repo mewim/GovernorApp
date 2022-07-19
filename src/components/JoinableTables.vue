@@ -214,20 +214,25 @@
                         v-model="columnFillingSuggestionsSelected[i][j]"
                         :name="`join-plan-suggestions-radio-${i}-${j}`"
                       >
-                        &nbsp; Join with:
-                        <a
-                          href="#"
-                          @click="openTable(joinPlan.target_resource)"
-                        >
-                          {{ joinPlan.target_resource.name }}</a
-                        >
+                        <div class="join-plan-suggestions__radio-label">
+                          Join with:
+                          <a
+                            href="#"
+                            @click="openTable(joinPlan.target_resource)"
+                          >
+                            {{ joinPlan.target_resource.name }}</a
+                          >
+                        </div>
                       </b-form-radio>
 
                       <b-form-radio
                         v-model="columnFillingSuggestionsSelected[i][j]"
                         :name="`join-plan-suggestions-radio-${i}-${j}`"
+                        :value="null"
                       >
-                        &nbsp; Do not fill this column
+                        <div class="join-plan-suggestions__radio-label">
+                          Do not fill this column
+                        </div>
                       </b-form-radio>
                     </b-form-group>
                   </li>
@@ -629,7 +634,7 @@ export default {
       this.columnFillingSuggestionsSelected = this.columnFillingSuggestions.map(
         (c) => {
           // Select the first by default (cause it has highest score)
-          return c.columns.map(() => 0);
+          return c.columns.map(() => "0");
         }
       );
       this.$refs.columnSuggestionsModal.show();
@@ -642,8 +647,10 @@ export default {
           j < this.columnFillingSuggestionsSelected[i].length;
           ++j
         ) {
-          const selectedIndex = this.columnFillingSuggestionsSelected[i][j];
-          if (isNaN(parseInt(selectedIndex))) {
+          const selectedIndex = parseInt(
+            this.columnFillingSuggestionsSelected[i][j]
+          );
+          if (isNaN(selectedIndex)) {
             continue;
           }
           const selectedColumn = this.columnFillingSuggestions[i].columns[j];
@@ -707,5 +714,15 @@ export default {
     width: 100%;
     margin-bottom: 8px;
   }
+}
+
+div.custom-control.custom-radio {
+  display: flex;
+  label.custom-control-label {
+    margin-left: 8px;
+  }
+}
+div.join-plan-suggestions__radio-label {
+  margin-left: 8px;
 }
 </style>
