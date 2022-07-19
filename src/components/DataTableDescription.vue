@@ -105,13 +105,13 @@
 </template>
 
 <script>
-import { ObjectID } from "bson";
+import { v4 as uuidv4 } from "uuid";
 
 export default {
   name: "DataTableDescription",
   mounted: function () {
     this.syncSelectedFields();
-    this.accordionId = `accordion-${ObjectID().toString()}`;
+    this.accordionId = `accordion-${uuidv4().toString()}`;
   },
   data: function () {
     return {
