@@ -112,7 +112,6 @@ const UNFILLED_TEXT = "UNFILLED";
 export default {
   data() {
     const IS_ELLIPSIS_ENABLED = true;
-    const IS_PROVENANCE_ENABLED = true;
     return {
       pageIndex: 1,
       pageSize: 25,
@@ -135,11 +134,12 @@ export default {
         headerCellClass: () => {
           return "working-table-cell-pointer";
         },
-        bodyCellClass: IS_PROVENANCE_ENABLED
-          ? () => {
-              return "working-table-cell-pointer";
-            }
-          : undefined,
+        bodyCellClass: () => {
+          if (this.provenanceModalEnabled) {
+            return "working-table-cell-pointer";
+          }
+          return "";
+        },
       },
       histories: [],
       logs: [],
@@ -169,11 +169,11 @@ export default {
                   this.mouseLeaveCell();
                 }
               : undefined,
-            click: IS_PROVENANCE_ENABLED
-              ? () => {
-                  this.cellClicked(row, column);
-                }
-              : undefined,
+            click: () => {
+              if (this.provenanceModalEnabled) {
+                this.cellClicked(row, column);
+              }
+            },
           };
         },
         headerCellEvents: ({ column }) => {
@@ -201,6 +201,8 @@ export default {
         resourceStats: null,
         positions: [],
       },
+      globalColumnFillingSuggestionEnabled: false,
+      provenanceModalEnabled: false,
     };
   },
   props: {
@@ -1025,6 +1027,12 @@ export default {
       this.$refs.duckdbErrorModal.show();
       this.resetTable();
       throw err;
+    },
+    globalColumnFillingSuggestionEnabledChanged(enabled) {
+      this.globalColumnFillingSuggestionEnabled = enabled;
+    },
+    provenanceModalEnabledChanged(enabled) {
+      this.provenanceModalEnabled = enabled;
     },
   },
   async mounted() {

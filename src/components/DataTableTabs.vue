@@ -96,6 +96,11 @@
       @useCasesDiscoveryModeChanged="useCasesDiscoveryModeChanged"
       @searchFieldsChanged="searchFieldsChanged"
       @jumpImmediatelyChanged="jumpImmediatelyChanged"
+      @uuidEnabledChanged="uuidEnabledChanged"
+      @globalColumnFillingSuggestionEnabledChanged="
+        globalColumnFillingSuggestionEnabledChanged
+      "
+      @provenanceModalEnabledChanged="provenanceModalEnabledChanged"
     />
   </div>
 </template>
@@ -240,6 +245,18 @@ export default {
     },
     jumpImmediatelyChanged: function (newValue) {
       this.$refs.searchView.jumpImmediatelyChanged(newValue);
+    },
+
+    uuidEnabledChanged(newValue) {
+      this.$refs.searchView.uuidEnabledChanged(newValue);
+    },
+    globalColumnFillingSuggestionEnabledChanged(newValue) {
+      this.$refs.workingTable.globalColumnFillingSuggestionEnabledChanged(
+        newValue
+      );
+    },
+    provenanceModalEnabledChanged(newValue) {
+      this.$refs.workingTable.provenanceModalEnabledChanged(newValue);
     },
   },
 

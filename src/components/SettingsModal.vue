@@ -27,6 +27,17 @@
           Jump to table immediately upon open
         </b-form-checkbox>
 
+        <b>Feature Switches</b>
+        <b-form-checkbox v-model="uuidEnabled">
+          Search by UUID
+        </b-form-checkbox>
+        <b-form-checkbox v-model="globalColumnFillingSuggestionEnabled">
+          Global Column Filling Suggestion
+        </b-form-checkbox>
+        <b-form-checkbox v-model="provenanceModalEnabled">
+          Provenance Information Modal
+        </b-form-checkbox>
+
         <div>
           <b>Use Cases Discovery Mode</b>
           <b-form-radio v-model="useCasesDiscoveryMode" value="hidden"
@@ -56,6 +67,9 @@ export default {
       },
       useCasesDiscoveryMode: "hidden",
       jumpImmediately: true,
+      uuidEnabled: false,
+      globalColumnFillingSuggestionEnabled: false,
+      provenanceModalEnabled: false,
     };
   },
   watch: {
@@ -70,6 +84,15 @@ export default {
     },
     jumpImmediately(newValue) {
       this.$emit("jumpImmediatelyChanged", newValue);
+    },
+    uuidEnabled(newValue) {
+      this.$emit("uuidEnabledChanged", newValue);
+    },
+    globalColumnFillingSuggestionEnabled(newValue) {
+      this.$emit("globalColumnFillingSuggestionEnabledChanged", newValue);
+    },
+    provenanceModalEnabled(newValue) {
+      this.$emit("provenanceModalEnabledChanged", newValue);
     },
   },
   computed: {},

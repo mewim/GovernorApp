@@ -248,6 +248,9 @@ export default {
     jumpImmediatelyChanged: function (newValue) {
       this.jumpImmediately = newValue;
     },
+    uuidEnabledChanged: function (newValue) {
+      this.UUID_ENABLED = newValue;
+    },
     getUrl: function (uuid) {
       return Common.getDatasetUrl(uuid);
     },
@@ -258,7 +261,6 @@ export default {
       lock: true,
       name: "wave",
     });
-    this.UUID_ENABLED = window.config && window.config.UUID_ENABLED;
   },
   destroyed() {
     this.loadingInstance.destroy();
