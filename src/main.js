@@ -29,6 +29,7 @@ import UseCasesDiscovery from "./components/UseCasesDiscovery.vue";
 import WorkingTableComponents from "./components/WorkingTableComponents.vue";
 import WorkingTableProvenanceModal from "./components/WorkingTableProvenanceModal.vue";
 import WorkingTableComponentTableItem from "./components/WorkingTableComponentTableItem.vue";
+import SettingsModal from "./components/SettingsModal.vue";
 
 Vue.component("search-view", SearchView);
 Vue.component("data-table", DataTable);
@@ -48,6 +49,7 @@ Vue.component(
   "working-table-component-table-item",
   WorkingTableComponentTableItem
 );
+Vue.component("settings-modal", SettingsModal);
 
 Vue.use(VePagination);
 Vue.use(VueEasytable);

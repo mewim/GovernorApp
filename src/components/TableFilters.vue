@@ -1,11 +1,11 @@
 <template>
   <div>
     <h5>
-      Filter
+      Filter Table Data by Keywords
       <span class="filters-header-button-container"
         ><button
           type="button"
-          class="btn btn-secondary btn-sm"
+          class="btn btn-primary btn-sm"
           @click="showAddModal()"
         >
           Add

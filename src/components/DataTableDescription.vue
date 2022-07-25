@@ -6,15 +6,17 @@
     <hr />
     <div>
       <h5>Actions</h5>
-      <b-button size="sm" @click="addToWorkingTable()"
-        >Add to Working Table</b-button
-      >
+      <b-button size="sm" @click="addToWorkingTable()" variant="primary">
+        Add to Working Table
+      </b-button>
       &nbsp;
-      <b-button size="sm" @click="toggleColor()" v-if="false"
-        >Toggle Color</b-button
-      >
+      <b-button size="sm" @click="toggleColor()" v-if="false" variant="primary">
+        Toggle Color
+      </b-button>
       &nbsp;
-      <b-button size="sm" @click="dumpCsv()">Download as CSV</b-button>
+      <b-button size="sm" variant="primary" @click="dumpCsv()">
+        Download as CSV
+      </b-button>
     </div>
     <hr />
     <div>

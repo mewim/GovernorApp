@@ -19,14 +19,20 @@
       <hr />
       <div>
         <h5>Actions</h5>
-        <b-button size="sm" @click="resetTable()">Reset Working Table</b-button>
+        <b-button size="sm" variant="primary" @click="resetTable()"
+          >Reset Working Table</b-button
+        >
         &nbsp;
-        <b-button size="sm" @click="toggleColor()">Toggle Color</b-button>
+        <b-button size="sm" variant="primary" @click="toggleColor()"
+          >Toggle Color</b-button
+        >
         &nbsp;
-        <b-button size="sm" @click="dumpCsv()">Download as CSV</b-button>
+        <b-button size="sm" variant="primary" @click="dumpCsv()"
+          >Download as CSV</b-button
+        >
         &nbsp;
 
-        <b-button size="sm" @click="share()">Share</b-button>
+        <b-button size="sm" variant="primary" @click="share()">Share</b-button>
       </div>
       <hr />
     </div>

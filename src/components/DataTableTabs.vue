@@ -5,7 +5,7 @@
         <li>
           <b-button
             variant="info"
-            @click="toggleSettings()"
+            @click="showSettingsModal()"
             class="toggle-table-button"
             ><b-icon icon="gear-fill"></b-icon
           ></b-button>
@@ -90,6 +90,7 @@
       />
     </div>
     <div></div>
+    <settings-modal ref="settingsModal" />
   </div>
 </template>
 
@@ -122,7 +123,8 @@ export default {
     },
   },
   methods: {
-    toggleSettings: function () {
+    showSettingsModal: function () {
+      // this.$refs.settingsModal.showModal();
       this.$refs.searchView.toggleSettings();
     },
     toggleSearchView: function () {
