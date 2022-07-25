@@ -9,9 +9,6 @@
     >
       <div class="search-results-fields-toggle-container">
         <b>Search Results Fields</b>
-        <b-form-checkbox v-model="searchResultFields.dataset_title">
-          Dataset
-        </b-form-checkbox>
         <b-form-checkbox v-model="searchResultFields.matched_count">
           Matched Count
         </b-form-checkbox>
@@ -52,7 +49,6 @@ export default {
   data() {
     return {
       searchResultFields: {
-        dataset_title: true,
         languages: true,
         matched_count: true,
         subjects: false,
@@ -62,7 +58,20 @@ export default {
       jumpImmediately: true,
     };
   },
-  watch: {},
+  watch: {
+    useCasesDiscoveryMode(newValue) {
+      this.$emit("useCasesDiscoveryModeChanged", newValue);
+    },
+    searchResultFields: {
+      deep: true,
+      handler() {
+        this.$emit("searchFieldsChanged", this.searchResultFields);
+      },
+    },
+    jumpImmediately(newValue) {
+      this.$emit("jumpImmediatelyChanged", newValue);
+    },
+  },
   computed: {},
   methods: {
     showModal() {

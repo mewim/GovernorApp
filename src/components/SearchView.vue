@@ -124,47 +124,6 @@
         </b-card>
       </div>
     </div>
-    <b-modal
-      ref="searchResultSettingsModal"
-      title="Settings"
-      ok-only
-      :hideHeaderClose="true"
-      :centered="true"
-    >
-      <div class="search-results-fields-toggle-container">
-        <b>Search Results Fields</b>
-        <b-form-checkbox v-model="searchResultFields.dataset_title">
-          Dataset
-        </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.matched_count">
-          Matched Count
-        </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.languages">
-          Languages
-        </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.subjects">
-          Subjects
-        </b-form-checkbox>
-        <b-form-checkbox v-model="searchResultFields.portal_release_date">
-          Release Date
-        </b-form-checkbox>
-
-        <b>Navigation Option</b>
-        <b-form-checkbox v-model="jumpImmediately">
-          Jump to table immediately upon open
-        </b-form-checkbox>
-
-        <div v-if="DISCOVERY_MODE">
-          <b>Use Cases Discovery Mode</b>
-          <b-form-radio v-model="useCasesDiscoveryMode" value="union-join"
-            >Union + Join</b-form-radio
-          >
-          <b-form-radio v-model="useCasesDiscoveryMode" value="union"
-            >Union Only</b-form-radio
-          >
-        </div>
-      </div>
-    </b-modal>
   </div>
 </template>
 
@@ -179,14 +138,12 @@ export default {
   name: "Search",
   data() {
     return {
-      DISCOVERY_MODE: false,
       UUID_ENABLED: false,
       searchBarText: "",
       keyword: "",
       results: [],
       isNotesDisplayed: [],
       searchResultFields: {
-        dataset_title: true,
         languages: true,
         matched_count: true,
         subjects: false,
@@ -199,13 +156,7 @@ export default {
       searchSuccess: false,
       loadingInstance: null,
       searchMetadata: false,
-      useCasesDiscoveryMode: "union-join",
     };
-  },
-  watch: {
-    useCasesDiscoveryMode(newValue) {
-      this.$parent.useCasesDiscoveryModeChanged(newValue === "union");
-    },
   },
   computed: {
     uuidPlaceHolder() {
@@ -215,9 +166,6 @@ export default {
     },
   },
   methods: {
-    toggleSettings: function () {
-      this.$refs.searchResultSettingsModal.show();
-    },
     shouldShowNotes: function (i) {
       return this.isNotesDisplayed[i];
     },
@@ -294,6 +242,12 @@ export default {
         this.jumpImmediately
       );
     },
+    searchFieldsChanged: function (newValue) {
+      this.searchResultFields = newValue;
+    },
+    jumpImmediatelyChanged: function (newValue) {
+      this.jumpImmediately = newValue;
+    },
     getUrl: function (uuid) {
       return Common.getDatasetUrl(uuid);
     },
@@ -304,7 +258,6 @@ export default {
       lock: true,
       name: "wave",
     });
-    this.DISCOVERY_MODE = window.config && window.config.DISCOVERY_MODE;
     this.UUID_ENABLED = window.config && window.config.UUID_ENABLED;
   },
   destroyed() {

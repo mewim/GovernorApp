@@ -11,7 +11,7 @@
           ></b-button>
 
           <b-button
-            v-if="DISCOVERY_MODE"
+            v-if="isUsecaseDiscoveryModeEnabled"
             variant="warning"
             @click="toggleUseCasesDiscovery()"
             class="toggle-table-button"
@@ -59,7 +59,8 @@
         ref="workingTable"
       />
       <use-cases-discovery
-        v-if="DISCOVERY_MODE"
+        v-if="isUsecaseDiscoveryModeEnabled"
+        :isUnionMode="isUsecaseDiscoveryModeUnion"
         v-show="isUseCasesDiscoveryActive"
         ref="useCasesDiscovery"
       >
@@ -90,7 +91,12 @@
       />
     </div>
     <div></div>
-    <settings-modal ref="settingsModal" />
+    <settings-modal
+      ref="settingsModal"
+      @useCasesDiscoveryModeChanged="useCasesDiscoveryModeChanged"
+      @searchFieldsChanged="searchFieldsChanged"
+      @jumpImmediatelyChanged="jumpImmediatelyChanged"
+    />
   </div>
 </template>
 
@@ -106,8 +112,8 @@ export default {
       isSearchActive: true,
       isWorkingTableActive: false,
       isUseCasesDiscoveryActive: false,
+      useCaseDiscoveryMode: "hidden",
       TABLE_AREA_OFFSET: 40,
-      DISCOVERY_MODE: false,
     };
   },
   props: {},
@@ -121,11 +127,16 @@ export default {
     openedDataTables: function () {
       return this.openedResources.filter((r) => !r.isJoinedTable);
     },
+    isUsecaseDiscoveryModeEnabled: function () {
+      return this.useCaseDiscoveryMode !== "hidden";
+    },
+    isUsecaseDiscoveryModeUnion: function () {
+      return this.useCaseDiscoveryMode === "union";
+    },
   },
   methods: {
     showSettingsModal: function () {
-      // this.$refs.settingsModal.showModal();
-      this.$refs.searchView.toggleSettings();
+      this.$refs.settingsModal.showModal();
     },
     toggleSearchView: function () {
       this.isWorkingTableActive = false;
@@ -217,14 +228,23 @@ export default {
         this.tableAreaHeight = window.innerHeight;
       }
     },
-    useCasesDiscoveryModeChanged: function (isUnion) {
-      this.$refs.useCasesDiscovery.useCasesDiscoveryModeChanged(isUnion);
+    useCasesDiscoveryModeChanged: function (newValue) {
+      if (newValue === "hidden" && this.isUseCasesDiscoveryActive) {
+        this.isUseCasesDiscoveryActive = false;
+        this.isSearchActive = true;
+      }
+      this.useCaseDiscoveryMode = newValue;
+    },
+    searchFieldsChanged: function (newValue) {
+      this.$refs.searchView.searchFieldsChanged(newValue);
+    },
+    jumpImmediatelyChanged: function (newValue) {
+      this.$refs.searchView.jumpImmediatelyChanged(newValue);
     },
   },
 
   mounted() {
     this.updatePreviewAreaHeight();
-    this.DISCOVERY_MODE = window.config && window.config.DISCOVERY_MODE;
   },
   created() {
     window.addEventListener("resize", this.updatePreviewAreaHeight);

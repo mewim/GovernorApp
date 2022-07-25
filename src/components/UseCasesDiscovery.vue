@@ -137,11 +137,20 @@ export default {
       plans: [],
       resourcesHash: {},
       inferredStatsHash: {},
-      isUnionMode: false,
       loadingInstance: null,
     };
   },
-  watch: {},
+  props: {
+    isUnionMode: {
+      type: Boolean,
+      required: true,
+    },
+  },
+  watch: {
+    isUnionMode() {
+      this.reloadData(true);
+    },
+  },
   computed: {},
   methods: {
     loadTotalCount: async function () {
@@ -190,8 +199,8 @@ export default {
     getDatasetName(uuid) {
       return this.resourcesHash[uuid].dataset.title;
     },
-    reloadData() {
-      if (this.loadingInstance) {
+    reloadData(hideAnimation = false) {
+      if (this.loadingInstance && !hideAnimation) {
         this.loadingInstance.show();
       }
       this.loadTotalCount().then((count) => {
@@ -211,7 +220,9 @@ export default {
         this.resourcesHash = resourcesHash;
         this.inferredStatsHash = inferredStatsHash;
         this.plans = result.plans;
-        this.loadingInstance.close();
+        if (this.loadingInstance && !hideAnimation) {
+          this.loadingInstance.close();
+        }
       });
     },
     getDatasetUrl(resourceId) {
@@ -227,10 +238,6 @@ export default {
     getKey(resourceId, index) {
       return this.inferredStatsHash[resourceId].schema.fields[index].name;
     },
-    useCasesDiscoveryModeChanged: function (isUnionMode) {
-      this.isUnionMode = isUnionMode;
-      this.reloadData();
-    },
     isActive: function () {
       return this.$parent.isUseCasesDiscoveryActive;
     },
@@ -240,7 +247,7 @@ export default {
       target: this.$refs.outerContainer,
       name: "wave",
     });
-    this.reloadData();
+    this.reloadData(true);
   },
   destroyed() {
     if (this.loadingInstance) {
