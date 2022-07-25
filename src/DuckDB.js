@@ -31,6 +31,7 @@ class DuckDB {
     if (this.initializationPromise) {
       await this.initializationPromise;
       delete this.initializationPromise;
+      return;
     }
     const MANUAL_BUNDLES = {
       mvp: {

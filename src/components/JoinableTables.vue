@@ -637,7 +637,6 @@ export default {
         columnNameFilter,
         componentIdFilter
       );
-      console.log(this.columnFillingSuggestions);
       this.columnFillingSuggestionsSelected = this.columnFillingSuggestions.map(
         (c) => {
           // Select the first by default (cause it has highest score)
