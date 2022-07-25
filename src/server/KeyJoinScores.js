@@ -142,11 +142,13 @@ router.get("/:uuid", async (req, res) => {
           uuid: "$target_uuid",
           index: "$target_index",
           score: `$${metricsVariableName}`,
+          containment_score: "$containment_score",
         },
       },
     },
     {
       $sort: {
+        "target.containment_score": -1,
         "target.score": -1,
       },
     },
@@ -175,6 +177,7 @@ router.get("/:uuid", async (req, res) => {
           uuid: "$target.uuid",
           index: "$target.index",
           score: "$target.score",
+          containment_score: "$target.containment_score",
           schema: {
             field_name: "$target.column_information.match.name",
             field_type: "$target.column_information.match.type",

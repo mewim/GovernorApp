@@ -353,6 +353,7 @@ export default {
               target_resourcestats: this.resourceStatsHash[t.uuid],
               target_index: t.index,
               score: t.score,
+              containment_score: t.containment_score,
               target_field_name: t.schema.field_name,
               source_index: d.index,
               source_resource: h.table,
@@ -608,9 +609,14 @@ export default {
           columns: [],
         };
         for (const column in suggestionsHash[uuid]) {
-          const joinPlans = suggestionsHash[uuid][column].sort(
-            (a, b) => b.score - a.score
-          );
+          const joinPlans = suggestionsHash[uuid][column].sort((a, b) => {
+            if (a.containment_score > b.containment_score) {
+              return -1;
+            } else if (a.containment_score === b.containment_score) {
+              return b.score - a.score;
+            }
+            return 1;
+          });
           currentResult.columns.push({
             name: column,
             joinPlans,
@@ -631,6 +637,7 @@ export default {
         columnNameFilter,
         componentIdFilter
       );
+      console.log(this.columnFillingSuggestions);
       this.columnFillingSuggestionsSelected = this.columnFillingSuggestions.map(
         (c) => {
           // Select the first by default (cause it has highest score)
