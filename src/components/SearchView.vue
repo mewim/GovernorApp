@@ -24,7 +24,7 @@
             variant="success"
             class="search-button"
             v-on:click="searchButtonClicked(true, true)"
-            v-if="UUID_ENABLED"
+            v-if="settings.uuidEnabled"
             >Search UUID</b-button
           >
         </div>
@@ -36,7 +36,7 @@
         v-if="searchSuccess && results.length === 0"
       >
         Sorry, no table has been found. Please try other keywords{{
-          UUID_ENABLED ? " or UUID" : ""
+          settings.uuidEnabled ? " or UUID" : ""
         }}.
       </div>
       <div
@@ -48,11 +48,11 @@
             <b>Dataset: {{ r.title }}</b>
           </template>
           <b-card-text
-            v-if="searchResultFields.matched_count && !searchMetadata"
+            v-if="settings.searchResultFields.matched_count && !searchMetadata"
           >
             <b> Matched Count:</b> {{ r.matched_count }}
           </b-card-text>
-          <b-card-text v-if="searchResultFields.subjects">
+          <b-card-text v-if="settings.searchResultFields.subjects">
             <b> Subjects:&nbsp;</b>
             <span
               class="badge rounded-pill bg-primary"
@@ -61,7 +61,7 @@
               >{{ s.replaceAll("_", " ") }}</span
             >
           </b-card-text>
-          <b-card-text v-if="searchResultFields.portal_release_date">
+          <b-card-text v-if="settings.searchResultFields.portal_release_date">
             <b> Release Date:</b>
             {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
           </b-card-text>
@@ -98,14 +98,16 @@
                 </b-tooltip>
                 <b-card-text
                   class="file-description-card-description"
-                  v-if="searchResultFields.languages"
+                  v-if="settings.searchResultFields.languages"
                 >
                   <b> Language{{ res.language.length > 1 ? "s" : "" }}: </b>
                   {{ res.language.join(", ") }}
                 </b-card-text>
                 <b-card-text
                   class="file-description-card-description"
-                  v-if="searchResultFields.matched_count && !searchMetadata"
+                  v-if="
+                    settings.searchResultFields.matched_count && !searchMetadata
+                  "
                 >
                   <b>
                     {{ res.matches.count }} match{{
@@ -138,18 +140,10 @@ export default {
   name: "Search",
   data() {
     return {
-      UUID_ENABLED: false,
       searchBarText: "",
       keyword: "",
       results: [],
       isNotesDisplayed: [],
-      searchResultFields: {
-        languages: true,
-        matched_count: true,
-        subjects: false,
-        portal_release_date: false,
-      },
-      jumpImmediately: true,
       selectedResource: null,
       selectedDataset: null,
       selectedResourceStats: null,
@@ -158,9 +152,15 @@ export default {
       searchMetadata: false,
     };
   },
+  props: {
+    settings: {
+      type: Object,
+      required: true,
+    },
+  },
   computed: {
     uuidPlaceHolder() {
-      return this.UUID_ENABLED
+      return this.settings.uuidEnabled
         ? "Enter a keyword / UUID to search"
         : "Enter a keyword to search";
     },
@@ -239,17 +239,8 @@ export default {
           resourceStats: this.selectedResourceStats,
           keyword: this.searchMetadata ? null : this.keyword,
         },
-        this.jumpImmediately
+        this.settings.jumpImmediately
       );
-    },
-    searchFieldsChanged: function (newValue) {
-      this.searchResultFields = newValue;
-    },
-    jumpImmediatelyChanged: function (newValue) {
-      this.jumpImmediately = newValue;
-    },
-    uuidEnabledChanged: function (newValue) {
-      this.UUID_ENABLED = newValue;
     },
     getUrl: function (uuid) {
       return Common.getDatasetUrl(uuid);

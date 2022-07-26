@@ -155,6 +155,7 @@
                 :histories="histories"
                 :focusedComponentId="focusedComponentId"
                 :columns="columns"
+                :settings="settings"
                 ref="joinableTables"
               />
             </div>
@@ -260,6 +261,7 @@ export default {
     selectedColumns: Array,
     keywords: Array,
     focusedComponentIndex: Number,
+    settings: { type: Object, required: true },
   },
   data: function () {
     return {

@@ -51,12 +51,17 @@
       ref="dataTableContainer"
       :style="dataTableContainerStyle"
     >
-      <search-view v-show="isSearchActive" ref="searchView" />
+      <search-view
+        v-show="isSearchActive"
+        ref="searchView"
+        :settings="settings"
+      />
       <working-table
         v-show="isWorkingTableActive"
         :height="tableAreaHeight"
         :isActive="isWorkingTableActive"
         ref="workingTable"
+        :settings="settings"
       />
       <use-cases-discovery
         v-if="isUsecaseDiscoveryModeEnabled"
@@ -93,8 +98,9 @@
     <div></div>
     <settings-modal
       ref="settingsModal"
+      :settings="settings"
       @useCasesDiscoveryModeChanged="useCasesDiscoveryModeChanged"
-      @searchFieldsChanged="searchFieldsChanged"
+      @searchResultsFieldsChanged="searchResultsFieldsChanged"
       @jumpImmediatelyChanged="jumpImmediatelyChanged"
       @uuidEnabledChanged="uuidEnabledChanged"
       @globalColumnFillingSuggestionEnabledChanged="
@@ -117,8 +123,20 @@ export default {
       isSearchActive: true,
       isWorkingTableActive: false,
       isUseCasesDiscoveryActive: false,
-      useCaseDiscoveryMode: "hidden",
       TABLE_AREA_OFFSET: 40,
+      settings: {
+        searchResultFields: {
+          languages: true,
+          matched_count: true,
+          subjects: false,
+          portal_release_date: false,
+        },
+        useCasesDiscoveryMode: "hidden",
+        jumpImmediately: true,
+        uuidEnabled: false,
+        globalColumnFillingSuggestionEnabled: false,
+        provenanceModalEnabled: false,
+      },
     };
   },
   props: {},
@@ -133,10 +151,10 @@ export default {
       return this.openedResources.filter((r) => !r.isJoinedTable);
     },
     isUsecaseDiscoveryModeEnabled: function () {
-      return this.useCaseDiscoveryMode !== "hidden";
+      return this.settings.useCasesDiscoveryMode !== "hidden";
     },
     isUsecaseDiscoveryModeUnion: function () {
-      return this.useCaseDiscoveryMode === "union";
+      return this.settings.useCasesDiscoveryMode === "union";
     },
   },
   methods: {
@@ -238,25 +256,22 @@ export default {
         this.isUseCasesDiscoveryActive = false;
         this.isSearchActive = true;
       }
-      this.useCaseDiscoveryMode = newValue;
+      this.settings.useCasesDiscoveryMode = newValue;
     },
-    searchFieldsChanged: function (newValue) {
-      this.$refs.searchView.searchFieldsChanged(newValue);
+    searchResultsFieldsChanged: function ({ field, newValue }) {
+      this.settings.searchResultFields[field] = newValue;
     },
     jumpImmediatelyChanged: function (newValue) {
-      this.$refs.searchView.jumpImmediatelyChanged(newValue);
+      this.settings.jumpImmediately = newValue;
     },
-
     uuidEnabledChanged(newValue) {
-      this.$refs.searchView.uuidEnabledChanged(newValue);
+      this.settings.uuidEnabled = newValue;
     },
     globalColumnFillingSuggestionEnabledChanged(newValue) {
-      this.$refs.workingTable.globalColumnFillingSuggestionEnabledChanged(
-        newValue
-      );
+      this.settings.globalColumnFillingSuggestionEnabled = newValue;
     },
     provenanceModalEnabledChanged(newValue) {
-      this.$refs.workingTable.provenanceModalEnabledChanged(newValue);
+      this.settings.provenanceModalEnabled = newValue;
     },
   },
 

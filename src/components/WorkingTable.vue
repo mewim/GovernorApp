@@ -7,6 +7,7 @@
       :columns="columns"
       :keywords="keywords"
       :focusedComponentIndex="focusedComponentIndex"
+      :settings="settings"
       v-if="histories.length > 0"
       ref="workingTableDescription"
     />
@@ -135,7 +136,7 @@ export default {
           return "working-table-cell-pointer";
         },
         bodyCellClass: () => {
-          if (this.provenanceModalEnabled) {
+          if (this.settings.provenanceModalEnabled) {
             return "working-table-cell-pointer";
           }
           return "";
@@ -170,7 +171,7 @@ export default {
                 }
               : undefined,
             click: () => {
-              if (this.provenanceModalEnabled) {
+              if (this.settings.provenanceModalEnabled) {
                 this.cellClicked(row, column);
               }
             },
@@ -201,13 +202,15 @@ export default {
         resourceStats: null,
         positions: [],
       },
-      globalColumnFillingSuggestionEnabled: false,
-      provenanceModalEnabled: false,
     };
   },
   props: {
     isActive: Boolean,
     height: Number,
+    settings: {
+      type: Object,
+      required: true,
+    },
   },
   watch: {
     isActive: {
@@ -1030,9 +1033,6 @@ export default {
     },
     globalColumnFillingSuggestionEnabledChanged(enabled) {
       this.globalColumnFillingSuggestionEnabled = enabled;
-    },
-    provenanceModalEnabledChanged(enabled) {
-      this.provenanceModalEnabled = enabled;
     },
   },
   async mounted() {

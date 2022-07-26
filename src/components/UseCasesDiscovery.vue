@@ -199,31 +199,31 @@ export default {
     getDatasetName(uuid) {
       return this.resourcesHash[uuid].dataset.title;
     },
-    reloadData(hideAnimation = false) {
+    async reloadData(hideAnimation = false) {
+      this.plans = [];
+      this.resourcesHash = {};
+      this.inferredStatsHash = {};
       if (this.loadingInstance && !hideAnimation) {
         this.loadingInstance.show();
       }
-      this.loadTotalCount().then((count) => {
-        this.totalCount = count;
-      });
-      this.loadDataForPage(this.pageIndex, this.pageSize).then((result) => {
-        const resourcesHash = {};
-        const inferredStatsHash = {};
-        for (let m of result.metadata) {
-          for (let r of m.resources) {
-            resourcesHash[r.id] = { resource: r, dataset: m };
-          }
+      this.totalCount = await this.loadTotalCount();
+      const result = await this.loadDataForPage(this.pageIndex, this.pageSize);
+      const resourcesHash = {};
+      const inferredStatsHash = {};
+      for (let m of result.metadata) {
+        for (let r of m.resources) {
+          resourcesHash[r.id] = { resource: r, dataset: m };
         }
-        for (let i of result.inferredstats) {
-          inferredStatsHash[i.uuid] = i;
-        }
-        this.resourcesHash = resourcesHash;
-        this.inferredStatsHash = inferredStatsHash;
-        this.plans = result.plans;
-        if (this.loadingInstance && !hideAnimation) {
-          this.loadingInstance.close();
-        }
-      });
+      }
+      for (let i of result.inferredstats) {
+        inferredStatsHash[i.uuid] = i;
+      }
+      this.resourcesHash = resourcesHash;
+      this.inferredStatsHash = inferredStatsHash;
+      this.plans = result.plans;
+      if (this.loadingInstance && !hideAnimation) {
+        this.loadingInstance.close();
+      }
     },
     getDatasetUrl(resourceId) {
       return Common.getDatasetUrl(this.resourcesHash[resourceId].dataset.id);

@@ -4,7 +4,7 @@
       v-show="joinableTables.length > 0 && !isLoading"
       class="joinable-view-filter-container"
     >
-      <div v-if="false">
+      <div v-if="settings.globalColumnFillingSuggestionEnabled">
         <b-button
           variant="primary"
           @click="showColumnSuggestionsModal()"
@@ -287,6 +287,10 @@ export default {
     focusedComponentId: String,
     columns: {
       type: Array,
+      required: true,
+    },
+    settings: {
+      type: Object,
       required: true,
     },
   },
