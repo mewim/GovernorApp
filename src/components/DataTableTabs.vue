@@ -107,6 +107,7 @@
         globalColumnFillingSuggestionEnabledChanged
       "
       @provenanceModalEnabledChanged="provenanceModalEnabledChanged"
+      @workingTableColumnsSectionChanged="workingTableColumnsSectionChanged"
     />
   </div>
 </template>
@@ -136,11 +137,19 @@ export default {
         uuidEnabled: false,
         globalColumnFillingSuggestionEnabled: false,
         provenanceModalEnabled: false,
+        workingTableColumnsSection: "unioned",
       },
     };
   },
   props: {},
-  watch: {},
+  watch: {
+    settings: {
+      handler(newSettings) {
+        this.saveSettings(newSettings);
+      },
+      deep: true,
+    },
+  },
   computed: {
     dataTableContainerStyle: function () {
       let height = this.tableAreaHeight;
@@ -273,12 +282,24 @@ export default {
     provenanceModalEnabledChanged(newValue) {
       this.settings.provenanceModalEnabled = newValue;
     },
+    workingTableColumnsSectionChanged(newValue) {
+      this.settings.workingTableColumnsSection = newValue;
+    },
+    saveSettings: function (newSettings) {
+      localStorage.setItem("settings", JSON.stringify(newSettings));
+    },
+    loadSettings: function () {
+      const settings = localStorage.getItem("settings");
+      if (settings) {
+        this.settings = JSON.parse(settings);
+      }
+    },
   },
-
   mounted() {
     this.updatePreviewAreaHeight();
   },
   created() {
+    this.loadSettings();
     window.addEventListener("resize", this.updatePreviewAreaHeight);
   },
   destroyed() {

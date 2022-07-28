@@ -61,7 +61,23 @@
         >
           Provenance Information Modal
         </b-form-checkbox>
-
+        <div>
+          <b>Working Table Columns Selection</b>
+          <b-form-radio
+            :checked="settings.workingTableColumnsSection"
+            value="unioned"
+            @change="workingTableColumnsSectionChanged"
+          >
+            Column From Unioned Tables Only
+          </b-form-radio>
+          <b-form-radio
+            :checked="settings.workingTableColumnsSection"
+            value="all"
+            @change="workingTableColumnsSectionChanged"
+          >
+            All Columns
+          </b-form-radio>
+        </div>
         <div>
           <b>Use Cases Discovery Mode</b>
           <b-form-radio
@@ -125,6 +141,9 @@ export default {
     },
     provenanceModalEnabledChanged(newValue) {
       this.$emit("provenanceModalEnabledChanged", newValue);
+    },
+    workingTableColumnsSectionChanged(newValue) {
+      this.$emit("workingTableColumnsSectionChanged", newValue);
     },
   },
   mounted() {},

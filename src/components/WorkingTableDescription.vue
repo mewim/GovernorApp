@@ -85,9 +85,13 @@
       </b-card>
 
       <b-card no-body class="mb-1">
-        <b-button block v-b-toggle.accordion-columns variant="outline-primary"
-          >Hide / Unhide Columns</b-button
-        >
+        <b-button block v-b-toggle.accordion-columns variant="outline-primary">
+          {{
+            settings.workingTableColumnsSection === "unioned"
+              ? "Add Column from Unioned Table"
+              : "Hide / Unhide Columns"
+          }}
+        </b-button>
         <b-collapse
           id="accordion-columns"
           accordion="working-table-description__accordion"
@@ -97,7 +101,7 @@
             <div class="schema-fields-table-container">
               <b-table
                 ref="schemaFieldsTable"
-                :items="columns"
+                :items="filteredColumns"
                 :fields="schemaFields"
                 no-select-on-click
                 selectable
@@ -268,11 +272,6 @@ export default {
       isHistoriesShown: true,
       resizeObserver: null,
       primaryColumn: null,
-      schemaFields: [
-        { key: "selected", label: "✓" },
-        { key: "title", label: "Column" },
-        { key: "tables", label: "Tables" },
-      ],
       sharedLink: "",
       accordionPanelMaxHeight: null,
       columnComposition: {
@@ -310,6 +309,9 @@ export default {
         : null;
     },
     filteredColumns: function () {
+      if (this.settings.workingTableColumnsSection === "all") {
+        return this.columns;
+      }
       return this.columns.filter((c) => {
         let isUnionedColumn = false;
         for (let h of this.histories) {
@@ -320,6 +322,16 @@ export default {
         }
         return isUnionedColumn;
       });
+    },
+    schemaFields: function () {
+      const schemaFields = [
+        { key: "selected", label: "✓" },
+        { key: "title", label: "Column" },
+      ];
+      if (this.settings.workingTableColumnsSection === "all") {
+        schemaFields.push({ key: "tables", label: "Tables" });
+      }
+      return schemaFields;
     },
     accordionPanelStyle: function () {
       if (
