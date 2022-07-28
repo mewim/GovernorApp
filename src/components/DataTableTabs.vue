@@ -108,6 +108,7 @@
       "
       @provenanceModalEnabledChanged="provenanceModalEnabledChanged"
       @workingTableColumnsSectionChanged="workingTableColumnsSectionChanged"
+      @workingTableComponentsLabelChanged="workingTableComponentsLabelChanged"
     />
   </div>
 </template>
@@ -137,6 +138,7 @@ export default {
         uuidEnabled: false,
         globalColumnFillingSuggestionEnabled: false,
         provenanceModalEnabled: false,
+        workingTableComponentsLabel: true,
         workingTableColumnsSection: "unioned",
       },
     };
@@ -285,13 +287,24 @@ export default {
     workingTableColumnsSectionChanged(newValue) {
       this.settings.workingTableColumnsSection = newValue;
     },
+    workingTableComponentsLabelChanged(newValue) {
+      this.settings.workingTableComponentsLabel = newValue;
+    },
     saveSettings: function (newSettings) {
       localStorage.setItem("settings", JSON.stringify(newSettings));
     },
     loadSettings: function () {
-      const settings = localStorage.getItem("settings");
-      if (settings) {
-        this.settings = JSON.parse(settings);
+      const settingsString = localStorage.getItem("settings");
+      if (!settingsString) {
+        return;
+      }
+      const settings = JSON.parse(settingsString);
+      // Perform a check to see if the settings are valid.
+      // If they are not, then we will fall back to the default settings.
+      for (let key in this.settings) {
+        if (settings && settings[key] !== undefined) {
+          this.settings[key] = settings[key];
+        }
       }
     },
   },

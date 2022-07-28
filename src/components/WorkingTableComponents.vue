@@ -1,15 +1,29 @@
 <template>
   <div class="working-table-components-container">
-    <div style="background-color: white">
+    <div>
       <table ref="blocksTable" class="working-table-components-table">
-        <tr v-for="(row, i) in blockMapping" :key="i">
+        <tr
+          style="height: 10px; text-align: center"
+          v-if="settings.workingTableComponentsLabel"
+        >
+          <th :colspan="mainBlockLength">
+            <small> Unioned </small>
+          </th>
           <th
+            v-if="selectedColumns.length - mainBlockLength > 0"
+            :colspan="selectedColumns.length - mainBlockLength"
+          >
+            <small> Joined </small>
+          </th>
+        </tr>
+        <tr v-for="(row, i) in blockMapping" :key="i">
+          <td
             v-for="(block, j) in row"
             :key="j"
             :style="getBlockStyle(block.tableId, i)"
             v-b-tooltip.hover.html.lefttop="getTableTitle(block.tableId, i, j)"
             @click="onBlockClick(block.tableId, i, j)"
-          ></th>
+          ></td>
         </tr>
       </table>
     </div>
@@ -170,6 +184,10 @@ export default {
       required: false,
     },
     focusedComponentIndex: Number,
+    settings: {
+      type: Object,
+      required: true,
+    },
   },
   watch: {},
   computed: {
@@ -223,6 +241,17 @@ export default {
         }
       }
       return columns;
+    },
+    mainBlockLength() {
+      const mainBlockColumns = new Set();
+      this.histories.forEach((h) => {
+        h.resourceStats.schema.fields.forEach((f) => {
+          if (this.selectedColumns.includes(f.name)) {
+            mainBlockColumns.add(f.name);
+          }
+        });
+      });
+      return mainBlockColumns.size;
     },
   },
   methods: {
@@ -345,6 +374,7 @@ export default {
 
 <style lang="scss" scoped>
 .working-table-components-table {
+  table-layout: fixed;
   // &.working-table-components-detail-table {
   //   tr {
   //     height: 64px;

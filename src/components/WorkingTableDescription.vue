@@ -7,6 +7,7 @@
         :selectedColumns="selectedColumns"
         :focusedComponentIndex="focusedComponentIndex"
         :columns="columns"
+        :settings="settings"
       />
       <hr />
       <div>

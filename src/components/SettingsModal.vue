@@ -61,6 +61,12 @@
         >
           Provenance Information Modal
         </b-form-checkbox>
+        <b-form-checkbox
+          :checked="settings.workingTableComponentsLabel"
+          @change="workingTableComponentsLabelChanged"
+        >
+          Working Table Structure Labels
+        </b-form-checkbox>
         <div>
           <b>Working Table Columns Selection</b>
           <b-form-radio
@@ -144,6 +150,9 @@ export default {
     },
     workingTableColumnsSectionChanged(newValue) {
       this.$emit("workingTableColumnsSectionChanged", newValue);
+    },
+    workingTableComponentsLabelChanged(newValue) {
+      this.$emit("workingTableComponentsLabelChanged", newValue);
     },
   },
   mounted() {},
