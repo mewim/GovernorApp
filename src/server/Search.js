@@ -170,7 +170,7 @@ router.get("/", async (req, res) => {
     index: "tuples",
     body: {
       from: 0,
-      size: 4000,
+      size: 8000,
 
       query,
     },
