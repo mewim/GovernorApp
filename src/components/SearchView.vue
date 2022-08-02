@@ -6,27 +6,33 @@
           v-model.lazy="searchBarText"
           v-on:keyup.enter="searchButtonClicked()"
           :placeholder="uuidPlaceHolder"
-        ></b-form-input>
+        />
         <div class="input-group-append">
           <b-button
             variant="success"
             class="search-button"
             v-on:click="searchButtonClicked()"
-            >Search Tuples</b-button
-          >
+            title="Search by matching the values in the cells of the original table"
+            v-b-tooltip.hover
+            >Search Tuples
+          </b-button>
           <b-button
             variant="success"
             class="search-button"
             v-on:click="searchButtonClicked(true)"
-            >Search Description</b-button
-          >
+            title="Search by matching the description and title of the dataset or original table"
+            v-b-tooltip.hover
+            >Search Description
+          </b-button>
           <b-button
             variant="success"
             class="search-button"
             v-on:click="searchButtonClicked(true, true)"
             v-if="settings.uuidEnabled"
-            >Search UUID</b-button
-          >
+            title="Search by matching the UUID of the dataset or original table"
+            v-b-tooltip.hover
+            >Search UUID
+          </b-button>
         </div>
       </div>
     </div>

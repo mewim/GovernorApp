@@ -9,8 +9,8 @@
           @click="showAddModal()"
         >
           Add
-        </button></span
-      >
+        </button>
+      </span>
     </h5>
 
     <b-list-group>
@@ -26,8 +26,8 @@
         <span
           class="badge rounded-pill bg-primary"
           v-if="i !== keywords.length - 1"
-          >OR</span
-        >
+          >OR
+        </span>
       </b-list-group-item>
 
       <b-list-group-item
@@ -60,8 +60,8 @@
             @click="cancelNewKeyword()"
           >
             Cancel
-          </button></span
-        >
+          </button>
+        </span>
       </b-list-group-item>
     </b-list-group>
   </div>
@@ -89,8 +89,11 @@ export default {
       this.isAddingNewFilter = true;
     },
     addNewKeyword() {
-      this.$emit("filter-keywords-added", this.newKeyWordText);
       this.cancelNewKeyword();
+      if (!this.newKeyWordText) {
+        return;
+      }
+      this.$emit("filter-keywords-added", this.newKeyWordText);
     },
     cancelNewKeyword() {
       this.newKeyWordText = "";
