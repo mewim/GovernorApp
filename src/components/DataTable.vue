@@ -7,6 +7,7 @@
       :keywords="keywords"
       :selectedFields="selectedFields"
       :dataDictionary="dataDictionary"
+      :settings="settings"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -147,6 +148,10 @@ export default {
     keyword: String,
     selectedCell: Object,
     isActive: Boolean,
+    settings: {
+      type: Object,
+      required: true,
+    },
   },
   watch: {
     resource: {
@@ -201,6 +206,11 @@ export default {
         } else {
           this.loadingInstance.close();
         }
+      },
+    },
+    "settings.filterLogic": {
+      handler: function () {
+        this.refreshDataView();
       },
     },
   },
@@ -331,10 +341,14 @@ export default {
     },
     async createDataView() {
       let viewResult;
+      const keywords =
+        this.settings.filterLogic === "and"
+          ? [this.keywords.join(" ")]
+          : this.keywords;
       try {
         viewResult = await DuckDB.createDataTableView(
           this.tableId,
-          this.keywords,
+          keywords,
           null,
           this.sortConfig.key && this.sortConfig.order ? this.sortConfig : null
         );

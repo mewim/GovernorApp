@@ -92,6 +92,7 @@
           !isUseCasesDiscoveryActive &&
           activeResourceId === item.resource.id
         "
+        :settings="settings"
         :ref="`table-${item.resource.id}`"
       />
     </div>
@@ -109,6 +110,7 @@
       @provenanceModalEnabledChanged="provenanceModalEnabledChanged"
       @workingTableColumnsSectionChanged="workingTableColumnsSectionChanged"
       @workingTableComponentsLabelChanged="workingTableComponentsLabelChanged"
+      @filterLogicChanged="filterLogicChanged"
     />
   </div>
 </template>
@@ -140,6 +142,7 @@ export default {
         provenanceModalEnabled: false,
         workingTableComponentsLabel: true,
         workingTableColumnsSection: "unioned",
+        filterLogic: "and",
       },
     };
   },
@@ -289,6 +292,9 @@ export default {
     },
     workingTableComponentsLabelChanged(newValue) {
       this.settings.workingTableComponentsLabel = newValue;
+    },
+    filterLogicChanged(newValue) {
+      this.settings.filterLogic = newValue;
     },
     saveSettings: function (newSettings) {
       localStorage.setItem("settings", JSON.stringify(newSettings));

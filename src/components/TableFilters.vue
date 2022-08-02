@@ -26,7 +26,8 @@
         <span
           class="badge rounded-pill bg-primary"
           v-if="i !== keywords.length - 1"
-          >OR
+        >
+          {{ settings.filterLogic === "or" ? "OR" : "AND" }}
         </span>
       </b-list-group-item>
 
@@ -78,6 +79,10 @@ export default {
   },
   props: {
     keywords: Array,
+    settings: {
+      type: Object,
+      required: true,
+    },
   },
   watch: {},
   computed: {},
@@ -89,11 +94,12 @@ export default {
       this.isAddingNewFilter = true;
     },
     addNewKeyword() {
-      this.cancelNewKeyword();
       if (!this.newKeyWordText) {
+        this.cancelNewKeyword();
         return;
       }
-      this.$emit("filter-keywords-added", this.newKeyWordText);
+      this.$emit("filter-keywords-added", this.newKeyWordText.trim());
+      this.cancelNewKeyword();
     },
     cancelNewKeyword() {
       this.newKeyWordText = "";

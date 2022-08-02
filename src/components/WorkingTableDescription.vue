@@ -13,6 +13,7 @@
       <div>
         <table-filters
           :keywords="keywords"
+          :settings="settings"
           @filter-keywords-removed="removeKeyword"
           @filter-keywords-added="addNewKeyword"
         />

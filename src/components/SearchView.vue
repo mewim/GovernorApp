@@ -357,11 +357,6 @@ span {
   align-items: center;
   flex-grow: 1;
 }
-div.search-results-fields-toggle-container {
-  label {
-    padding-left: 8px;
-  }
-}
 .search-button {
   margin-right: 2px;
   &:first-child {

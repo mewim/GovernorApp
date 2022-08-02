@@ -22,6 +22,7 @@
     <div>
       <table-filters
         :keywords="keywords"
+        :settings="settings"
         @filter-keywords-removed="removeKeyword"
         @filter-keywords-added="addNewKeyword"
       />
@@ -161,6 +162,10 @@ export default {
     resource: Object,
     keywords: Array,
     selectedFields: Array,
+    settings: {
+      type: Object,
+      requried: true,
+    },
   },
   watch: {
     selectedFields: {

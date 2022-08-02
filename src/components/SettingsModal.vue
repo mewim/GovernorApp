@@ -85,6 +85,23 @@
           </b-form-radio>
         </div>
         <div>
+          <b>Filter Logic</b>
+          <b-form-radio
+            :checked="settings.filterLogic"
+            value="and"
+            @change="filterLogicChanged"
+          >
+            And
+          </b-form-radio>
+          <b-form-radio
+            :checked="settings.filterLogic"
+            value="or"
+            @change="filterLogicChanged"
+          >
+            Or
+          </b-form-radio>
+        </div>
+        <div>
           <b>Use Cases Discovery Mode</b>
           <b-form-radio
             :checked="settings.useCasesDiscoveryMode"
@@ -154,10 +171,21 @@ export default {
     workingTableComponentsLabelChanged(newValue) {
       this.$emit("workingTableComponentsLabelChanged", newValue);
     },
+    filterLogicChanged(newValue) {
+      this.$emit("filterLogicChanged", newValue);
+    },
   },
   mounted() {},
   destroyed() {},
 };
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+div.search-results-fields-toggle-container {
+  label {
+    padding-left: 8px;
+  }
+  max-height: 50vh;
+  overflow-y: scroll;
+}
+</style>

@@ -236,6 +236,17 @@ export default {
         }
       },
     },
+    "settings.filterLogic": {
+      handler: async function () {
+        if (!this.viewName) {
+          return;
+        }
+        this.pageIndex = 1;
+        this.loadingPromise = this.reloadData();
+        await this.loadingPromise;
+        this.loadingPromise = null;
+      },
+    },
   },
   computed: {
     visibleColumns: function () {
@@ -423,10 +434,14 @@ export default {
         return;
       }
       let viewName, columnsMapping, workingTableColumns;
+      const keywords =
+        this.settings.filterLogic === "and"
+          ? [this.keywords.join(" ")]
+          : this.keywords;
       try {
         const duckDBResult = await DuckDB.createWorkingTable(
           this.histories,
-          this.keywords,
+          keywords,
           this.sortConfig,
           focusedIds
         );
@@ -696,7 +711,7 @@ export default {
     },
     async dumpCsv() {
       this.loadingPromise = DuckDB.dumpCsv(
-        this.viewId ? this.viewId : this.viewName,
+        this.viewName,
         this.visibleColumns.map((c) => c.title),
         this.visibleColumns.map((c) => c.key),
         "WorkingTable"
