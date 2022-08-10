@@ -4,7 +4,6 @@ const mongoUtil = require("./MongoUtil");
 const path = require("path");
 const { spawn } = require("child_process");
 const COLLECTION = "inferredstats";
-const fs = require("fs");
 
 const CSV_BASE_PATH = path.join(__dirname, "..", "..", "data", "files");
 const PARQUET_CACHE_PATH = path.join(
@@ -38,17 +37,6 @@ router.get("/:uuid.parquet", async (req, res) => {
 
   const fileName = `${uuid}${useNumberIndex ? "_num_index" : ""}.parquet`;
   const filePath = path.join(PARQUET_CACHE_PATH, fileName);
-  const isFileExists = await new Promise((resolve) => {
-    fs.access(filePath, fs.F_OK, (err) => {
-      if (err) {
-        return resolve(false);
-      }
-      return resolve(true);
-    });
-  });
-  if (isFileExists) {
-    return res.sendFile(filePath);
-  }
 
   const fieldNames = found.schema.fields.map((f) => f.name);
   const encoding = found.encoding;
@@ -65,14 +53,16 @@ router.get("/:uuid.parquet", async (req, res) => {
   }
 
   const parquetConverter = spawn("python3", params);
-  parquetConverter.stderr.pipe(process.stdout);
-
-  parquetConverter.stdin.on("error", () => {
-    // ignore error on SIGKILL of the Python process so we can quit early
-    return;
-  });
-
-  return parquetConverter.stdout.pipe(res);
+  parquetConverter
+    .on("close", (code) => {
+      if (code !== 0) {
+        return res.sendStatus(500);
+      }
+      return res.sendFile(filePath);
+    })
+    .on("error", () => {
+      return res.sendStatus(500);
+    });
 });
 
 module.exports = router;

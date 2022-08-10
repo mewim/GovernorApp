@@ -5,7 +5,6 @@ import pyarrow.parquet as pq
 import os
 import json
 import portalocker
-import shutil
 
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "..", "data/parquet_cache/"))
@@ -26,8 +25,7 @@ parquet_path = os.path.join(CACHE_DIR, parquet_file_name)
 lock = portalocker.RedisLock(parquet_path)
 with lock:
     if os.path.exists(parquet_path) and os.path.getsize(parquet_path) > 0:
-        with open(parquet_path, "rb") as f:
-            shutil.copyfileobj(f, sys.stdout.buffer)
+        pass
     else:
         csv_stream = pd.read_csv(file_path, encoding=encoding,
                                  chunksize=chunksize, on_bad_lines='skip',
@@ -46,5 +44,3 @@ with lock:
             table = pa.Table.from_pandas(chunk, schema=parquet_schema)
             parquet_cache_writer.write_table(table)
         parquet_cache_writer.close()
-        with open(parquet_path, "rb") as f:
-            shutil.copyfileobj(f, sys.stdout.buffer)
