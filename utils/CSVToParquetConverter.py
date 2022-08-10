@@ -40,12 +40,11 @@ with lock:
                 chunk.columns = [str(i) for i in range(len(chunk.columns))]
             if i == 0:
                 parquet_schema = pa.Table.from_pandas(df=chunk).schema
-                parquet_writer = pq.ParquetWriter(
-                    sys.stdout.buffer, parquet_schema, compression='snappy')
                 parquet_cache_writer = pq.ParquetWriter(
                     parquet_path, parquet_schema, compression='snappy')
 
             table = pa.Table.from_pandas(chunk, schema=parquet_schema)
-            parquet_writer.write_table(table)
             parquet_cache_writer.write_table(table)
-        parquet_writer.close()
+        parquet_cache_writer.close()
+        with open(parquet_path, "rb") as f:
+            shutil.copyfileobj(f, sys.stdout.buffer)
