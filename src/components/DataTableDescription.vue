@@ -6,14 +6,16 @@
     <hr />
     <div>
       <h5>Actions</h5>
-      <b-button size="sm" @click="addToWorkingTable()" variant="primary">
-        Add to Working Table
-      </b-button>
-      &nbsp;
-      <b-button size="sm" @click="toggleColor()" v-if="false" variant="primary">
-        Toggle Color
-      </b-button>
-      &nbsp;
+      <span v-show="isWorkingTableSchemaMatched">
+        <b-button size="sm" @click="addToWorkingTable()" variant="primary">
+          {{
+            !unionedTableFields || unionedTableFields.length === 0
+              ? "Add to Working Table"
+              : "Union with Working Table"
+          }}
+        </b-button>
+        &nbsp;
+      </span>
       <b-button size="sm" variant="primary" @click="dumpCsv()">
         Download as CSV
       </b-button>
@@ -128,6 +130,31 @@ export default {
       accordionId: null,
     };
   },
+  props: {
+    dataset: Object,
+    resourceStats: Object,
+    dataDictionary: Object,
+    resource: Object,
+    keywords: Array,
+    selectedFields: Array,
+    settings: {
+      type: Object,
+      requried: true,
+    },
+    unionedTableFields: Array,
+  },
+  watch: {
+    selectedFields: {
+      immediate: true,
+      handler: function () {
+        try {
+          this.syncSelectedFields();
+        } catch (err) {
+          // Continue
+        }
+      },
+    },
+  },
   computed: {
     fields: function () {
       return this.resourceStats.schema.fields.map((r, i) => {
@@ -154,29 +181,13 @@ export default {
       });
       return result;
     },
-  },
-  props: {
-    dataset: Object,
-    resourceStats: Object,
-    dataDictionary: Object,
-    resource: Object,
-    keywords: Array,
-    selectedFields: Array,
-    settings: {
-      type: Object,
-      requried: true,
-    },
-  },
-  watch: {
-    selectedFields: {
-      immediate: true,
-      handler: function () {
-        try {
-          this.syncSelectedFields();
-        } catch (err) {
-          // Continue
-        }
-      },
+    isWorkingTableSchemaMatched: function () {
+      if (!this.unionedTableFields || this.unionedTableFields.length === 0) {
+        return true;
+      }
+      const setA = new Set(this.resourceStats.schema.fields.map((f) => f.name));
+      const setB = new Set(this.unionedTableFields);
+      return setA.size === setB.size && [...setA].every((x) => setB.has(x));
     },
   },
   methods: {

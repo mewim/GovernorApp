@@ -322,6 +322,11 @@ export default {
         this.loadingPromise = null;
       },
     },
+    filterText: {
+      handler: function () {
+        this.updateFilteredResourcesHash();
+      },
+    },
   },
   computed: {
     joinConfigModalSelectedComponentTables() {

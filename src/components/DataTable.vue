@@ -8,6 +8,7 @@
       :selectedFields="selectedFields"
       :dataDictionary="dataDictionary"
       :settings="settings"
+      :unionedTableFields="unionedTableFields"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -144,6 +145,7 @@ export default {
     resource: Object,
     dataset: Object,
     resourceStats: Object,
+    unionedTableFields: Array,
     tableId: String,
     keyword: String,
     selectedCell: Object,

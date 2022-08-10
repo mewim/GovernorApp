@@ -247,6 +247,11 @@ export default {
         this.loadingPromise = null;
       },
     },
+    unionedTableFields: {
+      handler: function () {
+        this.$emit("unionedTableFieldsUpdated", this.unionedTableFields);
+      },
+    },
   },
   computed: {
     visibleColumns: function () {
@@ -254,6 +259,12 @@ export default {
         return this.selectedColumns.indexOf(c.title) >= 0;
       });
       return result;
+    },
+    unionedTableFields: function () {
+      if (!this.histories || this.histories.length === 0) {
+        return [];
+      }
+      return this.histories[0].resourceStats.schema.fields.map((f) => f.name);
     },
   },
   methods: {

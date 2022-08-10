@@ -62,6 +62,7 @@
         :isActive="isWorkingTableActive"
         ref="workingTable"
         :settings="settings"
+        @unionedTableFieldsUpdated="unionedTableFieldsUpdated"
       />
       <use-cases-discovery
         v-if="isUsecaseDiscoveryModeEnabled"
@@ -81,6 +82,7 @@
         :key="item.resource.id"
         :resource="item.resource"
         :resourceStats="item.resourceStats"
+        :unionedTableFields="unionedTableFields"
         :keyword="item.keyword"
         :dataset="item.dataset"
         :tableId="item.resource.id"
@@ -123,6 +125,7 @@ export default {
     return {
       activeResourceId: null,
       openedResources: [],
+      unionedTableFields: [],
       tableAreaHeight: 0,
       isSearchActive: true,
       isWorkingTableActive: false,
@@ -312,6 +315,9 @@ export default {
           this.settings[key] = settings[key];
         }
       }
+    },
+    unionedTableFieldsUpdated: function (newValue) {
+      this.unionedTableFields = newValue;
     },
   },
   mounted() {
