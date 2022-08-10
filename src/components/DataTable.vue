@@ -345,7 +345,9 @@ export default {
       let viewResult;
       const keywords =
         this.settings.filterLogic === "and"
-          ? [this.keywords.join(" ")]
+          ? this.keywords.length > 0
+            ? [this.keywords.join(" ")]
+            : []
           : this.keywords;
       try {
         viewResult = await DuckDB.createDataTableView(

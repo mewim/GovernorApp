@@ -447,7 +447,9 @@ export default {
       let viewName, columnsMapping, workingTableColumns;
       const keywords =
         this.settings.filterLogic === "and"
-          ? [this.keywords.join(" ")]
+          ? this.keywords.length > 0
+            ? [this.keywords.join(" ")]
+            : []
           : this.keywords;
       try {
         const duckDBResult = await DuckDB.createWorkingTable(
