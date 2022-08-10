@@ -144,7 +144,7 @@ export default {
         globalColumnFillingSuggestionEnabled: false,
         provenanceModalEnabled: false,
         workingTableComponentsLabel: true,
-        workingTableColumnsSection: "unioned",
+        workingTableColumnsSection: "all",
         filterLogic: "and",
       },
     };
