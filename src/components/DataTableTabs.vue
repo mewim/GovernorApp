@@ -143,7 +143,7 @@ export default {
         uuidEnabled: false,
         globalColumnFillingSuggestionEnabled: false,
         provenanceModalEnabled: false,
-        workingTableComponentsLabel: true,
+        workingTableComponentsLabel: false,
         workingTableColumnsSection: "all",
         filterLogic: "and",
       },
