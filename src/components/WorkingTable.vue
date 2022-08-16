@@ -10,6 +10,7 @@
       :settings="settings"
       v-if="histories.length > 0"
       ref="workingTableDescription"
+      v-show="isActionPanelVisible"
     />
     <div class="working-table-inner-container" ref="tableContainer">
       <div class="working-table-alert-container">
@@ -130,6 +131,7 @@ export default {
       viewName: null,
       tableData: [],
       loadingPromise: null,
+      isActionPanelVisible: true,
       selectedColumns: [],
       cellStyleOption: {
         headerCellClass: () => {
@@ -226,13 +228,16 @@ export default {
     },
     loadingPromise: {
       handler: function (newValue) {
-        if (!this.loadingInstance) {
-          return;
-        }
         if (newValue) {
-          this.loadingInstance.show();
+          this.isActionPanelVisible = false;
+          if (this.loadingInstance) {
+            this.loadingInstance.show();
+          }
         } else {
-          this.loadingInstance.close();
+          this.isActionPanelVisible = true;
+          if (this.loadingInstance) {
+            this.loadingInstance.close();
+          }
         }
       },
     },

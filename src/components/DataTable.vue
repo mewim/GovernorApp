@@ -9,6 +9,7 @@
       :dataDictionary="dataDictionary"
       :settings="settings"
       :unionedTableFields="unionedTableFields"
+      v-show="isActionPanelVisible"
     />
     <div class="data-table-inner-container" ref="tableContainer">
       <div class="table-pagination">
@@ -99,6 +100,7 @@ export default {
       selectedFields: [],
       cellStyleOption: {},
       viewId: null,
+      isActionPanelVisible: true,
       sortOption: {
         sortChange: (params) => {
           this.sortChange(params);
@@ -200,13 +202,16 @@ export default {
     },
     loadingPromise: {
       handler: function (newValue) {
-        if (!this.loadingInstance) {
-          return;
-        }
         if (newValue) {
-          this.loadingInstance.show();
+          this.isActionPanelVisible = false;
+          if (this.loadingInstance) {
+            this.loadingInstance.show();
+          }
         } else {
-          this.loadingInstance.close();
+          this.isActionPanelVisible = true;
+          if (this.loadingInstance) {
+            this.loadingInstance.close();
+          }
         }
       },
     },
