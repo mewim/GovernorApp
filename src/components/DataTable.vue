@@ -100,7 +100,7 @@ export default {
       selectedFields: [],
       cellStyleOption: {},
       viewId: null,
-      isActionPanelVisible: true,
+      isActionPanelVisible: false,
       sortOption: {
         sortChange: (params) => {
           this.sortChange(params);
