@@ -306,7 +306,10 @@ export default {
       this.inferredstats = await axios
         .get(`/api/inferredstats/${this.tableId}`)
         .then((res) => res.data);
-      if (this.isInitialLoading && !this.keyword) {
+      if (
+        this.isInitialLoading &&
+        (!this.keyword || !this.settings.autoColumnUnhideEnabled)
+      ) {
         let topColumnIndexes;
         await axios
           .get(`/api/inferredcolumnstats/${this.tableId}/topuniquecolumns`)
