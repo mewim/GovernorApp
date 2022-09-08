@@ -347,11 +347,13 @@ export default {
           d.rowKey = i;
           this.tableData.push(d);
         });
-      columnsToEnable.forEach((c) => {
-        if (this.workingTableColumns[c]) {
-          this.addSelectedColumn(this.workingTableColumns[c].name);
-        }
-      });
+      if (this.settings.autoColumnUnhideEnabled) {
+        columnsToEnable.forEach((c) => {
+          if (this.workingTableColumns[c]) {
+            this.addSelectedColumn(this.workingTableColumns[c].name);
+          }
+        });
+      }
       console.timeEnd("Load data for page " + this.pageIndex);
     },
     addData(metadata, visibleColumns) {

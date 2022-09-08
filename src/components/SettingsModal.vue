@@ -67,6 +67,12 @@
         >
           Working Table Structure Labels
         </b-form-checkbox>
+        <b-form-checkbox
+          :checked="settings.autoColumnUnhideEnabled"
+          @change="autoColumnUnhideEnabledChanged"
+        >
+          Automatically Unhide Columns on Filter
+        </b-form-checkbox>
         <div>
           <b>Working Table Columns Selection</b>
           <b-form-radio
@@ -173,6 +179,9 @@ export default {
     },
     filterLogicChanged(newValue) {
       this.$emit("filterLogicChanged", newValue);
+    },
+    autoColumnUnhideEnabledChanged() {
+      this.$emit("autoColumnUnhideEnabledChanged");
     },
   },
   mounted() {},

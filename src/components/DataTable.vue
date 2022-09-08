@@ -467,7 +467,10 @@ export default {
       });
       const selectedFields = new Set(this.selectedFields);
       this.columns.forEach((c, i) => {
-        if (columnsToEnable.has(c.key)) {
+        if (
+          this.settings.autoColumnUnhideEnabled &&
+          columnsToEnable.has(c.key)
+        ) {
           selectedFields.add(i);
         }
       });

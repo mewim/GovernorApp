@@ -113,6 +113,7 @@
       @workingTableColumnsSectionChanged="workingTableColumnsSectionChanged"
       @workingTableComponentsLabelChanged="workingTableComponentsLabelChanged"
       @filterLogicChanged="filterLogicChanged"
+      @autoColumnUnhideEnabledChanged="autoColumnUnhideEnabledChanged"
     />
   </div>
 </template>
@@ -146,6 +147,7 @@ export default {
         workingTableComponentsLabel: false,
         workingTableColumnsSection: "all",
         filterLogic: "and",
+        autoColumnUnhideEnabled: true,
       },
     };
   },
@@ -298,6 +300,9 @@ export default {
     },
     filterLogicChanged(newValue) {
       this.settings.filterLogic = newValue;
+    },
+    autoColumnUnhideEnabledChanged(newValue) {
+      this.settings.autoColumnUnhideEnabled = newValue;
     },
     saveSettings: function (newSettings) {
       localStorage.setItem("settings", JSON.stringify(newSettings));
