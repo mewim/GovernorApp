@@ -180,8 +180,8 @@ export default {
     filterLogicChanged(newValue) {
       this.$emit("filterLogicChanged", newValue);
     },
-    autoColumnUnhideEnabledChanged() {
-      this.$emit("autoColumnUnhideEnabledChanged");
+    autoColumnUnhideEnabledChanged(newValue) {
+      this.$emit("autoColumnUnhideEnabledChanged", newValue);
     },
   },
   mounted() {},
