@@ -224,6 +224,9 @@ export default {
       const results = await axios.get(url, { params }).then((res) => res.data);
       results.forEach((r) => {
         r.display_notes = "";
+        if (r.hidden) {
+          return;
+        }
         this.results.push(r);
         this.isNotesDisplayed.push(false);
       });

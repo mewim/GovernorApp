@@ -21,6 +21,13 @@ router.get("/:uuid/topuniquecolumns", async (req, res) => {
       .toArray()
   ).map((x) => x.index);
 
+  // if no data is found, fail over to the first k column
+  if (found.length === 0) {
+    for (let i = 0; i < k; i++) {
+      found.push(i);
+    }
+  }
+
   return res.send(found);
 });
 
