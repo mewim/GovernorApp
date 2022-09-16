@@ -41,6 +41,7 @@ db = mongo_client['opencanada']
 metadata_collection = db.metadata
 inferredstats_collection = db.inferredstats
 inferredhistograms_collection = db.inferredhistograms
+inferredcolumnstats_collection = db.inferredcolumnstats
 
 
 inferred_stat = inferredstats_collection.find_one({"uuid": uuid})
@@ -134,6 +135,37 @@ for f in schema["fields"]:
 inferredhistograms_collection.find_one_and_delete({"uuid": uuid})
 inferredhistograms_collection.insert_one(
     {"uuid": uuid, "histograms": histograms})
+
+try:
+    results = []
+    for i, col_name in enumerate(df.columns):
+        c = df[col_name]
+        count = len(c)
+        unique_values = set(c.unique())
+        unique_values_count = len(unique_values)
+        is_key = count == unique_values_count
+        uniqueness_score = (unique_values_count / count) if count != 0 else 0
+
+        not_is_null = ~(c.astype(str).str.lower().isin(MISSING_VALUES))
+        null_values_count = sum(~not_is_null)
+        null_percentage = null_values_count / count
+        unique_values_without_null = list(c[not_is_null].unique())
+        is_all_null = null_values_count == count
+        results.append({
+            'uuid': uuid,
+            'index': i,
+            'count': count,
+            'unique_values_count': unique_values_count,
+            'null_values_count': null_values_count,
+            'uniqueness_score': uniqueness_score,
+            'is_key': is_key,
+            'is_all_null': is_all_null,
+            'null_percentage': null_percentage
+        })
+    inferredcolumnstats_collection.insert_many(results)
+
+except Exception as e:
+    pass
 
 print(uuid, "is processed")
 mongo_client.close()
