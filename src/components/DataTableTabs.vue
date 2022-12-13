@@ -11,14 +11,6 @@
           ></b-button>
 
           <b-button
-            v-if="isUsecaseDiscoveryModeEnabled"
-            variant="warning"
-            @click="toggleUseCasesDiscovery()"
-            class="toggle-table-button"
-            ><b-icon icon="eye-fill"></b-icon
-          ></b-button>
-
-          <b-button
             variant="primary"
             @click="toggleSearchView()"
             class="toggle-table-button"
@@ -64,19 +56,11 @@
         :settings="settings"
         @unionedTableFieldsUpdated="unionedTableFieldsUpdated"
       />
-      <use-cases-discovery
-        v-if="isUsecaseDiscoveryModeEnabled"
-        :isUnionMode="isUsecaseDiscoveryModeUnion"
-        v-show="isUseCasesDiscoveryActive"
-        ref="useCasesDiscovery"
-      >
-      </use-cases-discovery>
       <data-table
         v-for="item in openedResources"
         v-show="
           !isSearchActive &&
           !isWorkingTableActive &&
-          !isUseCasesDiscoveryActive &&
           activeResourceId === item.resource.id
         "
         :key="item.resource.id"
@@ -91,7 +75,6 @@
         :isActive="
           !isSearchActive &&
           !isWorkingTableActive &&
-          !isUseCasesDiscoveryActive &&
           activeResourceId === item.resource.id
         "
         :settings="settings"
@@ -102,7 +85,6 @@
     <settings-modal
       ref="settingsModal"
       :settings="settings"
-      @useCasesDiscoveryModeChanged="useCasesDiscoveryModeChanged"
       @searchResultsFieldsChanged="searchResultsFieldsChanged"
       @jumpImmediatelyChanged="jumpImmediatelyChanged"
       @uuidEnabledChanged="uuidEnabledChanged"
@@ -130,7 +112,6 @@ export default {
       tableAreaHeight: 0,
       isSearchActive: true,
       isWorkingTableActive: false,
-      isUseCasesDiscoveryActive: false,
       TABLE_AREA_OFFSET: 40,
       settings: {
         searchResultFields: {
@@ -139,7 +120,6 @@ export default {
           subjects: false,
           portal_release_date: false,
         },
-        useCasesDiscoveryMode: "hidden",
         jumpImmediately: true,
         uuidEnabled: false,
         globalColumnFillingSuggestionEnabled: false,
@@ -169,12 +149,6 @@ export default {
     openedDataTables: function () {
       return this.openedResources.filter((r) => !r.isJoinedTable);
     },
-    isUsecaseDiscoveryModeEnabled: function () {
-      return this.settings.useCasesDiscoveryMode !== "hidden";
-    },
-    isUsecaseDiscoveryModeUnion: function () {
-      return this.settings.useCasesDiscoveryMode === "union";
-    },
   },
   methods: {
     showSettingsModal: function () {
@@ -182,7 +156,6 @@ export default {
     },
     toggleSearchView: function () {
       this.isWorkingTableActive = false;
-      this.isUseCasesDiscoveryActive = false;
       this.isSearchActive = true;
     },
     toggleWorkingTable: function () {
@@ -190,25 +163,17 @@ export default {
         this.updatePreviewAreaHeight();
       });
       this.isSearchActive = false;
-      this.isUseCasesDiscoveryActive = false;
       this.isWorkingTableActive = true;
-    },
-    toggleUseCasesDiscovery: function () {
-      this.isSearchActive = false;
-      this.isWorkingTableActive = false;
-      this.isUseCasesDiscoveryActive = true;
     },
     toggleResource: function (resourceId) {
       this.isSearchActive = false;
-      this.isUseCasesDiscoveryActive = false;
       this.isWorkingTableActive = false;
       this.activeResourceId = resourceId;
     },
     getTabClass: function (resourceId) {
       return resourceId === this.activeResourceId &&
         !this.isSearchActive &&
-        !this.isWorkingTableActive &&
-        !this.isUseCasesDiscoveryActive
+        !this.isWorkingTableActive
         ? "nav-link active"
         : "nav-link";
     },
@@ -216,7 +181,6 @@ export default {
       this.activeResourceId = resourceId;
       this.isSearchActive = false;
       this.isWorkingTableActive = false;
-      this.isUseCasesDiscoveryActive = false;
     },
     openResource: function (r, jumpImmediately) {
       if (!r.resource.color) {
@@ -269,13 +233,6 @@ export default {
       } catch (err) {
         this.tableAreaHeight = window.innerHeight;
       }
-    },
-    useCasesDiscoveryModeChanged: function (newValue) {
-      if (newValue === "hidden" && this.isUseCasesDiscoveryActive) {
-        this.isUseCasesDiscoveryActive = false;
-        this.isSearchActive = true;
-      }
-      this.settings.useCasesDiscoveryMode = newValue;
     },
     searchResultsFieldsChanged: function ({ field, newValue }) {
       this.settings.searchResultFields[field] = newValue;

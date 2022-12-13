@@ -1,11 +1,21 @@
 const mongodb = require("mongodb");
-const MONGO_URI = "mongodb://127.0.0.1:27017/";
+const path = require("path");
+const fs = require("fs/promises");
 
 let db;
 let mongoClient;
+let dbName;
+let mongoUri;
 
 const connectMongo = async () => {
-  const client = new mongodb.MongoClient(MONGO_URI, {
+  if (!mongoUri || !dbName) {
+    const config = JSON.parse(
+      await fs.readFile(path.join(__dirname, "../../app.config.json"))
+    );
+    mongoUri = config.mongodb.uri;
+    dbName = config.mongodb.db;
+  }
+  const client = new mongodb.MongoClient(mongoUri, {
     useUnifiedTopology: true,
   });
   try {
@@ -20,7 +30,7 @@ const connectMongo = async () => {
 const getDb = async () => {
   if (!db) {
     mongoClient = await connectMongo();
-    db = mongoClient.db("opencanada");
+    db = mongoClient.db(dbName);
     process.on("SIGTERM", () => {
       disconnect();
       console.log("Shutting down from SIGTERM ...");

@@ -28,7 +28,7 @@ router.get("/metadata", async (req, res) => {
     isUUID = true;
     q = q.toLowerCase();
   }
-  let openCanadaResults = [];
+  let metadataResults = [];
   let resourceIdMatch;
   if (!isUUID) {
     const textSearchResult = await db
@@ -45,13 +45,13 @@ router.get("/metadata", async (req, res) => {
         { _id: false, id: true }
       )
       .toArray();
-    openCanadaResults = textSearchResult.map((r) => r.id);
+    metadataResults = textSearchResult.map((r) => r.id);
   } else {
     const dbQueryResult = await db.collection("metadata").findOne({
       $or: [{ id: q }, { "resources.id": q }],
     });
     if (dbQueryResult) {
-      openCanadaResults = [dbQueryResult.id];
+      metadataResults = [dbQueryResult.id];
       for (let resource of dbQueryResult.resources) {
         if (resource.id === q) {
           resourceIdMatch = q;
@@ -66,7 +66,7 @@ router.get("/metadata", async (req, res) => {
       {
         $match: {
           id: {
-            $in: openCanadaResults,
+            $in: metadataResults,
           },
         },
       },

@@ -4,9 +4,8 @@ import sys
 import pandas as pd
 import numpy as np
 import math
+import json
 
-
-MONGO_URI = 'mongodb://127.0.0.1:27017/'
 FILE_SIZE_LIMIT = 2e9
 MISSING_VALUES = set([
     "",
@@ -19,12 +18,16 @@ MISSING_VALUES = set([
     "(n/a)",
 ])
 BINS = 20
+CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "..", "app.config.json"))
 
+with open(CONFIG_PATH) as f:
+    config = json.load(f)
 
 file_path = sys.argv[1]
 uuid = os.path.splitext(os.path.basename(file_path))[0]
 
-print("processing", uuid, "...")
+print("Processing histogram for", uuid, "...")
 
 if not os.path.isfile(file_path):
     print(uuid, "cannot be opened, quitting...")
@@ -36,8 +39,8 @@ if file_size > FILE_SIZE_LIMIT:
     sys.exit(0)
 
 
-mongo_client = pymongo.MongoClient(MONGO_URI)
-db = mongo_client['opencanada']
+mongo_client = pymongo.MongoClient(config["mongodb"]["uri"])
+db = mongo_client[config["mongodb"]["db"]]
 metadata_collection = db.metadata
 inferredstats_collection = db.inferredstats
 inferredhistograms_collection = db.inferredhistograms
@@ -46,7 +49,7 @@ inferredcolumnstats_collection = db.inferredcolumnstats
 
 inferred_stat = inferredstats_collection.find_one({"uuid": uuid})
 if inferred_stat is None:
-    print("schema of", uuid, "is not found in MongoDB, quitting...")
+    print("Schema of", uuid, "is not found in MongoDB, quitting...")
     mongo_client.close()
     sys.exit(0)
 

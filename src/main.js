@@ -25,7 +25,6 @@ import JoinableTables from "./components/JoinableTables.vue";
 import UnionableTables from "./components/UnionableTables.vue";
 import WorkingTable from "./components/WorkingTable.vue";
 import WorkingTableDescription from "./components/WorkingTableDescription.vue";
-import UseCasesDiscovery from "./components/UseCasesDiscovery.vue";
 import WorkingTableComponents from "./components/WorkingTableComponents.vue";
 import WorkingTableProvenanceModal from "./components/WorkingTableProvenanceModal.vue";
 import WorkingTableComponentTableItem from "./components/WorkingTableComponentTableItem.vue";
@@ -42,7 +41,6 @@ Vue.component("joinable-tables", JoinableTables);
 Vue.component("unionable-tables", UnionableTables);
 Vue.component("working-table", WorkingTable);
 Vue.component("working-table-description", WorkingTableDescription);
-Vue.component("use-cases-discovery", UseCasesDiscovery);
 Vue.component("working-table-components", WorkingTableComponents);
 Vue.component("working-table-provenance-modal", WorkingTableProvenanceModal);
 Vue.component(

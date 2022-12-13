@@ -3,17 +3,24 @@ import plotly.express as px
 import sys
 import numpy as np
 import os
+import json
 
 uuid = sys.argv[1]
 field = sys.argv[2]
 
-MONGO_URI = 'mongodb://127.0.0.1:27017/'
+CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "..", "app.config.json"))
+
+with open(CONFIG_PATH) as f:
+    config = json.load(f)
+
 UNAVAILABLE_HTML = os.path.abspath(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "..", "public/visualization-unavailable.html"))
 
+
 def get_histogram(uuid, field):
-    mongo_client = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
-    db = mongo_client['opencanada']
+    mongo_client = pymongo.MongoClient(config["mongodb"]["uri"])
+    db = mongo_client[config["mongodb"]["db"]]
     inferred_collection = db.inferredhistograms
     found = inferred_collection.find_one(
         {"uuid": uuid})

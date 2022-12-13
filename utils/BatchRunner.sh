@@ -1,2 +1,0 @@
-find . -name "*.csv" -print0 | xargs -r -0 -n 1 -P 8 -- sh -c 'node ../../utils/ElasticSearchCSVIndexer.js "$@"; true' --
-find . -name "*.csv" -print0 | xargs -r -0 -n 1 -P 8 -- sh -c 'python3 ../../utils/HistogramGenerator.py "$@"; true' --

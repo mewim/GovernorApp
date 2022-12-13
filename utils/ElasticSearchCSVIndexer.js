@@ -118,10 +118,6 @@ const updateJobStats = async (db, uuid, error) => {
   });
 };
 
-const client = new ElasticClient({
-  node: "http://localhost:9200",
-});
-
 const path = process.argv[2];
 console.log("Processing", path);
 if (!path) {
@@ -145,6 +141,22 @@ const parseNumericalValue = (string) => {
 };
 
 (async () => {
+
+  const config = JSON.parse(
+    await FsPromises.readFile(Path.join(__dirname, "../app.config.json"))
+  );
+
+  const elasticUri = config.elasticsearch.uri;
+  const elasticIndex = config.elasticsearch.index;
+  const elasticToken = config.elasticsearch.token;
+
+  const client = new ElasticClient({
+    node: elasticUri,
+    auth: {
+      bearer: elasticToken,
+    },
+  });
+
   const db = await MongoUtil.getDb();
 
   const fileStats = await FsPromises.stat(path);
@@ -237,7 +249,7 @@ const parseNumericalValue = (string) => {
     for (let i = 0; i < parsedDataset.length; i += ELASTIC_CHUNK_SIZE) {
       const chunk = parsedDataset.slice(i, i + ELASTIC_CHUNK_SIZE);
       const body = chunk.flatMap((doc) => [
-        { index: { _index: "tuples" } },
+        { index: { _index: elasticIndex } },
         doc,
       ]);
       await client.bulk({ refresh: true, body });

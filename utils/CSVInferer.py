@@ -5,10 +5,17 @@ import pandas as pd
 import math
 import tableschema
 import charset_normalizer
+import json
+
 
 MISSING_VALUES = ["", "nan", "null", "n/a", "n/d", "-", "...", "(n/a)"]
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "..", "data/files/"))
+CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "..", "app.config.json"))
+
+with open(CONFIG_PATH) as f:
+    config = json.load(f)
 
 
 def is_missing_value(val):
@@ -53,8 +60,8 @@ def get_header_row(csv_path, encoding, nrows=500):
 
 
 def update_database(uuid, header, schema, encoding):
-    mongo_client = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
-    db = mongo_client['opencanada']
+    mongo_client = pymongo.MongoClient(config["mongodb"]["uri"])
+    db = mongo_client[config["mongodb"]["db"]]
     inferred_collection = db.inferredstats
     inferred_collection.find_one_and_replace(
         {"uuid": uuid}, {"uuid": uuid, "header": header, "schema": schema, "encoding": encoding}, upsert=True)

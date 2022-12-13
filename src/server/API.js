@@ -12,7 +12,6 @@ const unionable = require("./Unionable");
 const parquet = require("./Parquet");
 const keyjoinscores = require("./KeyJoinScores");
 const datadictionaries = require("./DataDictionaries");
-const usecasediscoveries = require("./UseCaseDiscoveries");
 const sharedhistories = require("./SharedHistories");
 const inferredcolumnstats = require("./InferredColumnStats");
 
@@ -27,7 +26,6 @@ router.use("/joinable", joinable);
 router.use("/keyjoinscores", keyjoinscores);
 router.use("/datadictionaries", datadictionaries);
 router.use("/unionable", unionable);
-router.use("/usecasediscoveries", usecasediscoveries);
 router.use("/sharedhistories", sharedhistories);
 router.use("/inferredcolumnstats", inferredcolumnstats);
 

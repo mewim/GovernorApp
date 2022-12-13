@@ -7,12 +7,23 @@
   },
   "mongodb": {
     "uri": "mongodb://localhost:27017",
-    "collection": "datagovsg",
-    "metadataIndexFields": []
+    "db": "datagovsg",
+    "metadataIndexFields": {
+      "title": "text",
+      "notes": "text",
+      "name": "text",
+      "organization.title": "text",
+      "organization.description": "text",
+      "topic": "text",
+      "resources.name": "text",
+      "resources.description": "text",
+      "resources.fields.name": "text"
+    }
   },
-  "elasticSearch": {
+  "elasticsearch": {
     "uri": "http://localhost:9200",
-    "index": "datagovsg"
+    "index": "datagovsg",
+    "token": ""
   },
   "frontend": {
     "search": {

@@ -107,30 +107,6 @@
             Or
           </b-form-radio>
         </div>
-        <div>
-          <b>Use Cases Discovery Mode</b>
-          <b-form-radio
-            :checked="settings.useCasesDiscoveryMode"
-            value="hidden"
-            @change="useCasesDiscoveryModeChanged"
-          >
-            Disabled
-          </b-form-radio>
-          <b-form-radio
-            :checked="settings.useCasesDiscoveryMode"
-            value="union-join"
-            @change="useCasesDiscoveryModeChanged"
-          >
-            Union + Join
-          </b-form-radio>
-          <b-form-radio
-            :checked="settings.useCasesDiscoveryMode"
-            value="union"
-            @change="useCasesDiscoveryModeChanged"
-          >
-            Union Only
-          </b-form-radio>
-        </div>
       </div>
     </b-modal>
   </div>
@@ -161,9 +137,6 @@ export default {
     },
     uuidEnabledChanged(newValue) {
       this.$emit("uuidEnabledChanged", newValue);
-    },
-    useCasesDiscoveryModeChanged(newValue) {
-      this.$emit("useCasesDiscoveryModeChanged", newValue);
     },
     globalColumnFillingSuggestionEnabledChanged(newValue) {
       this.$emit("globalColumnFillingSuggestionEnabledChanged", newValue);
