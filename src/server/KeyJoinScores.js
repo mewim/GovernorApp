@@ -252,17 +252,7 @@ router.get("/:uuid", async (req, res) => {
       ])
       .toArray()
   )
-    .map((r) => r.resource)
-    .filter((r) => {
-      // Filter out pairs of different languages.
-      const targetLanguage = r.language;
-      const sourceLanguage = sourceResource.language;
-      // Get intersection of languages
-      const intersection = sourceLanguage.filter((l) =>
-        targetLanguage.includes(l)
-      );
-      return intersection.length > 0;
-    });
+    .map((r) => r.resource);
   const resourceIdSet = new Set(resources.map((r) => r.id));
   found.forEach((f) => {
     f.targets = f.targets.filter((t) => resourceIdSet.has(t.uuid));

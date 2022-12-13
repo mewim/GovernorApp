@@ -52,8 +52,6 @@ router.get("/:uuid.parquet", async (req, res) => {
     params.push(JSON.stringify(fieldNames));
   }
 
-  console.log(params);
-
   const parquetConverter = spawn("python3", params);
   parquetConverter
     .on("close", (code) => {
