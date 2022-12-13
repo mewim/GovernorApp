@@ -8,32 +8,6 @@
       :centered="true"
     >
       <div class="search-results-fields-toggle-container">
-        <b>Search Results Fields</b>
-        <b-form-checkbox
-          :checked="settings.searchResultFields.matched_count"
-          @change="searchResultFieldsChanged('matched_count', $event)"
-        >
-          Matched Count
-        </b-form-checkbox>
-        <b-form-checkbox
-          :checked="settings.searchResultFields.languages"
-          @change="searchResultFieldsChanged('languages', $event)"
-        >
-          Languages
-        </b-form-checkbox>
-        <b-form-checkbox
-          :checked="settings.searchResultFields.subjects"
-          @change="searchResultFieldsChanged('subjects', $event)"
-        >
-          Subjects
-        </b-form-checkbox>
-        <b-form-checkbox
-          :checked="settings.searchResultFields.portal_release_date"
-          @change="searchResultFieldsChanged('portal_release_date', $event)"
-        >
-          Release Date
-        </b-form-checkbox>
-
         <b>Navigation Option</b>
         <b-form-checkbox
           :checked="settings.jumpImmediately"
@@ -128,9 +102,6 @@ export default {
   methods: {
     showModal() {
       this.$refs.modal.show();
-    },
-    searchResultFieldsChanged(field, newValue) {
-      this.$emit("searchResultsFieldsChanged", { field, newValue });
     },
     jumpImmediatelyChanged(newValue) {
       this.$emit("jumpImmediatelyChanged", newValue);

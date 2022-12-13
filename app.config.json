@@ -1,7 +1,7 @@
 {
   "portal": {
     "siteName": "Data.gov.sg",
-    "siteUrl": "https://data.gov.sg/",
+    "siteUrl": "https://data.gov.sg/dataset/",
     "packageApiUrl": "https://data.gov.sg/api/3/action/package_search",
     "fileDownloaderConcurrency": 10
   },
@@ -29,7 +29,60 @@
     "search": {
       "fields": [
         {
-          "name": ""
+          "fieldName": "metadata_modified",
+          "displayName": "Last Updated",
+          "type": "date"
+        },
+        {
+          "fieldName": "frequency",
+          "displayName": "Publication Frequency",
+          "type": "text"
+        },
+        {
+          "fieldName": "organization.title",
+          "displayName": "Organization",
+          "type": "text"
+        },
+        {
+          "fieldName": "topics",
+          "displayName": "Topics",
+          "type": "list"
+        }
+      ],
+      "resourcesFields": [
+        {
+          "fieldName": "coverage_start",
+          "displayName": "Coverage Start Date",
+          "type": "date"
+        },
+        {
+          "fieldName": "coverage_end",
+          "displayName": "Coverage End Date",
+          "type": "date"
+        }
+      ]
+    },
+    "preview": {
+      "fields": [
+        {
+          "fieldName": "metadata_modified",
+          "displayName": "Last Updated",
+          "type": "date"
+        },
+        {
+          "fieldName": "frequency",
+          "displayName": "Publication Frequency",
+          "type": "text"
+        },
+        {
+          "fieldName": "organization.title",
+          "displayName": "Organization",
+          "type": "text"
+        },
+        {
+          "fieldName": "topics",
+          "displayName": "Topics",
+          "type": "list"
         }
       ]
     }

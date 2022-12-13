@@ -212,7 +212,7 @@
               target="_blank"
               :href="getDatasetUrl(r.dataset)"
               v-b-tooltip.hover
-              title="Jump to dataset on open.canada.ca"
+              :title="`Jump to dataset on ${portal.siteName}`"
             >
               <i>{{ r.dataset.title }}</i></a
             >
@@ -258,6 +258,8 @@ const ACCORDION_CONTENT_MIN_HEIGHT = 400;
 import axios from "axios";
 import Common from "../Common";
 import TableColorManager from "../TableColorManager";
+import { portal } from "../../app.config.json";
+
 export default {
   name: "WorkingTableDescription",
   props: {
@@ -281,6 +283,7 @@ export default {
         tables: [],
         hasUnfilled: false,
       },
+      portal,
     };
   },
   mounted: function () {

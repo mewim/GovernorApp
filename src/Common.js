@@ -1,3 +1,5 @@
+import { portal } from "../app.config.json";
+import moment from "moment";
 class Common {
   constructor() {}
 
@@ -26,7 +28,7 @@ class Common {
     return descriptionText.join(delimiter);
   }
   getDatasetUrl(uuid) {
-    return "https://open.canada.ca/data/en/dataset/" + uuid;
+    return portal.siteUrl + uuid;
   }
   escapeHtml(unsafe) {
     return unsafe
@@ -35,6 +37,21 @@ class Common {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+  getField(object, field) {
+    if (field.includes(".")) {
+      const fields = field.split(".");
+      let value = object;
+      fields.forEach((f) => {
+        value = value[f];
+      });
+      return value;
+    } else {
+      return object[field];
+    }
+  }
+  formatDate(date) {
+    return moment(date).format("MMM Do YYYY");
   }
 }
 

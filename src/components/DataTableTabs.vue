@@ -85,7 +85,6 @@
     <settings-modal
       ref="settingsModal"
       :settings="settings"
-      @searchResultsFieldsChanged="searchResultsFieldsChanged"
       @jumpImmediatelyChanged="jumpImmediatelyChanged"
       @uuidEnabledChanged="uuidEnabledChanged"
       @globalColumnFillingSuggestionEnabledChanged="
@@ -114,12 +113,6 @@ export default {
       isWorkingTableActive: false,
       TABLE_AREA_OFFSET: 40,
       settings: {
-        searchResultFields: {
-          languages: true,
-          matched_count: true,
-          subjects: false,
-          portal_release_date: false,
-        },
         jumpImmediately: true,
         uuidEnabled: false,
         globalColumnFillingSuggestionEnabled: false,
@@ -233,9 +226,6 @@ export default {
       } catch (err) {
         this.tableAreaHeight = window.innerHeight;
       }
-    },
-    searchResultsFieldsChanged: function ({ field, newValue }) {
-      this.settings.searchResultFields[field] = newValue;
     },
     jumpImmediatelyChanged: function (newValue) {
       this.settings.jumpImmediately = newValue;

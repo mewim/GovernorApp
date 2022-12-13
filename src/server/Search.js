@@ -4,9 +4,10 @@ const elasticclient = require("@elastic/elasticsearch").Client;
 const adddashestouuid = require("add-dashes-to-uuid");
 const mongoUtil = require("./MongoUtil");
 const uuid = require("uuid");
+const config = require("../../app.config.json");
 
 const client = new elasticclient({
-  node: "http://localhost:9200",
+  node: config.elasticsearch.uri,
   auth: {
     bearer: "token",
   },
@@ -167,7 +168,7 @@ router.get("/", async (req, res) => {
   };
   // console.log(JSON.stringify(query, null, 2));
   const found = await client.search({
-    index: "tuples",
+    index: config.elasticsearch.index,
     body: {
       from: 0,
       size: 8000,

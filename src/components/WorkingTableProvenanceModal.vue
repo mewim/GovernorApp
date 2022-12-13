@@ -16,7 +16,7 @@
                 target="_blank"
                 :href="getDatasetUrl(dataset)"
                 v-b-tooltip.hover
-                title="Jump to dataset on open.canada.ca"
+                :title="`Jump to dataset on ${portal.siteName}`"
               >
                 <i>{{ dataset.title }}</i></a
               >
@@ -96,6 +96,7 @@
 <script>
 const IS_ADVANCED_MODE_ENABLED = false;
 import Common from "../Common";
+import { portal } from "../../app.config.json";
 
 export default {
   data() {
@@ -111,6 +112,7 @@ export default {
     return {
       fields,
       isAdvancedMode: IS_ADVANCED_MODE_ENABLED,
+      portal,
     };
   },
   props: {

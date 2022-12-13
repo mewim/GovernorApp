@@ -53,23 +53,8 @@
           <template #header>
             <b>Dataset: {{ r.title }}</b>
           </template>
-          <b-card-text
-            v-if="settings.searchResultFields.matched_count && !searchMetadata"
-          >
+          <b-card-text v-if="!searchMetadata">
             <b> Matched Count:</b> {{ r.matched_count }}
-          </b-card-text>
-          <b-card-text v-if="settings.searchResultFields.subjects">
-            <b> Subjects:&nbsp;</b>
-            <span
-              class="badge rounded-pill bg-primary"
-              v-for="(s, j) in r.subject"
-              :key="j"
-              >{{ s.replaceAll("_", " ") }}</span
-            >
-          </b-card-text>
-          <b-card-text v-if="settings.searchResultFields.portal_release_date">
-            <b> Release Date:</b>
-            {{ r.portal_release_date ? r.portal_release_date : "N/A" }}
           </b-card-text>
           <b-card-text>
             <b> Notes: </b>
@@ -80,6 +65,35 @@
               {{ r.display_notes ? "Hide" : "Show" }}
             </a>
             <p>{{ r.display_notes }}</p>
+          </b-card-text>
+
+          <b-card-text v-for="field in fields" :key="field.name">
+            <b> {{ field.displayName }}:</b>
+            <span v-if="field.type === 'text'">
+              {{
+                getField(r, field.fieldName)
+                  ? getField(r, field.fieldName)
+                  : "N/A"
+              }}
+            </span>
+
+            <span v-if="field.type === 'date'">
+              {{
+                getField(r, field.fieldName)
+                  ? formatDate(getField(r, field.fieldName))
+                  : "N/A"
+              }}
+            </span>
+
+            <span v-if="field.type === 'list'">
+              {{ " " }}
+              <span
+                class="badge rounded-pill bg-primary"
+                v-for="(s, j) in getField(r, field.fieldName)"
+                :key="j"
+                >{{ s }}</span
+              ></span
+            >
           </b-card-text>
           <div class="file-description-cards-outer-container">
             <div class="file-description-cards-container">
@@ -104,16 +118,7 @@
                 </b-tooltip>
                 <b-card-text
                   class="file-description-card-description"
-                  v-if="settings.searchResultFields.languages"
-                >
-                  <b> Language{{ res.language.length > 1 ? "s" : "" }}: </b>
-                  {{ res.language.join(", ") }}
-                </b-card-text>
-                <b-card-text
-                  class="file-description-card-description"
-                  v-if="
-                    settings.searchResultFields.matched_count && !searchMetadata
-                  "
+                  v-if="!searchMetadata"
                 >
                   <b>
                     {{ res.matches.count }} match{{
@@ -124,6 +129,39 @@
                   <span
                     style="font-style: italic"
                     >{{res.matches.columns.join(", "),}}</span
+                  >
+                </b-card-text>
+
+                <b-card-text
+                  class="file-description-card-description"
+                  v-for="field in resourcesFields"
+                  :key="field.name"
+                >
+                  <b> {{ field.displayName }}:</b>
+                  <span v-if="field.type === 'text'">
+                    {{
+                      getField(res, field.fieldName)
+                        ? getField(res, field.fieldName)
+                        : "N/A"
+                    }}
+                  </span>
+
+                  <span v-if="field.type === 'date'">
+                    {{
+                      getField(res, field.fieldName)
+                        ? formatDate(getField(res, field.fieldName))
+                        : "N/A"
+                    }}
+                  </span>
+
+                  <span v-if="field.type === 'list'">
+                    {{ " " }}
+                    <span
+                      class="badge rounded-pill bg-primary"
+                      v-for="(s, j) in getField(res, field.fieldName)"
+                      :key="j"
+                      >{{ s }}</span
+                    ></span
                   >
                 </b-card-text>
               </b-card>
@@ -141,6 +179,7 @@ import adddashestouuid from "add-dashes-to-uuid";
 import { VeLoading } from "vue-easytable";
 const uuid = require("uuid");
 import Common from "../Common";
+import { frontend as frontendConfig } from "../../app.config.json";
 
 export default {
   name: "Search",
@@ -156,6 +195,8 @@ export default {
       searchSuccess: false,
       loadingInstance: null,
       searchMetadata: false,
+      fields: frontendConfig.search.fields,
+      resourcesFields: frontendConfig.search.resourcesFields,
     };
   },
   props: {
@@ -254,8 +295,16 @@ export default {
     getUrl: function (uuid) {
       return Common.getDatasetUrl(uuid);
     },
+    getField: function (object, field) {
+      return Common.getField(object, field);
+    },
+    formatDate: function (date) {
+      return Common.formatDate(date);
+    },
   },
   mounted() {
+    console.log(this.fields);
+    console.log(this.resourcesFields);
     this.loadingInstance = VeLoading({
       target: this.$el,
       lock: true,

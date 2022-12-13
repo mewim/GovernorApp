@@ -14,7 +14,7 @@
     </div>
     <b-collapse v-model="isTableDetailsVisible" class="mt-2">
       <b-card>
-        <div>
+        <!-- <div>
           <b>Subjects: </b>
           <span
             class="badge rounded-pill bg-primary"
@@ -22,7 +22,7 @@
             :key="i"
             >{{ s.replaceAll("_", " ") }}</span
           >
-        </div>
+        </div> -->
         <p><b>UUID: </b>{{ dataset.id }}</p>
         <p><b>Dataset: </b>{{ dataset.title }}</p>
         <p><b>Notes: </b>{{ dataset.notes }}</p>
@@ -32,6 +32,35 @@
             getUrl(dataset.id)
           }}</a>
         </p>
+
+        <p v-for="field in fields" :key="field.name">
+          <b> {{ field.displayName }}:</b>
+          <span v-if="field.type === 'text'">
+            {{
+              getField(dataset, field.fieldName)
+                ? getField(dataset, field.fieldName)
+                : "N/A"
+            }}
+          </span>
+
+          <span v-if="field.type === 'date'">
+            {{
+              getField(dataset, field.fieldName)
+                ? formatDate(getField(dataset, field.fieldName))
+                : "N/A"
+            }}
+          </span>
+
+          <span v-if="field.type === 'list'">
+            {{ " " }}
+            <span
+              class="badge rounded-pill bg-primary"
+              v-for="(s, j) in getField(dataset, field.fieldName)"
+              :key="j"
+              >{{ s }}</span
+            ></span
+          >
+        </p>
       </b-card>
     </b-collapse>
   </div>
@@ -39,17 +68,25 @@
 
 <script>
 import Common from "../Common";
+import { frontend as frontendConfig } from "../../app.config.json";
 
 export default {
   name: "DataTableDetails",
   data: function () {
     return {
       isTableDetailsVisible: false,
+      fields: frontendConfig.preview.fields,
     };
   },
   methods: {
     getUrl: function (uuid) {
       return Common.getDatasetUrl(uuid);
+    },
+    getField: function (object, field) {
+      return Common.getField(object, field);
+    },
+    formatDate: function (date) {
+      return Common.formatDate(date);
     },
   },
   props: {

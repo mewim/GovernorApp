@@ -6,7 +6,7 @@
         target="_blank"
         :href="getDatasetUrl(h.dataset)"
         v-b-tooltip.hover
-        title="Jump to dataset on open.canada.ca"
+        :title="`Jump to dataset on ${portal.siteName}`"
       >
         <i>{{ h.dataset.title }}</i></a
       >
@@ -67,10 +67,13 @@
 
 <script>
 import Common from "../Common";
+import { portal } from "../../app.config.json";
 
 export default {
   data() {
-    return {};
+    return {
+      portal,
+    };
   },
   props: {
     h: Object,
