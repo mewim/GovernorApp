@@ -44,7 +44,7 @@ Governor can be configured with a single JSON configuration (`app.config.json`) 
 - `portal`:
   - `siteName`: The name of the open data portal. For example, Open Canada.
   - `siteUrl`:  URL prefix of the metadata page of the datasets. Will be concatenated with dataset UUIDs to generate links to the original dataset. For example, [https://open.canada.ca/data/en/dataset/](https://open.canada.ca/data/en/dataset/). 
-  - `packageApiUrl`: The CKAN API endpoint for harvesting the metadata information. For example, [https://open.canada.ca/data/api/action/package_search].
+  - `packageApiUrl`: The CKAN API endpoint for harvesting the metadata information. For example, [https://open.canada.ca/data/api/action/package_search](https://open.canada.ca/data/api/action/package_search).
   - `fileDownloaderConcurrency`: The max number of concurrent threads for crawling the files. Should be set according to the bandwidth and rate limit of the portal.
 - `mongodb`:
   - `uri`: The URI of the MongoDB server starting with `mongodb://`.
