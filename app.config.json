@@ -1,0 +1,26 @@
+{
+  "portal": {
+    "siteName": "Data.gov.sg",
+    "siteUrl": "https://data.gov.sg/",
+    "packageApiUrl": "https://data.gov.sg/api/3/action/package_search",
+    "fileDownloaderConcurrency": 10
+  },
+  "mongodb": {
+    "uri": "mongodb://localhost:27017",
+    "collection": "datagovsg",
+    "metadataIndexFields": []
+  },
+  "elasticSearch": {
+    "uri": "http://localhost:9200",
+    "index": "datagovsg"
+  },
+  "frontend": {
+    "search": {
+      "fields": [
+        {
+          "name": ""
+        }
+      ]
+    }
+  }
+}

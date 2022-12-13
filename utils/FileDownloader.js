@@ -1,18 +1,14 @@
 const FsPromises = require("fs/promises");
 const Fs = require("fs");
-const CsvParser = require("csv-parser");
 const Mkdirp = require("mkdirp");
 const Path = require("path");
 const Axios = require("axios");
 const Underscore = require("underscore");
 const PromisePool = require("es6-promise-pool");
 
-const CSV_PATH = "../data/metadata.csv";
-const JSON_DIR = "../data/json/";
-const FILES_DIR = "../data/files/";
+const JSON_DIR = Path.join(__dirname, "../data/json/");
+const FILES_DIR = Path.join(__dirname, "../data/files/");
 const JSON_SUFFIX = ".json";
-const COL_NAME = "id_s";
-const NUMBER_OF_THREADS = 10;
 
 const FORMATS_OF_INTEREST = new Set([
   "CSV",
@@ -25,26 +21,27 @@ const FORMATS_OF_INTEREST = new Set([
 ]);
 
 const extractUUIDs = async () => {
-  const uuids = await new Promise((resolve, _) => {
-    const results = [];
-    Fs.createReadStream(CSV_PATH)
-      .pipe(CsvParser())
-      .on("data", (data) => results.push(data[COL_NAME]))
-      .on("end", () => {
-        return resolve(results);
-      });
-  });
-  return uuids;
+  const results = [];
+  const files = await FsPromises.readdir(JSON_DIR);
+  for (let file of files) {
+    if (!file.endsWith(JSON_SUFFIX)) {
+      continue;
+    }
+    const fileNameWithoutSuffix = file.slice(0, -JSON_SUFFIX.length);
+    results.push(fileNameWithoutSuffix);
+  }
+
+  return results;
 };
 
 const generateFilesList = async (uuids) => {
   const files = [];
-  for (uuid of uuids) {
+  for (let uuid of uuids) {
     const fileName = uuid + JSON_SUFFIX;
     const filePath = Path.join(JSON_DIR, fileName);
     const data = JSON.parse(await FsPromises.readFile(filePath));
     const resources = data.resources;
-    for (r of resources) {
+    for (let r of resources) {
       if (!FORMATS_OF_INTEREST.has(r.format.toUpperCase())) {
         continue;
       }
@@ -59,7 +56,7 @@ const generateFilesList = async (uuids) => {
 
 const filterFilesList = async (filesList) => {
   const filtered = [];
-  for (metadata of filesList) {
+  for (let metadata of filesList) {
     const fileName = `${metadata.id}.${metadata.format}`;
     const filePath = Path.join(FILES_DIR, fileName);
     const fileExists = await FsPromises.access(filePath, Fs.constants.F_OK)
@@ -97,10 +94,15 @@ const downloadFile = async (metadata) => {
         }
       });
     });
-  } catch (_) {}
+  } catch (_) {
+    // skip unaccessible files
+  }
 };
 
 (async () => {
+  const config = JSON.parse(
+    await FsPromises.readFile(Path.join(__dirname, "../app.config.json"))
+  );
   await Mkdirp(JSON_DIR);
   await Mkdirp(FILES_DIR);
   const uuids = await extractUUIDs();
@@ -129,7 +131,10 @@ const downloadFile = async (metadata) => {
     const curr = shuffled.pop();
     return downloadFile(curr);
   };
-  const pool = new PromisePool(promiseProducer, NUMBER_OF_THREADS);
+  const pool = new PromisePool(
+    promiseProducer,
+    config.portal.fileDownloaderConcurrency
+  );
   await new Promise((resolve, reject) => {
     pool.start().then(
       () => {

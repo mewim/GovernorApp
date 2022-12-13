@@ -1,53 +1,18 @@
 const Axios = require("axios");
 const FsPromises = require("fs/promises");
-const Fs = require("fs");
-const CsvParser = require("csv-parser");
 const Mkdirp = require("mkdirp");
 const Path = require("path");
 
-const CSV_PATH = "../data/metadata.csv";
-const JSON_DIR = "../data/json/";
+const JSON_DIR = Path.join(__dirname, "../data/json/");
 const JSON_SUFFIX = ".json";
-const URL_PREFIX = "https://open.canada.ca/data/api/action/package_show?id=";
-const COL_NAME = "id_s";
+const BATCH_SIZE = 100;
 
-const extractUUIDs = async () => {
-  const uuids = await new Promise((resolve, _) => {
-    const results = [];
-    Fs.createReadStream(CSV_PATH)
-      .pipe(CsvParser())
-      .on("data", (data) => results.push(data[COL_NAME]))
-      .on("end", () => {
-        return resolve(results);
-      });
-  });
-  return uuids;
-};
-
-const filterUUIDs = async (uuids) => {
-  const filtered = [];
-  for (let uuid of uuids) {
-    const fileName = uuid + JSON_SUFFIX;
-    const filePath = Path.join(JSON_DIR, fileName);
-    const fileExists = await FsPromises.access(filePath, Fs.constants.F_OK)
-      .then(() => true)
-      .catch(() => false);
-    if (fileExists) {
-      continue;
-    }
-    filtered.push(uuid);
-  }
-  return filtered;
-};
-
-const downloadJSON = async (uuid) => {
-  const fileName = uuid + JSON_SUFFIX;
-  const filePath = Path.join(JSON_DIR, fileName);
+const downloadMetadata = async (url, offset) => {
   try {
-    const res = await Axios.get(URL_PREFIX + uuid);
+    const res = await Axios.get(`${url}?start=${offset}&rows=${BATCH_SIZE}`);
     const data = res.data;
     if (data.success) {
-      await FsPromises.writeFile(filePath, JSON.stringify(data.result));
+      return data.result.results;
     }
   } catch (_) {
     // continue regardless of error
@@ -55,15 +20,25 @@ const downloadJSON = async (uuid) => {
 };
 
 (async () => {
+  const config = JSON.parse(
+    await FsPromises.readFile(Path.join(__dirname, "../app.config.json"))
+  );
+  const apiUrl = config.portal.packageApiUrl;
   await Mkdirp(JSON_DIR);
-  const uuids = await extractUUIDs();
-  console.log(uuids.length, "UUIDs extracted");
-  const filtered = await filterUUIDs(uuids);
-  console.log(filtered.length, "UUIDs not processed");
+  let count = 0;
+  for (let i = 0; ; i += BATCH_SIZE) {
+    const result = await downloadMetadata(apiUrl, i);
+    if (result.length === 0) {
+      process.exit(0);
+    }
 
-  for (let i = 0; i < filtered.length; ++i) {
-    await downloadJSON(filtered[i]);
-    console.log(i + 1, "/", filtered.length, "UUIDs processed");
+    for (let r of result) {
+      const uuid = r.id;
+      const fileName = uuid + JSON_SUFFIX;
+      const filePath = Path.join(JSON_DIR, fileName);
+      await FsPromises.writeFile(filePath, JSON.stringify(r));
+      count += 1;
+    }
+    console.log(count, "metadata files downloaded");
   }
-  process.exit(0);
 })();
