@@ -62,4 +62,5 @@ Governor can be configured with a single JSON configuration (`app.config.json`) 
         - `displayName`: Human-readable name of the field.
         - `type`: The type of the field. Currently 3 different formats are supported: 1) text, which will be directly rendered; 2) date, which will be formatted as `Month Day Year`. 3) list, which will be formatted as multiple labels.
     - `resourcesFields`: An array of all the field to be displayed on the search result page for the resources (tables under a dataset). The definition of each field is the same as that of `frontend.search.fields`.
-  - `preview`: An array of all the field to be displayed on the table preview page for the dataset (under "Dataset Details"). The definition of each field is the same as that of `frontend.search.fields`.
+  - `preview`: 
+    - `fields`: An array of all the field to be displayed on the table preview page for the dataset (under "Dataset Details"). The definition of each field is the same as that of `frontend.search.fields`.
