@@ -6,7 +6,7 @@ Governor is an open-sourced web application developed to make open governmental 
 - [MongoDB 5.0](https://www.mongodb.com/docs/v5.0/)
 - [Elasticsearch 7.17](https://www.elastic.co/guide/en/elasticsearch/reference/7.17/index.html)
 - [Node.js v14](https://nodejs.org/docs/latest-v14.x/api/)
-- [Python 3.9](https://docs.python.org/es/3.9/index.html)
+- [Python 3.9](https://docs.python.org/3.9/index.html)
 
 ## Getting Started
 - Install all dependencies mentioned above. Note that the default configuration file assumes that MongoDB and Elasticsearch are installed on the same machine and not secured. If the configuration is different, please modify `app.config.json` accordingly.
