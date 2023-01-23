@@ -1,7 +1,7 @@
 {
   "name": "governor",
   "version": "1.0.0",
-  "private": true,
+  "license": "MIT",
   "description": "A web application to make OGDPs more accessible to end users by facilitating searching actual records in the tables, previewing them directly without downloading, and suggesting joinable and unionable tables to users based on their latest working tables.",
   "scripts": {
     "serve": "nodemon --exec \"vue-cli-service serve\"",
