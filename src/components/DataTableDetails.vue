@@ -14,15 +14,6 @@
     </div>
     <b-collapse v-model="isTableDetailsVisible" class="mt-2">
       <b-card>
-        <!-- <div>
-          <b>Subjects: </b>
-          <span
-            class="badge rounded-pill bg-primary"
-            v-for="(s, i) in dataset.subject"
-            :key="i"
-            >{{ s.replaceAll("_", " ") }}</span
-          >
-        </div> -->
         <p><b>UUID: </b>{{ dataset.id }}</p>
         <p><b>Dataset: </b>{{ dataset.title }}</p>
         <p><b>Notes: </b>{{ dataset.notes }}</p>

@@ -375,11 +375,6 @@ export default {
 <style lang="scss" scoped>
 .working-table-components-table {
   table-layout: fixed;
-  // &.working-table-components-detail-table {
-  //   tr {
-  //     height: 64px;
-  //   }
-  // }
   width: 100%;
   tr {
     height: 40px;
