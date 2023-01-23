@@ -28,12 +28,12 @@ bash preprocess.sh
 npm run serve
 ```
 
-### Run server for production (with compiled and minified Javascript files)
+### Run server for production (with compiled and minified JavaScript files)
 ```
 npm run serve-deployed
 ```
 
-### Lints and fixes files
+### Lint and fix files
 ```
 npm run lint
 ```
@@ -57,10 +57,9 @@ Governor can be configured with a single JSON configuration (`app.config.json`) 
 - `frontend`:
   - `search`:
     - `fields`: An array of all the field to be displayed on the search result page for the dataset (top level entry).
-      - `field`: JSON dictionary for each field.
-        - `fieldName`: The name/path of the field. Nested fields are supported in the format of `fieldA.subFieldB`.
-        - `displayName`: Human-readable name of the field.
-        - `type`: The type of the field. Currently 3 different formats are supported: 1) text, which will be directly rendered; 2) date, which will be formatted as `Month Day Year`. 3) list, which will be formatted as multiple labels.
+      - `fieldName`: The name/path of the field. Nested fields are supported in the format of `fieldA.subFieldB`.
+      - `displayName`: Human-readable name of the field.
+      - `type`: The type of the field. Currently 3 different formats are supported: 1) text, which will be directly rendered; 2) date, which will be formatted as `Month Day Year`. 3) list, which will be formatted as multiple labels.
     - `resourcesFields`: An array of all the field to be displayed on the search result page for the resources (tables under a dataset). The definition of each field is the same as that of `frontend.search.fields`.
   - `preview`: 
     - `fields`: An array of all the field to be displayed on the table preview page for the dataset (under "Dataset Details"). The definition of each field is the same as that of `frontend.search.fields`.
