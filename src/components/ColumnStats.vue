@@ -38,9 +38,6 @@ export default {
   props: {},
   watch: {},
   computed: {
-    iframeSource() {
-      return `/api/plotlyplot/${this.resourceId}/${this.fieldName}`;
-    },
     statTableData() {
       const fieldName = this.fieldName;
       if (
