@@ -64,3 +64,16 @@ Governor can be configured with a single JSON configuration (`app.config.json`) 
     - `resourcesFields`: An array of all the field to be displayed on the search result page for the resources (tables under a dataset). The definition of each field is the same as that of `frontend.search.fields`.
   - `preview`: 
     - `fields`: An array of all the field to be displayed on the table preview page for the dataset (under "Dataset Details"). The definition of each field is the same as that of `frontend.search.fields`.
+
+Citing Governor
+If you are a researcher and use Governor in your work, we encourage you to cite our work. You can use the following BibTeX citation:
+
+@inproceedings{governor:chi,
+  author =  {Chang Liu and
+             Arif Usta and
+             Jian Zhao and
+             Semih Saliho\u{g}lu},
+  title={Governor: Turning Open Government Data Portals into Interactive Databases},
+  booktitle={Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems (CHI '23)},
+  year={2023}
+}
