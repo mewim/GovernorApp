@@ -1,5 +1,8 @@
+<div align="center">
+  <img src="/figures/teaser.png">
+</div>
+
 # Governor App
-## Introduction
 Governor is an open-sourced web application developed to make open governmental data portals (OGDPs) more accessible to end users by facilitating searching actual records in the tables, previewing them directly without downloading, and suggesting joinable and unionable tables to users based on their latest working tables. Governor also manages the provenance of integrated tables allowing users and their collaborators to easily trace back to the original tables in OGDP.
 
 ## Dependencies
